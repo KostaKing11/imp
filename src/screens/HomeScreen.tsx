@@ -193,6 +193,7 @@ export default function HomeScreen({
             <Chip
               key={c.id}
               label={c.name}
+              badge={c.words.length}
               active={c.enabled}
               onPress={() => toggleCategory(c.id)}
               onLongPress={

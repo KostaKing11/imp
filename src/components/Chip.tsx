@@ -13,9 +13,11 @@ type Props = {
   onLongPress?: () => void;
   // Small count badge like "×2".
   count?: number;
+  // Small dim number after the label (e.g. words in a category).
+  badge?: number;
 };
 
-export default function Chip({ label, bg, active = true, onPress, onLongPress, count }: Props) {
+export default function Chip({ label, bg, active = true, onPress, onLongPress, count, badge }: Props) {
   const background = bg ?? colors.chip;
   const textColor = textColorFor(background);
 
@@ -34,6 +36,9 @@ export default function Chip({ label, bg, active = true, onPress, onLongPress, c
         {label}
         {count && count > 1 ? `  ×${count}` : ""}
       </Text>
+      {badge !== undefined ? (
+        <Text style={[styles.badge, { color: textColor }]}>{badge}</Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -63,5 +68,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 17,
     fontWeight: "700",
+  },
+  badge: {
+    fontSize: 13,
+    fontWeight: "700",
+    opacity: 0.55,
+    marginLeft: 7,
   },
 });
