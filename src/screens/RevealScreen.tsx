@@ -92,10 +92,13 @@ export default function RevealScreen({ players, roles, round, onDone }: Props) {
                 pressed && !done && styles.pressed,
               ]}
             >
+              <Text style={[styles.gridLogo, { color: textColorFor(p.color) }]}>IMP</Text>
               <Text style={[styles.gridName, { color: textColorFor(p.color) }]} numberOfLines={2}>
                 {p.name}
               </Text>
-              {done ? <Text style={[styles.check, { color: textColorFor(p.color) }]}>✓</Text> : null}
+              <Text style={[styles.gridHint, { color: textColorFor(p.color) }]}>
+                {done ? "✓" : "tap to reveal"}
+              </Text>
             </Pressable>
           );
         })}
@@ -221,14 +224,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   gridCard: {
-    width: "30%",
-    aspectRatio: 0.72,
-    borderRadius: radius.md,
+    width: "47%",
+    aspectRatio: 0.88,
+    borderRadius: radius.lg,
     alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.xs,
-    borderWidth: 2,
-    borderColor: colors.border,
+    justifyContent: "space-between",
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderWidth: 2.5,
+    borderColor: "rgba(255,255,255,0.28)",
   },
   gridCardDone: {
     opacity: 0.35,
@@ -237,15 +241,21 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     transform: [{ scale: 0.97 }],
   },
-  gridName: {
-    fontSize: 18,
-    fontWeight: "800",
-    textAlign: "center",
+  gridLogo: {
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 3,
+    opacity: 0.55,
   },
-  check: {
+  gridName: {
     fontSize: 26,
     fontWeight: "900",
-    marginTop: spacing.xs,
+    textAlign: "center",
+  },
+  gridHint: {
+    fontSize: 13,
+    fontWeight: "700",
+    opacity: 0.6,
   },
   bottom: {
     paddingBottom: spacing.md,
