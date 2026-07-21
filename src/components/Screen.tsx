@@ -20,6 +20,8 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
   },
 });

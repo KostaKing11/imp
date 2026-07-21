@@ -183,8 +183,17 @@ export default function HomeScreen({
         <Pressable style={styles.iconButton} onPress={() => setHowToOpen(true)} hitSlop={8}>
           <Text style={styles.questionMark}>?</Text>
         </Pressable>
-        <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}>
-          <Text style={styles.logo}>IMP</Text>
+        {/* pointerEvents none so the wide (mostly-transparent) logo box
+            never swallows taps meant for the ? / settings buttons. */}
+        <Animated.View
+          style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}
+          pointerEvents="none"
+        >
+          <Image
+            source={require("../../assets/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </Animated.View>
         <Pressable style={styles.iconButton} onPress={onOpenSettings} hitSlop={8}>
           <SlidersIcon size={22} color={colors.textDim} />
@@ -423,7 +432,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    minHeight: 76,
   },
   iconButton: {
     width: 40,
@@ -443,13 +451,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    fontSize: 56,
-    fontWeight: "900",
-    color: colors.accent,
-    letterSpacing: 5,
-    textShadowColor: colors.accent,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 22,
+    width: 140,
+    height: 78,
   },
   scroll: {
     paddingBottom: spacing.md,
