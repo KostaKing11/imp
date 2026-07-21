@@ -23,8 +23,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "apk": "cd android && .\\gradlew.bat assembleRelease",
-    "apk:install": "cd android && .\\gradlew.bat assembleRelease && cd .. && adb install -r android/app/build/outputs/apk/release/app-release.apk"
+    "apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
+    "apk:build": "cd android && .\\gradlew.bat assembleRelease",
+    "apk:install": "adb install -r android/app/build/outputs/apk/release/app-release.apk"
   },
   "private": true
 }
