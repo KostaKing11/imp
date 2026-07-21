@@ -5,6 +5,10 @@ export const KEYS = {
   roles: "imp.roles",
   categories: "imp.categories",
   settings: "imp.settings",
+  mode: "imp.mode",
+  pairCategories: "imp.paircategories",
+  mafiaRoles: "imp.mafiaroles",
+  language: "imp.language",
 };
 
 export async function loadJSON<T>(key: string, fallback: T): Promise<T> {

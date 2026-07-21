@@ -3,22 +3,38 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import BigButton from "../components/BigButton";
 import Screen from "../components/Screen";
-import { Settings } from "../game/types";
-import { colors, spacing } from "../theme";
-import { formatTime } from "../utils";
+import { Player } from "../game/types";
+import { t, tf } from "../i18n";
+import { colors, radius, spacing } from "../theme";
+import { formatTime, textColorFor } from "../utils";
 
 type Props = {
-  settings: Settings;
+  timerEnabled: boolean;
+  timerSeconds: number;
+  players: Player[];
   onVote: () => void;
+  // Optional per-mode instructions (Odd One Out passes its own).
+  instructions?: string;
 };
+
 
 const SIZE = 220;
 const STROKE = 12;
 const R = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * R;
 
-export default function DiscussionScreen({ settings, onVote }: Props) {
-  const total = Math.max(1, settings.timerSeconds);
+export default function DiscussionScreen({
+  timerEnabled,
+  timerSeconds,
+  players,
+  onVote,
+  instructions,
+}: Props) {
+  // Picked once per round (the screen mounts fresh each round).
+  const [firstPlayer] = useState(
+    () => players[Math.floor(Math.random() * players.length)]
+  );
+  const total = Math.max(1, timerSeconds);
   const [secondsLeft, setSecondsLeft] = useState(total);
   const [running, setRunning] = useState(false);
   const [started, setStarted] = useState(false);
@@ -50,13 +66,18 @@ export default function DiscussionScreen({ settings, onVote }: Props) {
   return (
     <Screen>
       <View style={styles.center}>
-        <Text style={styles.heading}>Discussion</Text>
-        <Text style={styles.instructions}>
-          Going around the circle, everyone says one word or association related
-          to the secret word. Then discuss — who sounded like they were bluffing?
-        </Text>
+        <Text style={styles.heading}>{t("discussion")}</Text>
+        <Text style={styles.instructions}>{instructions ?? t("discussionInstr")}</Text>
 
-        {settings.timerEnabled ? (
+        {firstPlayer ? (
+          <View style={[styles.firstChip, { backgroundColor: firstPlayer.color }]}>
+            <Text style={[styles.firstText, { color: textColorFor(firstPlayer.color) }]}>
+              {tf("goesFirst", { name: firstPlayer.name })}
+            </Text>
+          </View>
+        ) : null}
+
+        {timerEnabled ? (
           <View style={styles.timerArea}>
             {/* circular timer button with progress ring */}
             <Pressable onPress={toggle} style={styles.ringWrap}>
@@ -83,11 +104,11 @@ export default function DiscussionScreen({ settings, onVote }: Props) {
               </Svg>
               <View style={styles.ringCenter} pointerEvents="none">
                 {done ? (
-                  <Text style={styles.timeUp}>TIME'S{"\n"}UP!</Text>
+                  <Text style={styles.timeUp}>{t("timesUp")}</Text>
                 ) : (
                   <>
                     <Text style={styles.time}>{formatTime(secondsLeft)}</Text>
-                    {!started ? <Text style={styles.tapHint}>tap to start</Text> : null}
+                    {!started ? <Text style={styles.tapHint}>{t("tapToStart")}</Text> : null}
                   </>
                 )}
               </View>
@@ -113,7 +134,7 @@ export default function DiscussionScreen({ settings, onVote }: Props) {
       </View>
 
       <View style={styles.bottom}>
-        <BigButton label="Vote" onPress={onVote} />
+        <BigButton label={t("vote")} onPress={onVote} />
       </View>
     </Screen>
   );
@@ -137,6 +158,17 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     textAlign: "center",
     paddingHorizontal: spacing.sm,
+  },
+  firstChip: {
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+  },
+  firstText: {
+    fontSize: 18,
+    fontWeight: "800",
   },
   timerArea: {
     alignItems: "center",

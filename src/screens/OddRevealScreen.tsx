@@ -10,26 +10,22 @@ import {
 } from "react-native";
 import BigButton from "../components/BigButton";
 import Screen from "../components/Screen";
-import { CIVILIAN } from "../game/roles";
-import { Player, RoleDef, Round } from "../game/types";
-import { roleDesc, roleName, t, tf } from "../i18n";
+import { OddRound, Player } from "../game/types";
+import { t } from "../i18n";
 import { colors, radius, spacing } from "../theme";
 import { textColorFor } from "../utils";
 
 type Props = {
   players: Player[];
-  roles: RoleDef[];
-  round: Round;
+  round: OddRound;
   onDone: () => void;
   onLeave: () => void;
 };
 
-function roleFor(round: Round, roles: RoleDef[], playerId: string): RoleDef {
-  const roleId = round.assignments[playerId]?.roleId;
-  return roles.find((r) => r.id === roleId) ?? CIVILIAN;
-}
-
-export default function RevealScreen({ players, roles, round, onDone, onLeave }: Props) {
+// Pass-and-play reveal for Odd One Out. Unlike IMP Classic, the card
+// back looks IDENTICAL for everyone — only the word differs — so
+// nothing on screen can give the odd player away.
+export default function OddRevealScreen({ players, round, onDone, onLeave }: Props) {
   const [seen, setSeen] = useState<Set<string>>(new Set());
   const [activePlayer, setActivePlayer] = useState<Player | null>(null);
   const [holding, setHolding] = useState(false);
@@ -38,10 +34,8 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
 
   const allSeen = seen.size === players.length;
 
-  const imposterNames = players
-    .filter((p) => roleFor(round, roles, p.id).kind === "imposter")
-    .map((p) => p.name)
-    .join(" & ");
+  const wordFor = (playerId: string) =>
+    playerId === round.oddPlayerId ? round.oddWord : round.mainWord;
 
   const openCard = (player: Player) => {
     setActivePlayer(player);
@@ -68,10 +62,6 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
 
   const frontRotate = flip.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
   const backRotate = flip.interpolate({ inputRange: [0, 1], outputRange: ["180deg", "360deg"] });
-
-  const activeRole = activePlayer ? roleFor(round, roles, activePlayer.id) : CIVILIAN;
-  const activeHint = activePlayer ? round.assignments[activePlayer.id]?.hint : undefined;
-  const roleText = textColorFor(activeRole.color);
 
   return (
     <Screen>
@@ -111,14 +101,9 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
         <BigButton label={t("everyonesReady")} onPress={onDone} disabled={!allSeen} />
       </View>
 
-      {/* full-screen card */}
+      {/* full-screen card — identical design for every player */}
       <Modal visible={activePlayer !== null} animationType="fade" onRequestClose={() => {}}>
-        <View
-          style={[
-            styles.cardScreen,
-            { backgroundColor: holding ? shade(activeRole.color) : colors.bg },
-          ]}
-        >
+        <View style={[styles.cardScreen, holding && styles.cardScreenHolding]}>
           <Text style={styles.cardOwner}>{activePlayer?.name}</Text>
           <Text style={styles.cardInstruction}>
             {peeked && !holding ? " " : t("holdCardInstr")}
@@ -145,39 +130,17 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
               </Text>
             </Animated.View>
 
-            {/* back (the role) */}
+            {/* back (the word — same layout for everyone) */}
             <Animated.View
               style={[
                 styles.card,
-                styles.cardBackFace,
-                { backgroundColor: activeRole.color },
+                styles.wordFace,
                 { transform: [{ perspective: 1200 }, { rotateY: backRotate }] },
               ]}
             >
-              <Text style={[styles.roleName, { color: roleText }]}>{roleName(activeRole)}</Text>
-              {roleDesc(activeRole) ? (
-                <Text style={[styles.roleDescription, { color: roleText }]}>
-                  {roleDesc(activeRole)}
-                </Text>
-              ) : null}
-
-              {activeRole.knowsWord ? (
-                <View style={styles.wordBox}>
-                  <Text style={[styles.wordLabel, { color: roleText }]}>{t("theWordIs")}</Text>
-                  <Text style={[styles.word, { color: roleText }]}>{round.word}</Text>
-                </View>
-              ) : (
-                <View style={styles.wordBox}>
-                  <Text style={[styles.wordLabel, { color: roleText }]}>{t("yourOnlyClue")}</Text>
-                  <Text style={[styles.word, { color: roleText }]}>{activeHint}</Text>
-                </View>
-              )}
-
-              {activeRole.kind === "helper" || activeRole.seesImposter ? (
-                <Text style={[styles.helperInfo, { color: roleText }]}>
-                  {tf("imposterLabel", { names: imposterNames })}
-                </Text>
-              ) : null}
+              <Text style={styles.wordLabel}>{t("yourWordIs")}</Text>
+              <Text style={styles.word}>{activePlayer ? wordFor(activePlayer.id) : ""}</Text>
+              <Text style={styles.wordNote}>{t("oddCardNote")}</Text>
             </Animated.View>
           </Pressable>
 
@@ -192,16 +155,6 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
       </Modal>
     </Screen>
   );
-}
-
-// Darkened version of the role color for the full-screen backdrop.
-function shade(hex: string): string {
-  const h = hex.replace("#", "");
-  if (h.length < 6) return "#000000";
-  const r = Math.floor(parseInt(h.slice(0, 2), 16) * 0.35);
-  const g = Math.floor(parseInt(h.slice(2, 4), 16) * 0.35);
-  const b = Math.floor(parseInt(h.slice(4, 6), 16) * 0.35);
-  return `rgb(${r},${g},${b})`;
 }
 
 const styles = StyleSheet.create({
@@ -286,6 +239,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.md,
+    backgroundColor: colors.bg,
+  },
+  cardScreenHolding: {
+    backgroundColor: "#1A1508",
   },
   cardOwner: {
     fontSize: 26,
@@ -316,9 +273,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "rgba(255,255,255,0.25)",
   },
-  cardBackFace: {
-    gap: spacing.sm,
-  },
   cardBackLogo: {
     fontSize: 56,
     fontWeight: "900",
@@ -330,39 +284,27 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     marginTop: spacing.sm,
   },
-  roleName: {
-    fontSize: 32,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  roleDescription: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-    opacity: 0.9,
-  },
-  wordBox: {
-    alignItems: "center",
-    marginTop: spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    alignSelf: "stretch",
+  wordFace: {
+    backgroundColor: colors.card,
+    borderColor: colors.oddYellow,
+    gap: spacing.sm,
   },
   wordLabel: {
-    fontSize: 13,
-    opacity: 0.8,
+    fontSize: 16,
+    color: colors.textDim,
   },
   word: {
-    fontSize: 30,
+    fontSize: 40,
     fontWeight: "900",
+    color: colors.oddYellow,
     textAlign: "center",
   },
-  helperInfo: {
-    fontSize: 16,
-    fontWeight: "800",
+  wordNote: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textDim,
     textAlign: "center",
+    marginTop: spacing.sm,
   },
   cardBottom: {
     marginTop: spacing.lg,

@@ -2,48 +2,67 @@ import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../components/BigButton";
 import Screen from "../components/Screen";
-import { CIVILIAN } from "../game/roles";
-import { Player, RoleDef, Round } from "../game/types";
-import { roleName, t } from "../i18n";
+import { MAFIA_CIVILIAN } from "../game/roles";
+import { MafiaRound, Player, RoleDef } from "../game/types";
+import { roleName, t, tf } from "../i18n";
 import { colors, radius, spacing } from "../theme";
 import { textColorFor } from "../utils";
 
 type Props = {
   players: Player[];
   roles: RoleDef[];
-  round: Round;
+  round: MafiaRound;
   onNewRound: () => void;
   onBackToMenu: () => void;
 };
 
-export default function ResultScreen({ players, roles, round, onNewRound, onBackToMenu }: Props) {
+export default function MafiaResultScreen({
+  players,
+  roles,
+  round,
+  onNewRound,
+  onBackToMenu,
+}: Props) {
   const [revealed, setRevealed] = useState(false);
 
   const roleFor = (playerId: string): RoleDef => {
-    const roleId = round.assignments[playerId]?.roleId;
-    return roles.find((r) => r.id === roleId) ?? CIVILIAN;
+    const roleId = round.assignments[playerId];
+    return roles.find((r) => r.id === roleId) ?? MAFIA_CIVILIAN;
   };
 
-  // Innocents stay unlisted — only special roles get revealed.
-  // "Other roles" follow the roles list order: Jester, Helper, then
-  // custom roles in the order they were added.
-  const roleOrder = (p: Player) => roles.findIndex((r) => r.id === round.assignments[p.id]?.roleId);
+  // Civilians stay unlisted; evil roles get the grand reveal.
+  // Both sections follow the roles list order: Mafia, Lady, then custom
+  // bad guys — and Police, Doctor, Jester, then other good/neutral roles.
+  const roleOrder = (p: Player) => roles.findIndex((r) => r.id === round.assignments[p.id]);
   const specials = players.filter((p) => roleFor(p.id).kind !== "civilian");
-  const imposters = specials.filter((p) => roleFor(p.id).kind === "imposter");
-  const others = specials
-    .filter((p) => roleFor(p.id).kind !== "imposter")
+  const evil = specials
+    .filter((p) => {
+      const role = roleFor(p.id);
+      return role.evil || role.kind === "mafia";
+    })
     .sort((a, b) => roleOrder(a) - roleOrder(b));
+  const others = specials
+    .filter((p) => {
+      const role = roleFor(p.id);
+      return !role.evil && role.kind !== "mafia";
+    })
+    .sort((a, b) => roleOrder(a) - roleOrder(b));
+
+  const narrator = players.find((p) => roleFor(p.id).kind === "narrator");
 
   if (!revealed) {
     return (
       <Screen>
         <View style={styles.center}>
-          <Text style={styles.heading}>{t("pointFingers")}</Text>
-          <Text style={styles.instructions}>{t("pointInstr")}</Text>
-          <Text style={styles.instructions}>{t("guessInstr")}</Text>
+          <Text style={styles.heading}>{t("gameStarted")}</Text>
+          <Text style={styles.instructions}>{t("mafiaPlayInstr")}</Text>
+          {narrator ? (
+            <Text style={styles.instructions}>{tf("narratorLine", { name: narrator.name })}</Text>
+          ) : null}
+          <Text style={styles.instructions}>{t("whenOverReveal")}</Text>
         </View>
         <View style={styles.bottom}>
-          <BigButton label={t("revealTheRoles")} onPress={() => setRevealed(true)} />
+          <BigButton label={t("revealRolesBtn")} onPress={() => setRevealed(true)} />
         </View>
       </Screen>
     );
@@ -52,22 +71,20 @@ export default function ResultScreen({ players, roles, round, onNewRound, onBack
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.revealList} showsVerticalScrollIndicator={false}>
-        <View style={styles.wordCard}>
-          <Text style={styles.wordLabel}>{t("theWordWas")}</Text>
-          <Text style={styles.word}>{round.word}</Text>
-        </View>
+        <Text style={styles.revealLabel}>{evil.length > 1 ? t("mafiaWere") : t("mafiaWas")}</Text>
+        {evil.map((p) => {
+          const role = roleFor(p.id);
+          return (
+            <View key={p.id} style={styles.evilBlock}>
+              <Text style={[styles.grandName, { color: p.color }]} numberOfLines={1}>
+                {p.name}
+              </Text>
+              <Text style={styles.grandRole}>{roleName(role)}</Text>
+            </View>
+          );
+        })}
+        {evil.length === 0 ? <Text style={styles.instructions}>{t("noEvil")}</Text> : null}
 
-        {/* the grand reveal */}
-        <Text style={styles.revealLabel}>
-          {imposters.length > 1 ? t("impostersWere") : t("imposterWas")}
-        </Text>
-        {imposters.map((p) => (
-          <Text key={p.id} style={[styles.grandName, { color: p.color }]} numberOfLines={1}>
-            {p.name}
-          </Text>
-        ))}
-
-        {/* everyone else with a special role */}
         {others.length > 0 ? (
           <>
             <Text style={styles.sectionLabel}>{t("otherRoles")}</Text>
@@ -124,30 +141,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },
-  wordCard: {
-    alignSelf: "stretch",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  wordLabel: {
-    fontSize: 14,
-    color: colors.textDim,
-  },
-  word: {
-    fontSize: 40,
-    fontWeight: "900",
-    color: colors.word,
-    textAlign: "center",
-  },
   revealLabel: {
     fontSize: 18,
     color: colors.textDim,
-    marginTop: spacing.sm,
+  },
+  evilBlock: {
+    alignItems: "center",
   },
   grandName: {
     fontSize: 44,
@@ -157,6 +156,12 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(255,255,255,0.3)",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
+  },
+  grandRole: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.textDim,
+    marginTop: -2,
   },
   sectionLabel: {
     fontSize: 14,

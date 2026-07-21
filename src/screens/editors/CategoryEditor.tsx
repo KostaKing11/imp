@@ -5,6 +5,7 @@ import AppModal from "../../components/AppModal";
 import BigButton from "../../components/BigButton";
 import TextField from "../../components/TextField";
 import { CategoryState } from "../../game/types";
+import { t, tf } from "../../i18n";
 import { colors, radius, spacing } from "../../theme";
 import { confirmDialog } from "../../utils";
 
@@ -81,17 +82,17 @@ export default function CategoryEditor({
   return (
     <AppModal
       visible={visible}
-      title={isNew ? "New category" : "Edit category"}
+      title={isNew ? t("newCategory") : t("editCategory")}
       onClose={onClose}
     >
-      <TextField label="Category name" value={name} onChangeText={setName} placeholder="e.g. Movies" />
+      <TextField label={t("categoryName")} value={name} onChangeText={setName} placeholder="…" />
 
-      <Text style={styles.sectionLabel}>Words ({words.length})</Text>
+      <Text style={styles.sectionLabel}>{tf("wordsCount", { n: words.length })}</Text>
       {words.map((w, i) => (
         <View key={`${w.word}-${i}`} style={styles.wordRow}>
           <Pressable style={styles.wordInfo} onPress={() => startEditing(i)}>
             <Text style={styles.wordText}>{w.word}</Text>
-            <Text style={styles.hintCount}>{w.hints.length} hints · tap to edit</Text>
+            <Text style={styles.hintCount}>{tf("hintsTapEdit", { n: w.hints.length })}</Text>
           </Pressable>
           <Pressable onPress={() => removeWord(i)} hitSlop={8}>
             <Text style={styles.remove}>✕</Text>
@@ -99,16 +100,21 @@ export default function CategoryEditor({
         </View>
       ))}
 
-      <TextField label={editingIndex !== null ? "Edit word" : "Add a word"} value={wordText} onChangeText={setWordText} placeholder="e.g. Titanic" />
       <TextField
-        label="Hints (separated by commas)"
+        label={editingIndex !== null ? t("editWordLabel") : t("addWordLabel")}
+        value={wordText}
+        onChangeText={setWordText}
+        placeholder="…"
+      />
+      <TextField
+        label={t("hintsLabel")}
         value={hintsText}
         onChangeText={setHintsText}
-        placeholder="ship, iceberg, sinking, romance, 1912"
+        placeholder="…, …, …"
         autoCapitalize="none"
       />
       <BigButton
-        label={editingIndex !== null ? "Update word" : "Add word"}
+        label={editingIndex !== null ? t("updateWord") : t("addWord")}
         variant="secondary"
         compact
         disabled={!canAddWord}
@@ -116,19 +122,21 @@ export default function CategoryEditor({
       />
 
       <BigButton
-        label="Save category"
+        label={t("saveCategory")}
         compact
         disabled={name.trim().length === 0 || words.length === 0}
         onPress={() => onSave({ ...category, name: name.trim(), words })}
       />
       {!isNew ? (
         <BigButton
-          label="Delete category"
+          label={t("deleteCategory")}
           variant="secondary"
           compact
           onPress={() =>
-            confirmDialog("Delete category?", `"${category.name}" and its words will be deleted.`, () =>
-              onDelete(category.id)
+            confirmDialog(
+              t("deleteCategoryQ"),
+              tf("deleteCategoryTextWords", { name: category.name }),
+              () => onDelete(category.id)
             )
           }
         />

@@ -14,8 +14,9 @@ export const colors = {
   danger: "#FF4757",
   word: "#FFD166",
   disabled: "#3A4152",
-  // IMP Classic mode branding (logo + selected mode card).
+  // Gamemode branding (logo + selected mode card).
   impRed: "#E32636",
+  oddYellow: "#F5C518",
 };
 
 export const PLAYER_COLORS = [

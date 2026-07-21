@@ -10,26 +10,28 @@ import {
 } from "react-native";
 import BigButton from "../components/BigButton";
 import Screen from "../components/Screen";
-import { CIVILIAN } from "../game/roles";
-import { Player, RoleDef, Round } from "../game/types";
-import { roleDesc, roleName, t, tf } from "../i18n";
+import { MAFIA_CIVILIAN } from "../game/roles";
+import { MafiaRound, Player, RoleDef } from "../game/types";
+import { roleDesc, roleName, t } from "../i18n";
 import { colors, radius, spacing } from "../theme";
 import { textColorFor } from "../utils";
 
 type Props = {
   players: Player[];
   roles: RoleDef[];
-  round: Round;
+  round: MafiaRound;
   onDone: () => void;
   onLeave: () => void;
 };
 
-function roleFor(round: Round, roles: RoleDef[], playerId: string): RoleDef {
-  const roleId = round.assignments[playerId]?.roleId;
-  return roles.find((r) => r.id === roleId) ?? CIVILIAN;
+function roleFor(round: MafiaRound, roles: RoleDef[], playerId: string): RoleDef {
+  const roleId = round.assignments[playerId];
+  return roles.find((r) => r.id === roleId) ?? MAFIA_CIVILIAN;
 }
 
-export default function RevealScreen({ players, roles, round, onDone, onLeave }: Props) {
+// Pass-and-play role reveal for Mafia: same hold-to-flip cards, the
+// back shows the role in its color (no words in this mode).
+export default function MafiaRevealScreen({ players, roles, round, onDone, onLeave }: Props) {
   const [seen, setSeen] = useState<Set<string>>(new Set());
   const [activePlayer, setActivePlayer] = useState<Player | null>(null);
   const [holding, setHolding] = useState(false);
@@ -37,11 +39,6 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
   const flip = useRef(new Animated.Value(0)).current;
 
   const allSeen = seen.size === players.length;
-
-  const imposterNames = players
-    .filter((p) => roleFor(round, roles, p.id).kind === "imposter")
-    .map((p) => p.name)
-    .join(" & ");
 
   const openCard = (player: Player) => {
     setActivePlayer(player);
@@ -69,8 +66,7 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
   const frontRotate = flip.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
   const backRotate = flip.interpolate({ inputRange: [0, 1], outputRange: ["180deg", "360deg"] });
 
-  const activeRole = activePlayer ? roleFor(round, roles, activePlayer.id) : CIVILIAN;
-  const activeHint = activePlayer ? round.assignments[activePlayer.id]?.hint : undefined;
+  const activeRole = activePlayer ? roleFor(round, roles, activePlayer.id) : MAFIA_CIVILIAN;
   const roleText = textColorFor(activeRole.color);
 
   return (
@@ -149,7 +145,7 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
             <Animated.View
               style={[
                 styles.card,
-                styles.cardBackFace,
+                styles.roleFace,
                 { backgroundColor: activeRole.color },
                 { transform: [{ perspective: 1200 }, { rotateY: backRotate }] },
               ]}
@@ -158,24 +154,6 @@ export default function RevealScreen({ players, roles, round, onDone, onLeave }:
               {roleDesc(activeRole) ? (
                 <Text style={[styles.roleDescription, { color: roleText }]}>
                   {roleDesc(activeRole)}
-                </Text>
-              ) : null}
-
-              {activeRole.knowsWord ? (
-                <View style={styles.wordBox}>
-                  <Text style={[styles.wordLabel, { color: roleText }]}>{t("theWordIs")}</Text>
-                  <Text style={[styles.word, { color: roleText }]}>{round.word}</Text>
-                </View>
-              ) : (
-                <View style={styles.wordBox}>
-                  <Text style={[styles.wordLabel, { color: roleText }]}>{t("yourOnlyClue")}</Text>
-                  <Text style={[styles.word, { color: roleText }]}>{activeHint}</Text>
-                </View>
-              )}
-
-              {activeRole.kind === "helper" || activeRole.seesImposter ? (
-                <Text style={[styles.helperInfo, { color: roleText }]}>
-                  {tf("imposterLabel", { names: imposterNames })}
                 </Text>
               ) : null}
             </Animated.View>
@@ -316,9 +294,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "rgba(255,255,255,0.25)",
   },
-  cardBackFace: {
-    gap: spacing.sm,
-  },
   cardBackLogo: {
     fontSize: 56,
     fontWeight: "900",
@@ -330,8 +305,11 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     marginTop: spacing.sm,
   },
+  roleFace: {
+    gap: spacing.sm,
+  },
   roleName: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: "900",
     textAlign: "center",
   },
@@ -340,29 +318,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
     opacity: 0.9,
-  },
-  wordBox: {
-    alignItems: "center",
-    marginTop: spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    alignSelf: "stretch",
-  },
-  wordLabel: {
-    fontSize: 13,
-    opacity: 0.8,
-  },
-  word: {
-    fontSize: 30,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  helperInfo: {
-    fontSize: 16,
-    fontWeight: "800",
-    textAlign: "center",
   },
   cardBottom: {
     marginTop: spacing.lg,

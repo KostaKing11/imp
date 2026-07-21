@@ -1,13 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { GestureResponderEvent, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from "react-native-svg";
+import {
+  GestureResponderEvent,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop, LinearGradient } from "react-native-svg";
+import { t } from "../i18n";
 import { colors, radius, spacing } from "../theme";
 import { hexToHsv, hsvToHex, normalizeHex } from "../utils";
 import BigButton from "./BigButton";
 
-const SIZE = 280;
-const R = SIZE / 2;
-const BAR_H = 36;
+const BAR_H = 34;
 
 type Props = {
   visible: boolean;
@@ -16,8 +24,13 @@ type Props = {
   onClose: () => void;
 };
 
-// Hue/saturation wheel + brightness bar.
+// Hue/saturation wheel + brightness bar, sized to fit any screen.
 export default function ColorWheelModal({ visible, initial, onDone, onClose }: Props) {
+  const { width } = useWindowDimensions();
+  // Backdrop padding + card padding must always leave room for the wheel.
+  const SIZE = Math.min(300, width - 104);
+  const R = SIZE / 2;
+
   const [hsv, setHsv] = useState(() => hexToHsv(initial));
   const [hexText, setHexText] = useState(initial.toUpperCase());
 
@@ -39,23 +52,24 @@ export default function ColorWheelModal({ visible, initial, onDone, onClose }: P
     if (normalized) setHsv(hexToHsv(normalized));
   };
 
-  // 72 hue wedges (5° each, tiny overlap so no hairline gaps).
+  // 120 thin hue wedges (3° each with a hair of overlap) — smooth ring
+  // with no visible seams, then a white radial fade for saturation.
   const wedges = useMemo(() => {
     const arr: { d: string; fill: string }[] = [];
-    for (let i = 0; i < 72; i++) {
-      const a0 = (i * 5 * Math.PI) / 180;
-      const a1 = ((i * 5 + 5.5) * Math.PI) / 180;
+    for (let i = 0; i < 120; i++) {
+      const a0 = (i * 3 * Math.PI) / 180;
+      const a1 = ((i * 3 + 3.6) * Math.PI) / 180;
       const x0 = R + R * Math.cos(a0);
       const y0 = R + R * Math.sin(a0);
       const x1 = R + R * Math.cos(a1);
       const y1 = R + R * Math.sin(a1);
       arr.push({
         d: `M${R},${R} L${x0},${y0} A${R},${R} 0 0 1 ${x1},${y1} Z`,
-        fill: hsvToHex(i * 5, 1, 1),
+        fill: hsvToHex(i * 3, 1, 1),
       });
     }
     return arr;
-  }, []);
+  }, [R]);
 
   const onWheelTouch = (e: GestureResponderEvent) => {
     const { locationX, locationY } = e.nativeEvent;
@@ -73,20 +87,22 @@ export default function ColorWheelModal({ visible, initial, onDone, onClose }: P
 
   const hex = hsvToHex(hsv.h, hsv.s, hsv.v);
   const aRad = (hsv.h * Math.PI) / 180;
-  const ix = R + hsv.s * (R - 10) * Math.cos(aRad);
-  const iy = R + hsv.s * (R - 10) * Math.sin(aRad);
+  const ix = R + hsv.s * (R - 14) * Math.cos(aRad);
+  const iy = R + hsv.s * (R - 14) * Math.sin(aRad);
+  const barX = BAR_H / 2 + hsv.v * (SIZE - BAR_H);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={styles.backdropPress} onPress={onClose} />
         <View style={styles.card}>
-          <Text style={styles.title}>Pick a color</Text>
+          <Text style={styles.title}>{t("pickColor")}</Text>
 
           <View
             style={{ width: SIZE, height: SIZE }}
             onStartShouldSetResponder={() => true}
             onMoveShouldSetResponder={() => true}
+            onResponderTerminationRequest={() => false}
             onResponderGrant={onWheelTouch}
             onResponderMove={onWheelTouch}
           >
@@ -97,18 +113,23 @@ export default function ColorWheelModal({ visible, initial, onDone, onClose }: P
               <Defs>
                 <RadialGradient id="sat" cx="50%" cy="50%" r="50%">
                   <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+                  <Stop offset="18%" stopColor="#FFFFFF" stopOpacity="0.85" />
                   <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
                 </RadialGradient>
               </Defs>
               <Circle cx={R} cy={R} r={R} fill="url(#sat)" />
-              <Circle cx={ix} cy={iy} r={11} fill={hex} stroke="#FFFFFF" strokeWidth={3} />
+              {/* selection ring */}
+              <Circle cx={ix} cy={iy} r={12} fill={hex} stroke="#FFFFFF" strokeWidth={3.5} />
+              <Circle cx={ix} cy={iy} r={15} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={1.5} />
             </Svg>
           </View>
 
+          {/* brightness bar */}
           <View
-            style={{ width: SIZE, height: BAR_H }}
+            style={{ width: SIZE, height: BAR_H, marginTop: spacing.xs }}
             onStartShouldSetResponder={() => true}
             onMoveShouldSetResponder={() => true}
+            onResponderTerminationRequest={() => false}
             onResponderGrant={onBarTouch}
             onResponderMove={onBarTouch}
           >
@@ -119,15 +140,15 @@ export default function ColorWheelModal({ visible, initial, onDone, onClose }: P
                   <Stop offset="100%" stopColor={hsvToHex(hsv.h, hsv.s, 1)} />
                 </LinearGradient>
               </Defs>
-              <Rect x={0} y={0} width={SIZE} height={BAR_H} rx={10} fill="url(#val)" />
               <Rect
-                x={Math.max(0, Math.min(SIZE - 6, hsv.v * SIZE - 3))}
-                y={0}
-                width={6}
-                height={BAR_H}
-                rx={3}
-                fill="#FFFFFF"
+                x={0}
+                y={BAR_H / 2 - 9}
+                width={SIZE}
+                height={18}
+                rx={9}
+                fill="url(#val)"
               />
+              <Circle cx={barX} cy={BAR_H / 2} r={13} fill={hex} stroke="#FFFFFF" strokeWidth={3.5} />
             </Svg>
           </View>
 
@@ -146,7 +167,7 @@ export default function ColorWheelModal({ visible, initial, onDone, onClose }: P
           </View>
 
           <BigButton
-            label="Use this color"
+            label={t("useThisColor")}
             compact
             onPress={() => {
               onDone(hex);
@@ -177,6 +198,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     alignItems: "center",
     gap: spacing.sm,
@@ -193,14 +216,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   preview: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: radius.sm,
     borderWidth: 2,
     borderColor: colors.border,
   },
   hexInput: {
-    width: 108,
+    width: 110,
     backgroundColor: colors.chip,
     borderWidth: 1,
     borderColor: colors.border,

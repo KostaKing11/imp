@@ -75,13 +75,15 @@ export function formatTime(s: number): string {
 
 // Alert.alert is a no-op on react-native-web, so fall back to confirm().
 export function confirmDialog(title: string, message: string, onYes: () => void): void {
+  // Imported lazily to avoid a utils <-> i18n import cycle at module load.
+  const { t } = require("./i18n") as typeof import("./i18n");
   if (Platform.OS === "web") {
     // eslint-disable-next-line no-alert
     if (typeof window !== "undefined" && window.confirm(`${title}\n\n${message}`)) onYes();
     return;
   }
   Alert.alert(title, message, [
-    { text: "No", style: "cancel" },
-    { text: "Yes", style: "destructive", onPress: onYes },
+    { text: t("no"), style: "cancel" },
+    { text: t("yes"), style: "destructive", onPress: onYes },
   ]);
 }

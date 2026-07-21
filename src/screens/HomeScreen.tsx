@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { HOW_TO_PLAY } from "../../data/howto";
+import { getLanguage, roleName, t, tf } from "../i18n";
 import AppModal from "../components/AppModal";
 import BigButton from "../components/BigButton";
 import Chip from "../components/Chip";
@@ -8,10 +9,12 @@ import { SlidersIcon } from "../components/icons";
 import Screen from "../components/Screen";
 import SectionTitle from "../components/SectionTitle";
 import { roleSlotCount } from "../game/engine";
-import { CategoryState, Player, RoleDef } from "../game/types";
+import { activePairPool } from "../game/oddEngine";
+import { CategoryState, GameMode, PairCategoryState, Player, RoleDef } from "../game/types";
 import { colors, PLAYER_COLORS, radius, spacing } from "../theme";
 import { uid } from "../utils";
 import CategoryEditor from "./editors/CategoryEditor";
+import PairCategoryEditor from "./editors/PairCategoryEditor";
 import PlayerEditor from "./editors/PlayerEditor";
 import RoleCountSheet from "./editors/RoleCountSheet";
 import RoleEditor from "./editors/RoleEditor";
@@ -20,23 +23,35 @@ const MAX_PLAYERS = 12;
 const MIN_PLAYERS = 3;
 
 type Props = {
+  gameMode: GameMode;
+  setGameMode: (mode: GameMode) => void;
   players: Player[];
   setPlayers: (players: Player[]) => void;
   roles: RoleDef[];
   setRoles: (roles: RoleDef[]) => void;
+  mafiaRoles: RoleDef[];
+  setMafiaRoles: (roles: RoleDef[]) => void;
   categories: CategoryState[];
   setCategories: (categories: CategoryState[]) => void;
+  pairCategories: PairCategoryState[];
+  setPairCategories: (categories: PairCategoryState[]) => void;
   onStart: () => void;
   onOpenSettings: () => void;
 };
 
 export default function HomeScreen({
+  gameMode,
+  setGameMode,
   players,
   setPlayers,
   roles,
   setRoles,
+  mafiaRoles,
+  setMafiaRoles,
   categories,
   setCategories,
+  pairCategories,
+  setPairCategories,
   onStart,
   onOpenSettings,
 }: Props) {
@@ -44,6 +59,8 @@ export default function HomeScreen({
   const [playerIsNew, setPlayerIsNew] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryState | null>(null);
   const [categoryIsNew, setCategoryIsNew] = useState(false);
+  const [editingPairCategory, setEditingPairCategory] = useState<PairCategoryState | null>(null);
+  const [pairCategoryIsNew, setPairCategoryIsNew] = useState(false);
   const [editingRole, setEditingRole] = useState<RoleDef | null>(null);
   const [roleIsNew, setRoleIsNew] = useState(false);
   const [countRoleId, setCountRoleId] = useState<string | null>(null);
@@ -56,21 +73,35 @@ export default function HomeScreen({
     extrapolate: "clamp",
   });
 
+  // Whichever role list the current mode uses (odd mode has none).
+  const isMafia = gameMode === "mafia";
+  const currentRoles = isMafia ? mafiaRoles : roles;
+  const setCurrentRoles = isMafia ? setMafiaRoles : setRoles;
+
   // ---- validation ----
   const activePlayers = players.filter((p) => p.enabled);
   const slots = roleSlotCount(roles);
+  const mafiaSlots = roleSlotCount(mafiaRoles);
   const enabledWords = categories.filter((c) => c.enabled).flatMap((c) => c.words);
   let startError: string | null = null;
-  if (activePlayers.length < MIN_PLAYERS)
-    startError = `You need at least ${MIN_PLAYERS} active players.`;
-  else if (slots > activePlayers.length - 1)
-    startError = `Too many roles for ${activePlayers.length} players.`;
-  else if (enabledWords.length === 0) startError = "Turn on at least one category with words.";
+  if (activePlayers.length < MIN_PLAYERS) startError = t("errMinPlayers");
+  else if (gameMode === "imp" && slots > activePlayers.length - 1)
+    startError = tf("errTooManyRoles", { n: activePlayers.length });
+  else if (gameMode === "imp" && enabledWords.length === 0) startError = t("errNoWords");
+  else if (gameMode === "odd" && activePairPool(pairCategories).length === 0)
+    startError = t("errNoPairs");
+  else if (gameMode === "mafia" && mafiaSlots > activePlayers.length)
+    startError = tf("errTooManyRoles", { n: activePlayers.length });
 
   // ---- players ----
   const addPlayer = () => {
     const color = PLAYER_COLORS[players.length % PLAYER_COLORS.length];
-    setEditingPlayer({ id: uid(), name: `Player ${players.length + 1}`, color, enabled: true });
+    setEditingPlayer({
+      id: uid(),
+      name: tf("playerN", { n: players.length + 1 }),
+      color,
+      enabled: true,
+    });
     setPlayerIsNew(true);
   };
 
@@ -84,7 +115,7 @@ export default function HomeScreen({
     setPlayers(players.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p)));
   };
 
-  // ---- categories ----
+  // ---- word categories (IMP Classic) ----
   const toggleCategory = (id: string) => {
     setCategories(categories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c)));
   };
@@ -100,7 +131,25 @@ export default function HomeScreen({
     setEditingCategory(null);
   };
 
-  // ---- roles ----
+  // ---- pair categories (Odd One Out) ----
+  const togglePairCategory = (id: string) => {
+    setPairCategories(
+      pairCategories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c))
+    );
+  };
+
+  const addPairCategory = () => {
+    setEditingPairCategory({ id: `pc:${uid()}`, name: "", enabled: true, custom: true, pairs: [] });
+    setPairCategoryIsNew(true);
+  };
+
+  const savePairCategory = (c: PairCategoryState) => {
+    if (pairCategoryIsNew) setPairCategories([...pairCategories, c]);
+    else setPairCategories(pairCategories.map((x) => (x.id === c.id ? c : x)));
+    setEditingPairCategory(null);
+  };
+
+  // ---- roles (IMP Classic & Mafia) ----
   const addRole = () => {
     setEditingRole({
       id: `r:${uid()}`,
@@ -117,12 +166,15 @@ export default function HomeScreen({
   };
 
   const saveRole = (r: RoleDef) => {
-    if (roleIsNew) setRoles([...roles, r]);
-    else setRoles(roles.map((x) => (x.id === r.id ? r : x)));
+    if (roleIsNew) setCurrentRoles([...currentRoles, r]);
+    else setCurrentRoles(currentRoles.map((x) => (x.id === r.id ? r : x)));
     setEditingRole(null);
   };
 
-  const countRole = roles.find((r) => r.id === countRoleId) ?? null;
+  const countRole = currentRoles.find((r) => r.id === countRoleId) ?? null;
+  const howTos = HOW_TO_PLAY[getLanguage()];
+  const howToText =
+    gameMode === "imp" ? howTos.imp : gameMode === "odd" ? howTos.odd : howTos.mafia;
 
   return (
     <Screen>
@@ -133,7 +185,6 @@ export default function HomeScreen({
         </Pressable>
         <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}>
           <Text style={styles.logo}>IMP</Text>
-          <Text style={styles.logoSub}>CLASSIC</Text>
         </Animated.View>
         <Pressable style={styles.iconButton} onPress={onOpenSettings} hitSlop={8}>
           <SlidersIcon size={22} color={colors.textDim} />
@@ -149,26 +200,57 @@ export default function HomeScreen({
         scrollEventThrottle={16}
       >
         {/* game mode */}
-        <SectionTitle>Game mode</SectionTitle>
+        <SectionTitle>{t("gameMode")}</SectionTitle>
         <View style={styles.modes}>
-          <View style={[styles.modeCard, styles.modeSelected]}>
-            <Text style={styles.modeImp}>IMP</Text>
-            <Text style={styles.modeName}>Classic</Text>
-          </View>
-          <View style={[styles.modeCard, styles.modeDisabled]}>
-            <Text style={styles.modeQuestion}>◎</Text>
-            <Text style={styles.modeName}>Odd One Out</Text>
-            <Text style={styles.modeSoon}>Coming soon</Text>
-          </View>
-          <View style={[styles.modeCard, styles.modeDisabled]}>
-            <Text style={styles.modeQuestion}>?</Text>
-            <Text style={styles.modeName}>Mafia</Text>
-            <Text style={styles.modeSoon}>Coming soon</Text>
-          </View>
+          {/* The border and dim overlay stay mounted with constant structure —
+              toggling borderWidth/children on Android glitches the rounded
+              clip and makes the image vanish. Only colors change. */}
+          <Pressable
+            onPress={() => setGameMode("imp")}
+            style={[styles.modeCard, gameMode === "imp" && styles.modeSelected]}
+          >
+            <Image
+              source={require("../../assets/modes/classic.png")}
+              style={styles.modeImage}
+              resizeMode="cover"
+            />
+            <View
+              style={[styles.modeDim, gameMode === "imp" && styles.modeDimOff]}
+              pointerEvents="none"
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => setGameMode("odd")}
+            style={[styles.modeCard, gameMode === "odd" && styles.modeSelected]}
+          >
+            <Image
+              source={require("../../assets/modes/odd.png")}
+              style={styles.modeImage}
+              resizeMode="cover"
+            />
+            <View
+              style={[styles.modeDim, gameMode === "odd" && styles.modeDimOff]}
+              pointerEvents="none"
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => setGameMode("mafia")}
+            style={[styles.modeCard, gameMode === "mafia" && styles.modeSelected]}
+          >
+            <Image
+              source={require("../../assets/modes/mafia.png")}
+              style={styles.modeImage}
+              resizeMode="cover"
+            />
+            <View
+              style={[styles.modeDim, gameMode === "mafia" && styles.modeDimOff]}
+              pointerEvents="none"
+            />
+          </Pressable>
         </View>
 
         {/* players */}
-        <SectionTitle>Players</SectionTitle>
+        <SectionTitle>{t("players")}</SectionTitle>
         <View style={styles.chipWrap}>
           {players.map((p) => (
             <Chip
@@ -186,58 +268,91 @@ export default function HomeScreen({
           {players.length < MAX_PLAYERS ? <Chip label="＋" onPress={addPlayer} /> : null}
         </View>
 
-        {/* categories */}
-        <SectionTitle>Categories</SectionTitle>
-        <View style={styles.chipWrap}>
-          {categories.map((c) => (
-            <Chip
-              key={c.id}
-              label={c.name}
-              badge={c.words.length}
-              active={c.enabled}
-              onPress={() => toggleCategory(c.id)}
-              onLongPress={
-                c.custom
-                  ? () => {
-                      setEditingCategory(c);
-                      setCategoryIsNew(false);
-                    }
-                  : undefined
-              }
-            />
-          ))}
-          <Chip label="＋" onPress={addCategory} />
-        </View>
+        {/* categories — words for IMP Classic, pairs for Odd One Out */}
+        {gameMode !== "mafia" ? (
+          <>
+            <SectionTitle>{t("categories")}</SectionTitle>
+            <View style={styles.chipWrap}>
+              {gameMode === "imp" ? (
+                <>
+                  {categories.map((c) => (
+                    <Chip
+                      key={c.id}
+                      label={c.name}
+                      badge={c.words.length}
+                      active={c.enabled}
+                      onPress={() => toggleCategory(c.id)}
+                      onLongPress={
+                        c.custom
+                          ? () => {
+                              setEditingCategory(c);
+                              setCategoryIsNew(false);
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                  <Chip label="＋" onPress={addCategory} />
+                </>
+              ) : (
+                <>
+                  {pairCategories.map((c) => (
+                    <Chip
+                      key={c.id}
+                      label={c.name}
+                      badge={c.pairs.length}
+                      active={c.enabled}
+                      onPress={() => togglePairCategory(c.id)}
+                      onLongPress={
+                        c.custom
+                          ? () => {
+                              setEditingPairCategory(c);
+                              setPairCategoryIsNew(false);
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                  <Chip label="＋" onPress={addPairCategory} />
+                </>
+              )}
+            </View>
+          </>
+        ) : null}
 
-        {/* roles */}
-        <SectionTitle>Roles</SectionTitle>
-        <View style={styles.chipWrap}>
-          {roles.map((r) => (
-            <Chip
-              key={r.id}
-              label={r.name}
-              bg={r.color}
-              count={r.count}
-              active={r.count > 0}
-              onPress={() => setCountRoleId(r.id)}
-              onLongPress={
-                !r.builtin
-                  ? () => {
-                      setEditingRole(r);
-                      setRoleIsNew(false);
-                    }
-                  : undefined
-              }
-            />
-          ))}
-          <Chip label="＋" onPress={addRole} />
-        </View>
+        {/* roles — IMP Classic & Mafia (Odd One Out has none) */}
+        {gameMode !== "odd" ? (
+          <>
+            <SectionTitle>{t("roles")}</SectionTitle>
+            <View style={styles.chipWrap}>
+              {currentRoles.map((r) => (
+                <Chip
+                  key={r.id}
+                  label={roleName(r)}
+                  bg={r.color}
+                  count={r.count}
+                  active={r.count > 0}
+                  onPress={() => setCountRoleId(r.id)}
+                  onLongPress={
+                    !r.builtin
+                      ? () => {
+                          setEditingRole(r);
+                          setRoleIsNew(false);
+                        }
+                      : undefined
+                  }
+                />
+              ))}
+              <Chip label="＋" onPress={addRole} />
+            </View>
+          </>
+        ) : null}
       </Animated.ScrollView>
 
       {/* fixed bottom: start */}
       <View style={styles.startArea}>
         {startError ? <Text style={styles.startError}>{startError}</Text> : null}
-        <BigButton label="START" onPress={onStart} disabled={startError !== null} />
+        <BigButton label={t("start")} onPress={onStart} disabled={startError !== null} />
       </View>
 
       {/* pop-ups */}
@@ -264,13 +379,25 @@ export default function HomeScreen({
         }}
         onClose={() => setEditingCategory(null)}
       />
+      <PairCategoryEditor
+        visible={editingPairCategory !== null}
+        category={editingPairCategory}
+        isNew={pairCategoryIsNew}
+        onSave={savePairCategory}
+        onDelete={(id) => {
+          setPairCategories(pairCategories.filter((c) => c.id !== id));
+          setEditingPairCategory(null);
+        }}
+        onClose={() => setEditingPairCategory(null)}
+      />
       <RoleEditor
         visible={editingRole !== null}
         role={editingRole}
         isNew={roleIsNew}
+        mafia={isMafia}
         onSave={saveRole}
         onDelete={(id) => {
-          setRoles(roles.filter((r) => r.id !== id));
+          setCurrentRoles(currentRoles.filter((r) => r.id !== id));
           setEditingRole(null);
         }}
         onClose={() => setEditingRole(null)}
@@ -278,14 +405,14 @@ export default function HomeScreen({
       <RoleCountSheet
         visible={countRole !== null}
         role={countRole}
-        maxCount={Math.max(1, activePlayers.length - 1)}
+        maxCount={Math.max(1, isMafia ? activePlayers.length : activePlayers.length - 1)}
         onChangeCount={(roleId, count) =>
-          setRoles(roles.map((r) => (r.id === roleId ? { ...r, count } : r)))
+          setCurrentRoles(currentRoles.map((r) => (r.id === roleId ? { ...r, count } : r)))
         }
         onClose={() => setCountRoleId(null)}
       />
-      <AppModal visible={howToOpen} title="How to play" onClose={() => setHowToOpen(false)}>
-        <Text style={styles.howToText}>{HOW_TO_PLAY}</Text>
+      <AppModal visible={howToOpen} title={t("howToPlay")} onClose={() => setHowToOpen(false)}>
+        <Text style={styles.howToText}>{howToText}</Text>
       </AppModal>
     </Screen>
   );
@@ -318,18 +445,11 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 56,
     fontWeight: "900",
-    color: colors.impRed,
+    color: colors.accent,
     letterSpacing: 5,
-    textShadowColor: colors.impRed,
+    textShadowColor: colors.accent,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 22,
-  },
-  logoSub: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: colors.textDim,
-    letterSpacing: 6,
-    marginTop: -8,
   },
   scroll: {
     paddingBottom: spacing.md,
@@ -343,38 +463,34 @@ const styles = StyleSheet.create({
     aspectRatio: 0.85,
     borderRadius: radius.lg,
     alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.xs,
-    gap: 2,
+    justifyContent: "flex-end",
+    overflow: "hidden",
+    backgroundColor: "#000000",
+    borderWidth: 3,
+    borderColor: "transparent",
+  },
+  modeImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
   },
   modeSelected: {
-    backgroundColor: "#3A0A10",
-    borderWidth: 3,
     borderColor: "#FFFFFF",
   },
-  modeDisabled: {
-    backgroundColor: colors.card,
-    opacity: 0.55,
+  modeDim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
-  modeImp: {
-    fontSize: 34,
-    fontWeight: "900",
-    color: colors.impRed,
-  },
-  modeQuestion: {
-    fontSize: 34,
-    fontWeight: "900",
-    color: colors.textDim,
-  },
-  modeName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.text,
-    textAlign: "center",
-  },
-  modeSoon: {
-    fontSize: 11,
-    color: colors.textDim,
+  modeDimOff: {
+    backgroundColor: "transparent",
   },
   chipWrap: {
     flexDirection: "row",

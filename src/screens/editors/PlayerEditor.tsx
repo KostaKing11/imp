@@ -4,6 +4,7 @@ import BigButton from "../../components/BigButton";
 import ColorPicker from "../../components/ColorPicker";
 import TextField from "../../components/TextField";
 import { Player } from "../../game/types";
+import { t, tf } from "../../i18n";
 import { confirmDialog } from "../../utils";
 
 type Props = {
@@ -40,23 +41,29 @@ export default function PlayerEditor({
   return (
     <AppModal
       visible={visible}
-      title={isNew ? "New player" : "Edit player"}
+      title={isNew ? t("newPlayer") : t("editPlayer")}
       onClose={onClose}
     >
-      <TextField label="Name" value={name} onChangeText={setName} placeholder="Name" autoCapitalize="words" />
+      <TextField
+        label={t("name")}
+        value={name}
+        onChangeText={setName}
+        placeholder={t("name")}
+        autoCapitalize="words"
+      />
       <ColorPicker value={color} onChange={setColor} />
       <BigButton
-        label="Save"
+        label={t("save")}
         compact
         onPress={() => onSave({ ...player, name: name.trim() || player.name, color })}
       />
       {!isNew && canDelete ? (
         <BigButton
-          label="Remove player"
+          label={t("removePlayer")}
           variant="secondary"
           compact
           onPress={() =>
-            confirmDialog("Remove player?", `${player.name} will be removed.`, () =>
+            confirmDialog(t("removePlayerQ"), tf("removePlayerText", { name: player.name }), () =>
               onDelete(player.id)
             )
           }

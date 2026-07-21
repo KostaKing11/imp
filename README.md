@@ -1,8 +1,12 @@
 # IMP — party games
 
-Local pass-and-play imposter word game. One phone, no internet, no accounts.
+Local pass-and-play party games. One phone, no internet, no accounts.
 
-## How a round plays
+Two modes: **IMP Classic** (imposter doesn't know the word) and
+**Odd One Out** (everyone gets a word — one player's is slightly different;
+word pairs live in [data/pairs.ts](data/pairs.ts)).
+
+## How an IMP Classic round plays
 
 1. **Setup (home screen)** — pick game mode, players (names + colors),
    categories and roles, then hit START.
@@ -46,7 +50,8 @@ npm run web             # quick preview in the browser
 ## Code layout
 
 - `App.tsx` — screen state machine, persistence, Android back handling
-- `data/words.ts` — built-in categories & words (edit this!)
+- `data/words.ts` — built-in categories & words for IMP Classic (edit this!)
+- `data/pairs.ts` — word pairs for Odd One Out (edit this too!)
 - `src/game/` — types, roles, round engine; future gamemodes live here
 - `src/screens/` — home / reveal / discussion / result + `editors/` modals
 - `src/components/` — shared UI (buttons, chips, color picker, modal shell)
