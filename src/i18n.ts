@@ -1,4 +1,4 @@
-import { RoleDef } from "./game/types";
+﻿import { RoleDef } from "./game/types";
 
 // Simple app-wide translations. The language is set once by App and
 // every screen reads strings through t()/tf() at render time.
@@ -28,6 +28,8 @@ const en = {
   errTooManyRoles: "Too many roles for {n} players.",
   errNoWords: "Turn on at least one category with words.",
   errNoPairs: "Turn on at least one category with pairs.",
+  errBlefPlayers: "Bluff is for exactly 2 players — turn the rest off.",
+  modeBlef: "Bluff",
   // settings
   settings: "Settings",
   discussionTimers: "Discussion timers",
@@ -74,6 +76,16 @@ const en = {
   oddWas: "The Odd One Out was",
   everyoneHad: "Everyone had",
   playerHad: "{name} had",
+  // blef
+  yourClue: "Your clue",
+  blefCardNote: "It might be the real word… or just a hint. Nobody tells you.",
+  blefDiscussionInstr:
+    "Taking turns, each player says {n} clues out loud about what they're holding. Listen closely — did they really know the word?",
+  blefRevealBtn: "Reveal",
+  blefPointInstr:
+    "On three, both of you say whether you think the other had the WORD or just a HINT.",
+  blefHadWord: "had the word",
+  blefHadHint: "had a hint",
   // mafia result
   gameStarted: "The game has started!",
   mafiaPlayInstr: "Play it out loud — nights fall, roles wake up, the town votes.",
@@ -153,6 +165,8 @@ const sr: typeof en = {
   errTooManyRoles: "Previše uloga za {n} igrača.",
   errNoWords: "Uključi bar jednu kategoriju sa rečima.",
   errNoPairs: "Uključi bar jednu kategoriju sa parovima.",
+  errBlefPlayers: "Blef je za tačno 2 igrača — ostale isključi.",
+  modeBlef: "Blef",
   // settings
   settings: "Podešavanja",
   discussionTimers: "Tajmeri za diskusiju",
@@ -168,7 +182,7 @@ const sr: typeof en = {
   everyonesReady: "Svi su spremni",
   theWordIs: "Reč je",
   yourOnlyClue: "Tvoj jedini trag",
-  imposterLabel: "Impostor: {names}",
+  imposterLabel: "Imposter: {names}",
   yourWordIs: "Tvoja reč je",
   oddCardNote: "Jedan igrač ima malo drugačiju reč. Možda si to baš ti…",
   // discussion
@@ -183,13 +197,13 @@ const sr: typeof en = {
   tapToStart: "dodirni da počneš",
   // classic result
   pointFingers: "Uperite prste!",
-  pointInstr: "Na tri, svi upiru prstom u onoga za koga misle da je impostor.",
+  pointInstr: "Na tri, svi upiru prstom u onoga za koga misle da je imposter.",
   guessInstr:
-    "Optužen si da si impostor? Pokušaj naglas da pogodiš tajnu reč — ako pogodiš, kradeš pobedu!",
+    "Optužen si da si imposter? Pokušaj naglas da pogodiš tajnu reč — ako pogodiš, kradeš pobedu!",
   revealTheRoles: "Otkrij uloge",
   theWordWas: "Reč je bila",
-  imposterWas: "Impostor je bio",
-  impostersWere: "Impostori su bili",
+  imposterWas: "Imposter je bio",
+  impostersWere: "Imposteri su bili",
   otherRoles: "Ostale uloge",
   newRoundBtn: "Nova runda",
   backToMenu: "Nazad na meni",
@@ -199,6 +213,16 @@ const sr: typeof en = {
   oddWas: "Uljez je bio",
   everyoneHad: "Svi su imali",
   playerHad: "{name} je imao/la",
+  // blef
+  yourClue: "Tvoj trag",
+  blefCardNote: "Možda je prava reč… a možda samo trag. Niko ti ne kaže.",
+  blefDiscussionInstr:
+    "Naizmenično, svaki igrač naglas kaže {n} traga o onome što drži. Slušaj pažljivo — da li je stvarno znao reč?",
+  blefRevealBtn: "Otkrij",
+  blefPointInstr:
+    "Na tri, oboje recite da li mislite da je onaj drugi imao REČ ili samo TRAG.",
+  blefHadWord: "je imao reč",
+  blefHadHint: "je imao trag",
   // mafia result
   gameStarted: "Igra je počela!",
   mafiaPlayInstr: "Igrajte naglas — pada noć, uloge se bude, grad glasa.",
@@ -245,9 +269,9 @@ const sr: typeof en = {
   roleNameLabel: "Naziv uloge",
   roleDescLabel: "Opis (prikazuje se na karti uloge)",
   seesWord: "Vidi tajnu reč",
-  seesWordHint: "Isključeno = ova uloga dobija samo nasumičan trag, kao impostor.",
-  seesImposter: "Vidi ko je impostor",
-  seesImposterHint: "Na njihovoj karti piše i ime impostora, kao kod Pomoćnika.",
+  seesWordHint: "Isključeno = ova uloga dobija samo nasumičan trag, kao imposter.",
+  seesImposter: "Vidi ko je imposter",
+  seesImposterHint: "Na njihovoj karti piše i ime impostera, kao kod Pomoćnika.",
   evilRole: "Zla uloga",
   evilRoleHint: "Zle uloge se na kraju otkrivaju zajedno sa mafijom.",
   deleteRole: "Obriši ulogu",
@@ -288,7 +312,7 @@ export function tf(key: StringKey, vars: Record<string, string | number>): strin
 
 const SR_ROLES: Record<string, { name: string; description: string }> = {
   imposter: {
-    name: "Impostor",
+    name: "Imposter",
     description: "NE znaš reč — imaš samo jedan trag. Uklopi se i nemoj da budeš izglasan.",
   },
   jester: {
@@ -298,11 +322,11 @@ const SR_ROLES: Record<string, { name: string; description: string }> = {
   helper: {
     name: "Pomoćnik",
     description:
-      "Znaš reč I znaš ko je impostor. Tajno mu pomaži — ako impostor pobedi, pobeđuješ i ti. Ali ako TEBE izglasaju, pobeđuje samo impostor.",
+      "Znaš reč I znaš ko je imposter. Tajno mu pomaži — ako imposter pobedi, pobeđuješ i ti. Ali ako TEBE izglasaju, pobeđuje samo imposter.",
   },
   Innocent: {
     name: "Nevin",
-    description: "Znaš tajnu reč. Daji pametne asocijacije i nanjuši impostora!",
+    description: "Znaš tajnu reč. Daji pametne asocijacije i nanjuši impostera!",
   },
   Civilian: {
     name: "Građanin",

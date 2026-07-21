@@ -3,7 +3,7 @@ import { WordEntry } from "../../data/words";
 
 // Shared types for all gamemodes.
 
-export type GameMode = "imp" | "odd" | "mafia";
+export type GameMode = "imp" | "odd" | "mafia" | "blef";
 
 export type Player = {
   id: string;
@@ -55,6 +55,7 @@ export type ModeTimer = {
 export type Settings = {
   impTimer: ModeTimer;
   oddTimer: ModeTimer;
+  blefTimer: ModeTimer;
 };
 
 export type Assignment = {
@@ -94,3 +95,23 @@ export type OddRound = {
 export type MafiaRound = {
   assignments: Record<string, string>;
 };
+
+// ---- Blef (2 players) ----
+
+// Never shown to players — it's what they're trying to work out.
+export type BlefRoundType = "both_word" | "one_hint" | "both_hint";
+
+// What a single player secretly sees.
+export type BlefClue = {
+  text: string;
+  // true = they got the real word, false = they only got a hint
+  isWord: boolean;
+};
+
+export type BlefRound = {
+  word: string;
+  roundType: BlefRoundType;
+  // playerId -> what that player sees
+  clues: Record<string, BlefClue>;
+};
+

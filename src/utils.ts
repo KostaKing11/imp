@@ -1,5 +1,12 @@
 import { Alert, Platform } from "react-native";
 
+// Hints are stored lowercase in the data files; they're shown capitalised
+// like the words are. Applied at render time so custom hints get it too.
+export function capitalize(text: string): string {
+  if (!text) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function uid(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { HOW_TO_PLAY } from "../../data/howto";
 import { getLanguage, roleName, t, tf } from "../i18n";
 import AppModal from "../components/AppModal";
@@ -8,6 +8,7 @@ import Chip from "../components/Chip";
 import { SlidersIcon } from "../components/icons";
 import Screen from "../components/Screen";
 import SectionTitle from "../components/SectionTitle";
+import { BLEF_PLAYER_COUNT } from "../game/blefEngine";
 import { roleSlotCount } from "../game/engine";
 import { activePairPool } from "../game/oddEngine";
 import { CategoryState, GameMode, PairCategoryState, Player, RoleDef } from "../game/types";
@@ -84,7 +85,11 @@ export default function HomeScreen({
   const mafiaSlots = roleSlotCount(mafiaRoles);
   const enabledWords = categories.filter((c) => c.enabled).flatMap((c) => c.words);
   let startError: string | null = null;
-  if (activePlayers.length < MIN_PLAYERS) startError = t("errMinPlayers");
+  if (gameMode === "blef" && activePlayers.length !== BLEF_PLAYER_COUNT)
+    startError = t("errBlefPlayers");
+  else if (gameMode === "blef" && enabledWords.length === 0) startError = t("errNoWords");
+  else if (gameMode !== "blef" && activePlayers.length < MIN_PLAYERS)
+    startError = t("errMinPlayers");
   else if (gameMode === "imp" && slots > activePlayers.length - 1)
     startError = tf("errTooManyRoles", { n: activePlayers.length });
   else if (gameMode === "imp" && enabledWords.length === 0) startError = t("errNoWords");
@@ -173,8 +178,7 @@ export default function HomeScreen({
 
   const countRole = currentRoles.find((r) => r.id === countRoleId) ?? null;
   const howTos = HOW_TO_PLAY[getLanguage()];
-  const howToText =
-    gameMode === "imp" ? howTos.imp : gameMode === "odd" ? howTos.odd : howTos.mafia;
+  const howToText = howTos[gameMode];
 
   return (
     <Screen>
@@ -210,7 +214,13 @@ export default function HomeScreen({
       >
         {/* game mode */}
         <SectionTitle>{t("gameMode")}</SectionTitle>
-        <View style={styles.modes}>
+        {/* Horizontally scrollable so cards keep their size as modes are
+            added — no visible scrollbar, you just swipe the row. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.modes}
+        >
           {/* The border and dim overlay stay mounted with constant structure —
               toggling borderWidth/children on Android glitches the rounded
               clip and makes the image vanish. Only colors change. */}
@@ -256,7 +266,29 @@ export default function HomeScreen({
               pointerEvents="none"
             />
           </Pressable>
-        </View>
+          <Pressable
+            onPress={() => setGameMode("blef")}
+            style={[styles.modeCard, gameMode === "blef" && styles.modeSelected]}
+          >
+            <Image
+              source={
+                getLanguage() === "sr"
+                  ? require("../../assets/modes/blef.png")
+                  : require("../../assets/modes/bluff.png")
+              }
+              style={styles.modeImage}
+              resizeMode="cover"
+            />
+            {/* 2-player badge — this mode is a duel */}
+            <View style={styles.playerBadge} pointerEvents="none">
+              <Text style={styles.playerBadgeText}>2</Text>
+            </View>
+            <View
+              style={[styles.modeDim, gameMode === "blef" && styles.modeDimOff]}
+              pointerEvents="none"
+            />
+          </Pressable>
+        </ScrollView>
 
         {/* players */}
         <SectionTitle>{t("players")}</SectionTitle>
@@ -282,7 +314,7 @@ export default function HomeScreen({
           <>
             <SectionTitle>{t("categories")}</SectionTitle>
             <View style={styles.chipWrap}>
-              {gameMode === "imp" ? (
+              {gameMode === "imp" || gameMode === "blef" ? (
                 <>
                   {categories.map((c) => (
                     <Chip
@@ -329,8 +361,8 @@ export default function HomeScreen({
           </>
         ) : null}
 
-        {/* roles — IMP Classic & Mafia (Odd One Out has none) */}
-        {gameMode !== "odd" ? (
+        {/* roles — IMP Classic & Mafia only (Odd One Out and Blef have none) */}
+        {gameMode === "imp" || gameMode === "mafia" ? (
           <>
             <SectionTitle>{t("roles")}</SectionTitle>
             <View style={styles.chipWrap}>
@@ -451,8 +483,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
+    // matches the artwork's 396x252 aspect
     width: 140,
-    height: 78,
+    height: 89,
   },
   scroll: {
     paddingBottom: spacing.md,
@@ -460,9 +493,11 @@ const styles = StyleSheet.create({
   modes: {
     flexDirection: "row",
     gap: spacing.sm,
+    paddingRight: spacing.sm,
   },
   modeCard: {
-    flex: 1,
+    // Fixed width (not flex) so the row can scroll instead of squeezing.
+    width: 104,
     aspectRatio: 0.85,
     borderRadius: radius.lg,
     alignItems: "center",
@@ -494,6 +529,24 @@ const styles = StyleSheet.create({
   },
   modeDimOff: {
     backgroundColor: "transparent",
+  },
+  playerBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    zIndex: 2,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 5,
+    backgroundColor: colors.blefTeal,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playerBadgeText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#04201C",
   },
   chipWrap: {
     flexDirection: "row",

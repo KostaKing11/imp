@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 //  SRPSKE REČI — kategorije i reči za IMP Classic na srpskom.
 //
 //  Dodavanje reči = dodaj jedan red u `words` neke kategorije.
@@ -171,7 +171,7 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
     words: [
       { word: "Robot", hints: ["metal", "budućnost", "program", "ruke", "zvuci"] },
       { word: "Telefon", hints: ["ekran", "aplikacije", "punjenje", "džep", "poruke"] },
-      { word: "Vaj-faj", hints: ["lozinka", "ruter", "signal", "internet", "sporo"] },
+      { word: "Wi-Fi", hints: ["lozinka", "ruter", "signal", "internet", "sporo"] },
       { word: "Dron", hints: ["letenje", "elise", "kamera", "zujanje", "daljinski"] },
       { word: "Slušalice", hints: ["muzika", "uši", "bežično", "kabl", "bas"] },
       { word: "Računar", hints: ["tastatura", "ekran", "miš", "fajlovi", "igrice"] },

@@ -130,6 +130,11 @@ export default function SettingsScreen({
           timer={settings.oddTimer}
           onChange={(timer) => onChange({ ...settings, oddTimer: timer })}
         />
+        <TimerCard
+          title={t("modeBlef")}
+          timer={settings.blefTimer}
+          onChange={(timer) => onChange({ ...settings, blefTimer: timer })}
+        />
       </ScrollView>
     </Screen>
   );

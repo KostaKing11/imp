@@ -17,6 +17,7 @@ export const colors = {
   // Gamemode branding (logo + selected mode card).
   impRed: "#E32636",
   oddYellow: "#F5C518",
+  blefTeal: "#2DD4BF",
 };
 
 export const PLAYER_COLORS = [

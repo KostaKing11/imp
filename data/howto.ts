@@ -25,6 +25,18 @@ export const HOW_TO_PLAY = {
 
 4. The town wins when all the Mafia are gone — the Mafia wins when they outnumber the town. When the game is over, press "Reveal roles" to show who was who.`,
 
+    blef: `Bluff is a duel for exactly 2 players on one phone.
+
+1. Turn on exactly two players, pick word categories, then press START.
+
+2. Each of you privately holds your card to see YOUR clue. Here's the catch: sometimes you're both holding the real word, sometimes only one of you is, and sometimes neither of you is — you're each just holding a hint. You are never told which.
+
+3. Taking turns, you each say clues out loud about what you're holding. Someone with only a hint has to bluff convincingly — and someone with the real word has to decide how much to give away.
+
+4. On three, both of you call it out loud: did the other one have the WORD, or just a HINT?
+
+5. Reveal: see the real word and what you each were actually holding.`,
+
     odd: `Odd One Out — everyone gets a word... but one player's word is slightly different.
 
 1. Add your players, pick pair categories, then press START.
@@ -59,6 +71,18 @@ Tip: keep your clues a bit vague. Say too much and the Odd One Out figures out t
 3. Igrajte u rundama: grad "spava" (svi zatvore oči), noćne uloge se bude jedna po jedna i deluju, zatim se svi bude, čuju šta se desilo, raspravljaju i izglasavaju nekoga. Ako je Narator u igri, on vodi ceo šou.
 
 4. Grad pobeđuje kad mafije više nema — mafija pobeđuje kad nadbroji grad. Kad se igra završi, pritisni "Otkrij uloge".`,
+
+    blef: `Blef je dvoboj za tačno 2 igrača na jednom telefonu.
+
+1. Uključi tačno dva igrača, izaberi kategorije reči, pa pritisni POČNI.
+
+2. Svako od vas nasamo drži svoju kartu da vidi SVOJ trag. Kvaka je u tome: nekad oboje držite pravu reč, nekad samo jedan od vas, a nekad nijedan — tada oboje imate samo trag. Nikad vam se ne kaže šta je slučaj.
+
+3. Naizmenično govorite tragove naglas o onome što držite. Ko ima samo trag mora ubedljivo da blefira — a ko ima pravu reč mora da odluči koliko sme da oda.
+
+4. Na tri, oboje naglas recite: da li je onaj drugi imao REČ ili samo TRAG?
+
+5. Otkrivanje: vidite pravu reč i šta je ko zapravo držao.`,
 
     odd: `Uljez — svi dobijaju reč... ali jedan igrač ima malo drugačiju.
 

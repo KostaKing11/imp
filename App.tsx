@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { BackHandler } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { BLEF_CLUES_PER_PLAYER, createBlefRound } from "./src/game/blefEngine";
 import { buildCategories, serializeCategories, StoredCategories } from "./src/game/categories";
 import { createRound } from "./src/game/engine";
 import { createMafiaRound } from "./src/game/mafiaEngine";
@@ -12,6 +13,7 @@ import {
 } from "./src/game/oddEngine";
 import { DEFAULT_MAFIA_ROLES, DEFAULT_ROLES } from "./src/game/roles";
 import {
+  BlefRound,
   CategoryState,
   GameMode,
   MafiaRound,
@@ -23,6 +25,8 @@ import {
   Settings,
 } from "./src/game/types";
 import { getLanguage, Language, setLanguage, t, tf } from "./src/i18n";
+import BlefResultScreen from "./src/screens/BlefResultScreen";
+import BlefRevealScreen from "./src/screens/BlefRevealScreen";
 import DiscussionScreen from "./src/screens/DiscussionScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import MafiaResultScreen from "./src/screens/MafiaResultScreen";
@@ -43,6 +47,7 @@ type ScreenName = "home" | "settings" | "reveal" | "discussion" | "result";
 const DEFAULT_SETTINGS: Settings = {
   impTimer: { enabled: false, seconds: 120 },
   oddTimer: { enabled: false, seconds: 120 },
+  blefTimer: { enabled: false, seconds: 120 },
 };
 
 function defaultPlayers(): Player[] {
@@ -89,6 +94,7 @@ export default function App() {
   const [round, setRound] = useState<Round | null>(null);
   const [oddRound, setOddRound] = useState<OddRound | null>(null);
   const [mafiaRound, setMafiaRound] = useState<MafiaRound | null>(null);
+  const [blefRound, setBlefRound] = useState<BlefRound | null>(null);
   const [usedWords, setUsedWords] = useState<string[]>([]);
   const [usedPairs, setUsedPairs] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -126,10 +132,15 @@ export default function App() {
         // Older saves had a single timer — apply it to both modes.
         const legacy = storedSettings as unknown as { timerEnabled?: boolean; timerSeconds?: number };
         if (storedSettings.impTimer && storedSettings.oddTimer) {
-          setSettings(storedSettings);
+          // Merge over defaults so timers added later (e.g. blef) are present.
+          setSettings({ ...DEFAULT_SETTINGS, ...storedSettings });
         } else if (typeof legacy.timerEnabled === "boolean") {
           const migrated = { enabled: legacy.timerEnabled, seconds: legacy.timerSeconds ?? 120 };
-          setSettings({ impTimer: migrated, oddTimer: { ...migrated } });
+          setSettings({
+            impTimer: migrated,
+            oddTimer: { ...migrated },
+            blefTimer: { ...migrated },
+          });
         }
       }
       if (storedMode === "imp" || storedMode === "odd" || storedMode === "mafia") {
@@ -179,6 +190,7 @@ export default function App() {
     setRound(null);
     setOddRound(null);
     setMafiaRound(null);
+    setBlefRound(null);
     setScreen("home");
   };
 
@@ -218,10 +230,17 @@ export default function App() {
       setUsedPairs((prev) =>
         prev.includes(newRound.pairId) ? [newRound.pairId] : [...prev, newRound.pairId]
       );
-    } else {
+    } else if (gameMode === "mafia") {
       const newRound = createMafiaRound(activePlayers, mafiaRoles);
       if (!newRound) return;
       setMafiaRound(newRound);
+    } else {
+      const newRound = createBlefRound(activePlayers, categories, usedWords);
+      if (!newRound) return;
+      setBlefRound(newRound);
+      setUsedWords((prev) =>
+        prev.includes(newRound.word) ? [newRound.word] : [...prev, newRound.word]
+      );
     }
     setScreen("reveal");
   };
@@ -279,6 +298,16 @@ export default function App() {
             />
           ) : null;
         }
+        if (gameMode === "blef") {
+          return blefRound ? (
+            <BlefRevealScreen
+              players={activePlayers}
+              round={blefRound}
+              onDone={() => setScreen("discussion")}
+              onLeave={requestLeave}
+            />
+          ) : null;
+        }
         return round ? (
           <RevealScreen
             players={activePlayers}
@@ -289,13 +318,24 @@ export default function App() {
           />
         ) : null;
       case "discussion": {
-        const timer = gameMode === "odd" ? settings.oddTimer : settings.impTimer;
+        const timer =
+          gameMode === "odd"
+            ? settings.oddTimer
+            : gameMode === "blef"
+              ? settings.blefTimer
+              : settings.impTimer;
+        const instructions =
+          gameMode === "odd"
+            ? t("discussionInstrOdd")
+            : gameMode === "blef"
+              ? tf("blefDiscussionInstr", { n: BLEF_CLUES_PER_PLAYER })
+              : undefined;
         return (
           <DiscussionScreen
             timerEnabled={timer.enabled}
             timerSeconds={timer.seconds}
             players={activePlayers}
-            instructions={gameMode === "odd" ? t("discussionInstrOdd") : undefined}
+            instructions={instructions}
             onVote={() => setScreen("result")}
           />
         );
@@ -317,6 +357,16 @@ export default function App() {
               players={activePlayers}
               roles={mafiaRoles}
               round={mafiaRound}
+              onNewRound={startGame}
+              onBackToMenu={leaveGame}
+            />
+          ) : null;
+        }
+        if (gameMode === "blef") {
+          return blefRound ? (
+            <BlefResultScreen
+              players={activePlayers}
+              round={blefRound}
               onNewRound={startGame}
               onBackToMenu={leaveGame}
             />

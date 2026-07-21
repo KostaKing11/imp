@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/ngrok": "^4.1.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~56.0.0",
     "expo-status-bar": "~56.0.4",
@@ -21,7 +22,9 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "apk": "cd android && .\\gradlew.bat assembleRelease",
+    "apk:install": "cd android && .\\gradlew.bat assembleRelease && cd .. && adb install -r android/app/build/outputs/apk/release/app-release.apk"
   },
   "private": true
 }
