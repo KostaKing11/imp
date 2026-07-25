@@ -9,14 +9,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const core = readFileSync(join(root, "server/relay-core.mjs"), "utf8");
-const entry = readFileSync(join(root, "server/relay.ts"), "utf8");
+const read = (file) => readFileSync(join(root, file), "utf8");
 
-// The core is inlined, so it must not export and the entry must not import.
-const inlinedCore = core.replace(/^export /gm, "");
-const inlinedEntry = entry
+// Everything is inlined, so the parts must not export and the entry must
+// not import them.
+const strip = (src) => src.replace(/^export /gm, "");
+const inlinedCore = strip(read("server/relay-core.mjs"));
+const inlinedBus = strip(read("server/kv-bus.ts"));
+const inlinedEntry = read("server/relay.ts")
   .replace(/^\/\/ @ts-ignore.*$/gm, "")
-  .replace(/^import \{ createRelay \} from "\.\/relay-core\.mjs";$/gm, "");
+  .replace(/^import .*from "\.\/(relay-core\.mjs|kv-bus\.ts)";$/gm, "");
 
 // The inlined core is plain JavaScript, so type checking is turned off
 // for the merged file.
@@ -26,6 +28,7 @@ const out = `// @ts-nocheck
 //
 // Paste this whole file into a Deno Deploy playground and hit Save.
 ${inlinedCore}
+${inlinedBus}
 ${inlinedEntry}`;
 
 writeFileSync(join(root, "server/relay-single.ts"), out);

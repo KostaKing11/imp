@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 
 // Where the little room relay lives. It only forwards messages between
 // the phones in a room — the host's phone still runs the whole game.
-export const RELAY_URL = "wss://imp-relay.deno.dev/ws";
+export const RELAY_URL = "wss://low-worm-6346.kostaking11.deno.net/ws";
 
 // The web version of the game. Room QR codes point here with ?join=CODE,
 // so scanning one with an iPhone camera opens the game and joins.

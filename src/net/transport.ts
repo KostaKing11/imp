@@ -13,6 +13,9 @@ export interface Transport {
   onPeerLeave(cb: PeerHandler): void;
   // Host only: drop one client's connection (kick).
   kick?(peerId: string): void;
+  // True when the room has to ping to notice a dead connection. Raw TCP
+  // needs it; the relay reports joins and leaves by itself.
+  needsHeartbeat?: boolean;
   close(): void;
 }
 

@@ -8,13 +8,14 @@
 
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
+import { createMemoryBus } from "./memory-bus.mjs";
 import { createRelay } from "./relay-core.mjs";
 
 const PORT = Number(process.env.PORT ?? 8790);
 
 const relay = createRelay({
-  // A single Node process holds every room, so nothing to broadcast.
-  broadcast: () => {},
+  // A single Node process holds every room — nothing has to cross over.
+  bus: createMemoryBus(),
   log: (line) => console.log(`[relay] ${line}`),
 });
 

@@ -1,39 +1,30 @@
 // Deno Deploy entry point for the room relay.
 //
-// Deploy: https://dash.deno.com -> New Project -> pick this repo and set
-// the entrypoint to server/relay.ts. The app then talks to
-// wss://<your-project>.deno.dev/ws
+// Deploy: console.deno.com -> the app's entrypoint is this file, or paste
+// server/relay-single.ts into a playground. The app then talks to
+// wss://<your-app>.deno.net/ws
 //
-// This file runs on Deno (not on React Native), so it is kept out of the
-// app's TypeScript project — see "exclude" in tsconfig.json.
-//
-// A deployment can run in several isolates, so rooms that end up split
-// across them are stitched back together with a global BroadcastChannel.
+// Deno Deploy runs several instances of an app at once and a room's
+// players can land in different ones, so rooms live in Deno KV — see
+// kv-bus.ts. This file only wires sockets to the relay core.
 
 // @ts-ignore - plain JS module, typed loosely on purpose
 import { createRelay } from "./relay-core.mjs";
+import { createKvBus } from "./kv-bus.ts";
 
-const channel = new BroadcastChannel("imp-relay");
-
-const relay = createRelay({
-  broadcast: (msg: unknown) => {
-    try {
-      channel.postMessage(msg);
-    } catch {
-      // a single-isolate run doesn't need it
-    }
-  },
-  log: (line: string) => console.log(line),
-});
-
-channel.onmessage = (event: MessageEvent) => relay.onBroadcast(event.data);
+const log = (line: string) => console.log(`[relay] ${line}`);
+const bus = await createKvBus(log);
+const relay = createRelay({ bus, log });
 
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "*",
 };
 
-Deno.serve((req: Request) => {
+// PORT is only used when running this locally; Deno Deploy sets its own.
+const port = Number(Deno.env.get("PORT") ?? 8000);
+
+Deno.serve({ port }, (req: Request) => {
   const url = new URL(req.url);
 
   if (url.pathname === "/ws") {
@@ -47,7 +38,7 @@ Deno.serve((req: Request) => {
     return response;
   }
 
-  // Tiny health page so the server can be checked from a browser.
+  // Health page — instances are separate, so the numbers are per instance.
   if (url.pathname === "/" || url.pathname === "/health") {
     return new Response(JSON.stringify({ ok: true, ...relay.stats() }), {
       headers: { "content-type": "application/json", ...CORS },

@@ -132,13 +132,16 @@ export class RoomHost {
       // Wait for their JOIN message before adding them to the room.
     });
 
-    this.hbTimer = setInterval(() => {
-      this.transport.send("all", { type: "HB" } satisfies HostMsg);
-      const now = Date.now();
-      for (const [peer, seen] of [...this.lastSeen]) {
-        if (now - seen > HEARTBEAT_TIMEOUT_MS) this.dropPeer(peer);
-      }
-    }, HEARTBEAT_MS);
+    // Only raw sockets need pinging; the relay reports leaves itself.
+    if (transport.needsHeartbeat) {
+      this.hbTimer = setInterval(() => {
+        this.transport.send("all", { type: "HB" } satisfies HostMsg);
+        const now = Date.now();
+        for (const [peer, seen] of [...this.lastSeen]) {
+          if (now - seen > HEARTBEAT_TIMEOUT_MS) this.dropPeer(peer);
+        }
+      }, HEARTBEAT_MS);
+    }
 
     this.emit();
   }
@@ -685,9 +688,11 @@ export class RoomClient {
     });
     transport.onPeerLeave(() => this.hostLost());
 
-    this.hbTimer = setInterval(() => {
-      if (Date.now() - this.lastHostSeen > HEARTBEAT_TIMEOUT_MS) this.hostLost();
-    }, HEARTBEAT_MS);
+    if (transport.needsHeartbeat) {
+      this.hbTimer = setInterval(() => {
+        if (Date.now() - this.lastHostSeen > HEARTBEAT_TIMEOUT_MS) this.hostLost();
+      }, HEARTBEAT_MS);
+    }
 
     transport.send("host", { type: "JOIN", name: myName, color: myColor } satisfies ClientMsg);
   }

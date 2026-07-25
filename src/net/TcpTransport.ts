@@ -85,6 +85,8 @@ function writeMsg(socket: any, msg: unknown): void {
 // ---- host side ----
 
 export class TcpHostTransport implements Transport {
+  // Raw sockets can die silently — the room pings to notice.
+  readonly needsHeartbeat = true;
   private server: any = null;
   private udp: any = null;
   private sockets = new Map<string, any>();
@@ -212,6 +214,7 @@ export class TcpHostTransport implements Transport {
 // ---- client side ----
 
 export class TcpClientTransport implements Transport {
+  readonly needsHeartbeat = true;
   private socket: any = null;
   private messageCb: MessageHandler = () => {};
   private joinCb: PeerHandler = () => {};

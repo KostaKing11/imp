@@ -2,50 +2,71 @@
 // game: the host's phone stays the only authority, this just carries
 // messages between the host and the players in a room.
 //
-// Platform-independent core. The Deno and Node entry points wrap it with
-// their own WebSocket API; `broadcast` is only used on Deno Deploy, where
-// a deployment can run several isolates and a room may be split across
-// them (no-op elsewhere).
+// Sockets always live in ONE server instance, but a room's players can
+// land in different ones (Deno Deploy runs several). So everything that
+// has to cross an instance boundary goes through a `bus`:
+//
+//   claimRoom(code)  -> true if this code is now ours
+//   roomExists(code) -> is there a room with this code anywhere
+//   keepRoom(code)   -> refresh the room's lease
+//   releaseRoom(code)
+//   publish(code, msg)
+//   onRemote(cb)     -> cb(code, msg) for messages from other instances
+//
+// A single-process server (Node) uses a memory bus where publish is a
+// no-op; on Deno Deploy the bus is backed by Deno KV.
 
 export const MAX_PEERS_PER_ROOM = 15;
 export const MAX_MESSAGE_BYTES = 16 * 1024;
-// How long a JOIN waits for an isolate that holds the room to answer.
-export const REMOTE_JOIN_TIMEOUT_MS = 1200;
+export const ROOM_LEASE_REFRESH_MS = 20_000;
 
-export function createRelay({ broadcast = () => {}, log = () => {} } = {}) {
+export function createRelay({ bus, log = () => {} }) {
   /**
    * code -> {
-   *   host: sock | null,          // set when the host is on THIS isolate
-   *   peers: Map<peerId, sock>,   // players on THIS isolate
-   *   remote: boolean             // room is hosted on another isolate
+   *   host: sock | null,           // the host, if it sits in THIS instance
+   *   peers: Map<peerId, sock>,    // players in THIS instance
+   *   remotePeers: Set<peerId>,    // players known to be elsewhere
+   *   lease: timer | null          // only the host's instance holds it
    * }
    */
   const rooms = new Map();
   // sock -> { role: "host" | "peer", code, peerId }
   const meta = new Map();
-  // reqId -> { resolve, timer } for cross-isolate JOINs
-  const pendingJoins = new Map();
   let peerSeq = 1;
 
-  const room = (code) => rooms.get(code) ?? null;
-
-  const newCode = () => {
-    for (let i = 0; i < 40; i++) {
-      const code = String(Math.floor(1000 + Math.random() * 9000));
-      if (!rooms.has(code)) return code;
-    }
-    return null;
-  };
-
   const send = (sock, obj) => {
+    if (!sock) return;
     try {
       sock.send(JSON.stringify(obj));
     } catch {
-      // socket is closing; the close handler cleans up
+      // socket is closing; its close handler cleans up
     }
   };
 
-  const closeRoom = (code) => {
+  const newPeerId = () => `p${peerSeq++}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const room = (code) => rooms.get(code) ?? null;
+
+  const ensureRoom = (code) => {
+    let r = rooms.get(code);
+    if (!r) {
+      r = { host: null, peers: new Map(), remotePeers: new Set(), lease: null };
+      rooms.set(code, r);
+      bus.subscribe?.(code);
+    }
+    return r;
+  };
+
+  const forgetRoom = (code) => {
+    const r = rooms.get(code);
+    if (!r) return;
+    if (r.lease) clearInterval(r.lease);
+    rooms.delete(code);
+    bus.unsubscribe?.(code);
+  };
+
+  // Everyone in this instance loses the room (the host went away).
+  const dropLocalPeers = (code) => {
     const r = room(code);
     if (!r) return;
     for (const peer of r.peers.values()) {
@@ -54,12 +75,12 @@ export function createRelay({ broadcast = () => {}, log = () => {} } = {}) {
         peer.close();
       } catch {}
     }
-    rooms.delete(code);
+    forgetRoom(code);
   };
 
-  // ---- messages coming from a socket ----
+  // ---- messages from a socket ----
 
-  function onMessage(sock, raw) {
+  async function onMessage(sock, raw) {
     if (typeof raw !== "string" || raw.length > MAX_MESSAGE_BYTES) return;
     let msg;
     try {
@@ -74,12 +95,19 @@ export function createRelay({ broadcast = () => {}, log = () => {} } = {}) {
     // ---- opening a room ----
     if (msg.t === "HOST") {
       if (info) return;
-      const code = newCode();
-      if (!code) {
+      let code = null;
+      for (let i = 0; i < 25 && code === null; i++) {
+        const candidate = String(Math.floor(1000 + Math.random() * 9000));
+        if (rooms.has(candidate)) continue;
+        if (await bus.claimRoom(candidate)) code = candidate;
+      }
+      if (code === null) {
         send(sock, { t: "ERR", reason: "no-code" });
         return;
       }
-      rooms.set(code, { host: sock, peers: new Map(), remote: false });
+      const r = ensureRoom(code);
+      r.host = sock;
+      r.lease = setInterval(() => bus.keepRoom(code), ROOM_LEASE_REFRESH_MS);
       meta.set(sock, { role: "host", code });
       send(sock, { t: "HOSTED", code });
       log(`room ${code} opened`);
@@ -94,73 +122,74 @@ export function createRelay({ broadcast = () => {}, log = () => {} } = {}) {
         send(sock, { t: "ERR", reason: "bad-code" });
         return;
       }
-      const r = room(code);
-      if (r && r.host) {
-        if (r.peers.size >= MAX_PEERS_PER_ROOM) {
-          send(sock, { t: "ERR", reason: "full" });
-          return;
-        }
-        const peerId = `p${peerSeq++}`;
-        r.peers.set(peerId, sock);
-        meta.set(sock, { role: "peer", code, peerId });
-        send(sock, { t: "JOINED", peerId });
-        send(r.host, { t: "PEER_JOIN", peer: peerId });
-        return;
-      }
-      // Maybe another isolate holds this room — ask around.
-      const reqId = `${Date.now().toString(36)}-${peerSeq++}`;
-      const timer = setTimeout(() => {
-        pendingJoins.delete(reqId);
+      const local = room(code);
+      const exists = (local && local.host) || (await bus.roomExists(code));
+      if (!exists) {
         send(sock, { t: "ERR", reason: "no-room" });
         try {
           sock.close();
         } catch {}
-      }, REMOTE_JOIN_TIMEOUT_MS);
-      pendingJoins.set(reqId, { sock, code, timer });
-      broadcast({ k: "join-req", code, reqId });
+        return;
+      }
+      const r = ensureRoom(code);
+      if (r.peers.size + r.remotePeers.size >= MAX_PEERS_PER_ROOM) {
+        send(sock, { t: "ERR", reason: "full" });
+        return;
+      }
+      const peerId = newPeerId();
+      r.peers.set(peerId, sock);
+      meta.set(sock, { role: "peer", code, peerId });
+      send(sock, { t: "JOINED", peerId });
+      if (r.host) send(r.host, { t: "PEER_JOIN", peer: peerId });
+      else bus.publish(code, { kind: "peer-join", peer: peerId });
       return;
     }
 
     if (!info) return;
+    const r = room(info.code);
+    if (!r) return;
 
     // ---- in-room traffic ----
     if (msg.t === "MSG") {
       if (info.role === "host") {
-        const r = room(info.code);
-        if (!r) return;
         if (msg.to === "all") {
           for (const peer of r.peers.values()) send(peer, { t: "MSG", data: msg.data });
-          broadcast({ k: "to-peer", code: info.code, to: "all", data: msg.data });
+          if (r.remotePeers.size > 0) {
+            bus.publish(info.code, { kind: "to-peer", to: "all", data: msg.data });
+          }
         } else {
           const peer = r.peers.get(msg.to);
           if (peer) send(peer, { t: "MSG", data: msg.data });
-          else broadcast({ k: "to-peer", code: info.code, to: msg.to, data: msg.data });
+          else if (r.remotePeers.has(msg.to)) {
+            bus.publish(info.code, { kind: "to-peer", to: msg.to, data: msg.data });
+          }
         }
+      } else if (r.host) {
+        send(r.host, { t: "MSG", from: info.peerId, data: msg.data });
       } else {
-        const r = room(info.code);
-        if (r?.host) send(r.host, { t: "MSG", from: info.peerId, data: msg.data });
-        else broadcast({ k: "to-host", code: info.code, from: info.peerId, data: msg.data });
+        bus.publish(info.code, { kind: "to-host", from: info.peerId, data: msg.data });
       }
       return;
     }
 
-    // ---- host kicks a player ----
+    // ---- the host kicks a player ----
     if (msg.t === "KICK" && info.role === "host") {
-      const r = room(info.code);
-      const peer = r?.peers.get(String(msg.peer));
+      const peerId = String(msg.peer);
+      const peer = r.peers.get(peerId);
       if (peer) {
-        r.peers.delete(String(msg.peer));
+        r.peers.delete(peerId);
         meta.delete(peer);
         try {
           peer.close();
         } catch {}
-      } else {
-        broadcast({ k: "kick", code: info.code, peer: String(msg.peer) });
+      } else if (r.remotePeers.has(peerId)) {
+        r.remotePeers.delete(peerId);
+        bus.publish(info.code, { kind: "kick", peer: peerId });
       }
     }
   }
 
-  // ---- socket closed ----
+  // ---- a socket went away ----
 
   function onClose(sock) {
     const info = meta.get(sock);
@@ -171,95 +200,76 @@ export function createRelay({ broadcast = () => {}, log = () => {} } = {}) {
 
     if (info.role === "host") {
       log(`room ${info.code} closed`);
-      broadcast({ k: "host-gone", code: info.code });
-      closeRoom(info.code);
+      bus.releaseRoom(info.code);
+      bus.publish(info.code, { kind: "host-gone" });
+      r.host = null;
+      dropLocalPeers(info.code);
       return;
     }
 
     r.peers.delete(info.peerId);
     if (r.host) send(r.host, { t: "PEER_LEAVE", peer: info.peerId });
-    else broadcast({ k: "peer-leave", code: info.code, peer: info.peerId });
-    // A room we only mirror for remote players can go once it's empty.
-    if (r.remote && r.peers.size === 0) rooms.delete(info.code);
+    else bus.publish(info.code, { kind: "peer-leave", peer: info.peerId });
+    // Nothing of this room left here.
+    if (!r.host && r.peers.size === 0) forgetRoom(info.code);
   }
 
-  // ---- messages from other isolates (Deno Deploy only) ----
+  // ---- messages from another instance ----
 
-  function onBroadcast(msg) {
-    if (!msg || typeof msg !== "object") return;
-    const r = room(msg.code);
+  function onRemote(code, msg) {
+    const r = room(code);
+    if (!r || !msg || typeof msg !== "object") return;
 
-    switch (msg.k) {
-      case "join-req": {
-        // Only the isolate that actually holds the host answers.
-        if (!r?.host) return;
-        if (r.peers.size >= MAX_PEERS_PER_ROOM) return;
-        const peerId = `p${peerSeq++}-r`;
-        // The player's socket lives on the asking isolate; remember the id
-        // so traffic can be routed back through the channel.
-        r.peers.set(peerId, null);
-        send(r.host, { t: "PEER_JOIN", peer: peerId });
-        broadcast({ k: "join-ok", reqId: msg.reqId, code: msg.code, peerId });
+    switch (msg.kind) {
+      case "peer-join":
+        if (!r.host) return;
+        r.remotePeers.add(msg.peer);
+        send(r.host, { t: "PEER_JOIN", peer: msg.peer });
         return;
-      }
-      case "join-ok": {
-        const pending = pendingJoins.get(msg.reqId);
-        if (!pending) return;
-        clearTimeout(pending.timer);
-        pendingJoins.delete(msg.reqId);
-        let mirror = room(msg.code);
-        if (!mirror) {
-          mirror = { host: null, peers: new Map(), remote: true };
-          rooms.set(msg.code, mirror);
-        }
-        mirror.peers.set(msg.peerId, pending.sock);
-        meta.set(pending.sock, { role: "peer", code: msg.code, peerId: msg.peerId });
-        send(pending.sock, { t: "JOINED", peerId: msg.peerId });
+      case "peer-leave":
+        if (!r.host) return;
+        r.remotePeers.delete(msg.peer);
+        send(r.host, { t: "PEER_LEAVE", peer: msg.peer });
         return;
-      }
-      case "to-peer": {
-        if (!r) return;
+      case "to-host":
+        if (!r.host) return;
+        send(r.host, { t: "MSG", from: msg.from, data: msg.data });
+        return;
+      case "to-peer":
         if (msg.to === "all") {
-          for (const peer of r.peers.values()) if (peer) send(peer, { t: "MSG", data: msg.data });
+          for (const peer of r.peers.values()) send(peer, { t: "MSG", data: msg.data });
         } else {
           const peer = r.peers.get(msg.to);
           if (peer) send(peer, { t: "MSG", data: msg.data });
         }
         return;
-      }
-      case "to-host": {
-        if (!r?.host) return;
-        send(r.host, { t: "MSG", from: msg.from, data: msg.data });
-        return;
-      }
-      case "peer-leave": {
-        if (!r?.host) return;
-        r.peers.delete(msg.peer);
-        send(r.host, { t: "PEER_LEAVE", peer: msg.peer });
-        return;
-      }
       case "kick": {
-        const peer = r?.peers.get(msg.peer);
+        const peer = r.peers.get(msg.peer);
         if (!peer) return;
         r.peers.delete(msg.peer);
+        // meta is dropped here, so the socket's own close handler won't
+        // announce the departure — do it now.
         meta.delete(peer);
         try {
           peer.close();
         } catch {}
+        bus.publish(code, { kind: "peer-leave", peer: msg.peer });
+        if (!r.host && r.peers.size === 0) forgetRoom(code);
         return;
       }
-      case "host-gone": {
-        if (!r || r.host) return;
-        closeRoom(msg.code);
+      case "host-gone":
+        if (r.host) return; // our own echo
+        dropLocalPeers(code);
         return;
-      }
     }
   }
+
+  bus.onRemote?.(onRemote);
 
   return {
     onMessage,
     onClose,
-    onBroadcast,
+    onRemote,
     stats: () => ({ rooms: rooms.size, sockets: meta.size }),
   };
 }
