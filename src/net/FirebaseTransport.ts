@@ -13,6 +13,10 @@
 //
 // A player's id is their anonymous sign-in id, which is what the
 // database rules use to keep one player's card away from everyone else.
+//
+// Messages travel as JSON text. Stored as objects they would come back
+// subtly different — the database drops empty lists and nulls — and the
+// game state is full of both.
 
 import {
   DatabaseReference,
@@ -36,6 +40,19 @@ const OFFLINE_GRACE_MS = 20_000;
 
 function randomCode(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function encode(msg: unknown): string {
+  return JSON.stringify(msg);
+}
+
+function decode(raw: unknown): unknown {
+  if (typeof raw !== "string") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 export class FirebaseHostTransport implements Transport {
@@ -92,7 +109,7 @@ export class FirebaseHostTransport implements Transport {
       if (this.closed) return;
       const value = snap.val();
       remove(snap.ref).catch(() => {});
-      if (value?.from) this.messageCb(String(value.from), value.data);
+      if (value?.from) this.messageCb(String(value.from), decode(value.data));
     });
     this.watched.push(inboxRef);
 
@@ -104,7 +121,7 @@ export class FirebaseHostTransport implements Transport {
     const db = this.conn.db;
     const targets = to === "all" ? [...this.peers] : [to];
     for (const peer of targets) {
-      push(ref(db, `rooms/${this.code}/toPeer/${peer}`), { data: msg }).catch(() => {});
+      push(ref(db, `rooms/${this.code}/toPeer/${peer}`), { data: encode(msg) }).catch(() => {});
     }
   }
 
@@ -180,7 +197,7 @@ export class FirebaseClientTransport implements Transport {
       if (this.closed) return;
       const value = snap.val();
       remove(snap.ref).catch(() => {});
-      this.messageCb("host", value?.data);
+      this.messageCb("host", decode(value?.data));
     });
     this.watched.push(inboxRef);
 
@@ -222,7 +239,9 @@ export class FirebaseClientTransport implements Transport {
   send(_to: string, msg: unknown): void {
     if (this.closed || !this.code) return;
     const db = this.conn.db;
-    push(ref(db, `rooms/${this.code}/toHost`), { from: this.peerId, data: msg }).catch(() => {});
+    push(ref(db, `rooms/${this.code}/toHost`), { from: this.peerId, data: encode(msg) }).catch(
+      () => {}
+    );
   }
 
   onMessage(cb: MessageHandler): void {

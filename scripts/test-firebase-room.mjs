@@ -80,6 +80,21 @@ lines.push(`      (delivery ${Date.now() - started}ms)`);
 const cards = players.map((p) => p.seen.inbox[0]?.msg?.card);
 check(new Set(cards).size === 3, `each card went to exactly one player (${cards.join(", ")})`);
 
+// A real game state carries empty lists and nulls, which a database
+// happily drops — the message has to arrive exactly as it was sent.
+const shape = {
+  type: "STATE",
+  state: { phase: "cards", readyIds: [], votedIds: [], answers: null, results: null, players: [] },
+};
+host.send(ids[0], shape);
+const shaped = await until(() =>
+  players[0].seen.inbox.find((m) => m.msg?.type === "STATE")
+);
+check(
+  shaped && JSON.stringify(shaped.msg) === JSON.stringify(shape),
+  `game state survived the trip intact (${JSON.stringify(shaped?.msg?.state ?? null)})`
+);
+
 // broadcast
 host.send("all", { state: "vote" });
 check(
