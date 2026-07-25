@@ -41,6 +41,18 @@ export const EMULATOR = {
   authPort: 9099,
 };
 
+// Signing in takes a couple of seconds on a cold start, so the home
+// screen kicks it off as soon as you switch to playing on every phone —
+// by the time HOST or JOIN is pressed it is usually already done.
+export function warmUpConnection(): void {
+  if (!firebaseConfigured()) return;
+  try {
+    connection().uid().catch(() => {});
+  } catch {
+    // nothing to warm up
+  }
+}
+
 export type Connection = {
   db: Database;
   // This device's id, once anonymous sign-in has gone through.

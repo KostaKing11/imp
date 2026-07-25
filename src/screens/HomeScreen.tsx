@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Animated, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { HOW_TO_PLAY } from "../../data/howto";
 import AppModal from "../components/AppModal";
@@ -22,6 +22,7 @@ import {
   RoleDef,
 } from "../game/types";
 import { getLanguage, t, tf } from "../i18n";
+import { warmUpConnection } from "../net/firebase";
 import { colors, PLAYER_COLORS, spacing } from "../theme";
 import { uid } from "../utils";
 import PlayerEditor from "./editors/PlayerEditor";
@@ -97,6 +98,11 @@ export default function HomeScreen({
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [playerIsNew, setPlayerIsNew] = useState(false);
   const [howToOpen, setHowToOpen] = useState(false);
+
+  // Get the sign-in out of the way while the player types their name.
+  useEffect(() => {
+    if (playStyle === "net" && netMode === "online") warmUpConnection();
+  }, [playStyle, netMode]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const logoScale = scrollY.interpolate({
