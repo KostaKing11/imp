@@ -11,14 +11,18 @@ import {
   FirebaseHostTransport,
 } from "../src/net/FirebaseTransport.ts";
 
-Object.assign(FIREBASE_CONFIG, {
-  apiKey: "demo",
-  authDomain: "demo-imp.firebaseapp.com",
-  databaseURL: "https://demo-imp-default-rtdb.firebaseio.com",
-  projectId: "demo-imp",
-  appId: "demo",
-});
-EMULATOR.enabled = true;
+// REAL=1 runs against the project in src/net/firebase.ts instead of the
+// emulator — used once, to check a freshly set up project.
+if (process.env.REAL !== "1") {
+  Object.assign(FIREBASE_CONFIG, {
+    apiKey: "demo",
+    authDomain: "demo-imp.firebaseapp.com",
+    databaseURL: "https://demo-imp-default-rtdb.firebaseio.com",
+    projectId: "demo-imp",
+    appId: "demo",
+  });
+  EMULATOR.enabled = true;
+}
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const lines = [];

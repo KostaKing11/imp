@@ -15,12 +15,14 @@ import { Auth, connectAuthEmulator, getAuth, signInAnonymously } from "firebase/
 import { connectDatabaseEmulator, Database, getDatabase } from "firebase/database";
 
 export const FIREBASE_CONFIG = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE_PROJECT.firebaseapp.com",
-  // Must be the europe-west1 database URL, not the default US one.
-  databaseURL: "https://PASTE_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "PASTE_PROJECT",
-  appId: "PASTE_APP_ID",
+  apiKey: "AIzaSyBG_2Yn0VF8LkwxA6n4I9erPqfznY-v1ng",
+  authDomain: "imp-kosat-games.firebaseapp.com",
+  // europe-west1 — the database sits in Belgium, not the US.
+  databaseURL: "https://imp-kosat-games-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "imp-kosat-games",
+  storageBucket: "imp-kosat-games.firebasestorage.app",
+  messagingSenderId: "110416571442",
+  appId: "1:110416571442:web:c62b76517d85232ba1a02b",
 };
 
 export function firebaseConfigured(): boolean {
