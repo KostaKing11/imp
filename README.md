@@ -1,6 +1,6 @@
 # IMP — party games
 
-Party games for a group. No accounts, no servers, no internet.
+Party games for a group. No accounts to make, nothing to sign up for.
 
 Five gamemodes: **IMP Classic** (the imposter doesn't know the word),
 **Odd One Out** (one player's word is slightly different), **Mafia** (the app
@@ -10,9 +10,10 @@ deals the roles, you play it out loud), **Bluff** (a 2-player duel) and
 Two ways to play, picked at the top of the home screen:
 
 - **1 phone** — pass-and-play, everyone taps their own card.
-- **Local multiplayer** — everyone on their own phone, over the local Wi-Fi.
+- **Every phone** — each player on their own phone, over the internet or
+  over a local Wi-Fi with no internet at all.
 
-## Local multiplayer
+## Every phone
 
 Type your name, pick a colour, then **HOST** or **JOIN**. The host's phone is
 the game server: it shows a 4-digit room code (and a QR code behind the small
@@ -20,41 +21,56 @@ QR button), picks the mode/categories/roles, can kick players, and drives the
 round. Everyone else joins by typing the code or scanning the QR.
 
 There are two ways for the phones to reach each other, picked with the
-**Internet / Wi-Fi** chips:
+**Internet / No internet** chips:
 
-- **Internet** — everyone connects through a tiny relay (`server/`), so an
-  iPhone on the web version and an Android with the app can play together.
-  The relay only forwards messages; the host's phone still runs the game and
-  the server stores nothing. The room QR is a plain link
+- **Internet** — everyone meets in a Firebase Realtime Database, so an
+  iPhone on the web version and an Android with the app play together and
+  nobody has to be in the same place. The database is only a postbox; the
+  host's phone still runs the game. The room QR is a plain link
   (`…/imp/?join=1234`) that any phone camera can open.
-- **Wi-Fi** — phone-to-phone over the local network (TCP + UDP discovery),
-  no internet and no server at all. Installed app only, since browsers have
-  no raw sockets. Same Wi-Fi for everyone; a phone hotspot works too.
+- **No internet** — phone-to-phone over the local network (TCP + UDP
+  discovery), no server at all. Installed app only, since browsers have no
+  raw sockets. Same Wi-Fi for everyone; a phone hotspot works too.
 
 Per mode: cards are dealt privately to each phone → the app announces who
 speaks first → everyone votes on their own phone → the reveal shows who was
 what and who won. Mafia only deals roles and lets the host reveal them at the
-end; Faker shows the shared question first and the answers after.
+end; Faker shows the shared question first and the answers after. The flow is
+the same either way — only the pipe differs.
 
-Per mode the flow is the same in both cases — only the pipe differs.
+## The online rooms (Firebase)
 
-## The relay (`server/`)
-
-A ~200-line message forwarder. It knows nothing about the game: rooms are
-just a code, a host socket and the player sockets.
+A room is a small tree in the Realtime Database:
 
 ```
-npm run relay           # local, ws://localhost:8790/ws
+rooms/<code>/host            { uid, at } — removed the moment the host drops
+rooms/<code>/peers/<uid>     one entry per player, removed on disconnect
+rooms/<code>/toHost/<id>     messages for the host, deleted once read
+rooms/<code>/toPeer/<uid>/…  messages for one player
 ```
 
-Deploy on [Deno Deploy](https://dash.deno.com): New Project → this repo →
-entrypoint `server/relay.ts`. Then put the project's address into
-`RELAY_URL` in [src/net/config.ts](src/net/config.ts) and rebuild the app
-and the website. `server/relay-node.mjs` is the same relay for Node hosts,
-and the shared logic lives in `server/relay-core.mjs`.
+Every phone signs in anonymously, so each has an id — nobody types
+anything, but [the rules](firebase/database.rules.json) can then keep a
+private card readable only by the phone it was dealt to, and the players'
+answers readable only by the host. Presence (`onDisconnect`) is what tells
+the room somebody left.
 
-While testing you can point the web build at another relay without
-rebuilding: `…/imp/?relay=ws://192.168.0.33:8790/ws`.
+Setting up a project: create one in the Firebase console, add a Realtime
+Database in **europe-west1**, turn on **Anonymous** sign-in, paste the
+rules from `firebase/database.rules.json`, and copy the web config into
+[src/net/firebase.ts](src/net/firebase.ts).
+
+### Testing it
+
+Both test suites run against the local emulator (which needs a JDK 21+ on
+the PATH — the Android build ships an older one, so point `JAVA_HOME` at a
+newer JDK for these):
+
+```
+npm run emulator      # database + auth emulators
+npm run test:room     # a host and three players: cards, votes, kick, quit
+npm run test:rules    # tries to cheat and expects to be refused
+```
 
 ## Running
 
@@ -115,9 +131,10 @@ on the phone).
 
 - `App.tsx` — screen state machine, persistence, Android back handling
 - `src/game/` — types, roles and the per-mode round engines
-- `src/net/` — local multiplayer: `protocol.ts` (wire format), `room.ts`
-  (host-authoritative game state), `TcpTransport.ts` (sockets + discovery),
-  `transport.ts` (the interface + an in-memory mock)
+- `src/net/` — multiplayer: `protocol.ts` (wire format), `room.ts`
+  (host-authoritative game state), `transport.ts` (the interface both ways
+  of connecting implement, plus an in-memory mock), `FirebaseTransport.ts`
+  (online), `TcpTransport.ts` (local Wi-Fi, no internet)
 - `src/screens/` — one-phone screens, `net/` for local multiplayer,
   `setup/GameSetup.tsx` shared by the home screen and the host's lobby,
   `editors/` for the category/role/player modals

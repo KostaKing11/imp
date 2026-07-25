@@ -1,0 +1,67 @@
+// Rules for the game database.
+//
+// Every phone signs in anonymously, so each one has an id. Knowing a
+// room's 4-digit code lets you join that room — but NOT read anyone
+// else's mail: a private card can only be read by the phone it was
+// dealt to, and only the host can read what the players send back.
+// Everything outside /rooms is closed.
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "rooms": {
+      "$code": {
+        ".validate": "$code.matches(/^[0-9]{4}$/) != null",
+
+        // The host owns the room, so it can tidy up and take the room
+        // down when it leaves. A room is created one level deeper, by
+        // claiming /host.
+        ".write": "auth != null && data.child('host').child('uid').val() === auth.uid",
+
+        "host": {
+          ".read": "auth != null",
+          ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid)",
+          ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'at']) && newData.child('uid').val() === auth.uid)",
+          "uid": { ".validate": "newData.isString()" },
+          "at": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        },
+
+        // Who is in the room. Everyone in the room may look.
+        "peers": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "auth != null && (auth.uid === $uid || root.child('rooms').child($code).child('host').child('uid').val() === auth.uid)",
+            ".validate": "!newData.exists() || newData.hasChild('at')",
+            "at": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        // Players -> host. Only the host reads this.
+        "toHost": {
+          ".read": "auth != null && root.child('rooms').child($code).child('host').child('uid').val() === auth.uid",
+          "$msgId": {
+            ".write": "auth != null && (!data.exists() || root.child('rooms').child($code).child('host').child('uid').val() === auth.uid)",
+            ".validate": "!newData.exists() || (newData.hasChildren(['from', 'data']) && newData.child('from').val() === auth.uid)"
+          }
+        },
+
+        // Host -> one player. This is where the private cards go, so
+        // only that player can read their own branch.
+        "toPeer": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && (auth.uid === $uid || root.child('rooms').child($code).child('host').child('uid').val() === auth.uid)",
+            "$msgId": {
+              ".validate": "!newData.exists() || newData.hasChild('data')"
+            }
+          }
+        },
+
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

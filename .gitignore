@@ -39,3 +39,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# test bundles
+.tmp-*.mjs
+database-debug.log
+firebase-debug.log
+ui-debug.log

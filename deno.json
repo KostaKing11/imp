@@ -1,8 +1,0 @@
-{
-  "//": "Only the room relay in server/ runs on Deno — the rest of the repo is the React Native app.",
-  "tasks": {
-    "build": "echo \"nothing to build\"",
-    "start": "deno run --allow-net server/relay.ts"
-  },
-  "exclude": ["node_modules", "dist", "android", "ios", "src", "assets", "data", "public"]
-}

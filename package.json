@@ -9,6 +9,7 @@
     "expo-camera": "~56.0.8",
     "expo-network": "~56.0.5",
     "expo-status-bar": "~56.0.4",
+    "firebase": "^12.16.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
@@ -21,10 +22,10 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "deno": "^2.9.4",
+    "esbuild": "^0.28.1",
+    "firebase-tools": "^15.24.0",
     "gh-pages": "^6.3.0",
-    "typescript": "~6.0.3",
-    "ws": "^8.21.1"
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
@@ -37,7 +38,9 @@
     "apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
     "apk:build": "cd android && .\\gradlew.bat assembleRelease",
     "apk:install": "adb install -r android/app/build/outputs/apk/release/app-release.apk",
-    "relay": "node server/relay-node.mjs"
+    "emulator": "firebase emulators:start --only database,auth --project demo-imp",
+    "test:room": "npx esbuild scripts/test-firebase-room.mjs --bundle --platform=node --format=esm --packages=external --outfile=.tmp-test.mjs && node .tmp-test.mjs",
+    "test:rules": "npx esbuild scripts/test-firebase-rules.mjs --bundle --platform=node --format=esm --packages=external --outfile=.tmp-test.mjs && node .tmp-test.mjs"
   },
   "private": true
 }

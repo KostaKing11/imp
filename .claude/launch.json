@@ -8,6 +8,19 @@
       "port": 8081
     },
     {
+      "name": "firebase-emulator",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "firebase",
+        "emulators:start",
+        "--only",
+        "database,auth",
+        "--project",
+        "demo-imp"
+      ],
+      "port": 9000
+    },
+    {
       "name": "imp-relay",
       "runtimeExecutable": "node",
       "runtimeArgs": ["server/relay-node.mjs"],

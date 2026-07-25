@@ -23,7 +23,9 @@ import {
   RoleDef,
 } from "../../game/types";
 import { t, tf } from "../../i18n";
-import { codeFromLink, relayUrl, roomLink } from "../../net/config";
+import { codeFromLink, roomLink } from "../../net/config";
+import { firebaseConfigured } from "../../net/firebase";
+import { FirebaseClientTransport, FirebaseHostTransport } from "../../net/FirebaseTransport";
 import {
   decodeQr,
   encodeQr,
@@ -38,7 +40,6 @@ import {
   TcpClientTransport,
   TcpHostTransport,
 } from "../../net/TcpTransport";
-import { WsClientTransport, WsHostTransport } from "../../net/WsTransport";
 import { colors, radius, spacing } from "../../theme";
 import { confirmDialog, textColorFor, uid } from "../../utils";
 import NetCardView from "./NetCardView";
@@ -172,6 +173,10 @@ export default function NetScreen(props: Props) {
   // ---- hosting ----
 
   const hostRoom = async () => {
+    if (online && !firebaseConfigured()) {
+      setError(t("notConfigured"));
+      return;
+    }
     if (!online && !nativeNetAvailable()) {
       setError(t("needFullApp"));
       return;
@@ -181,12 +186,13 @@ export default function NetScreen(props: Props) {
     try {
       const roomId = uid();
       let code: string;
-      let transport: TcpHostTransport | WsHostTransport;
+      let transport: TcpHostTransport | FirebaseHostTransport;
       if (online) {
-        // The relay hands out the room code so two rooms can't share one.
-        const ws = new WsHostTransport();
-        code = await ws.start(relayUrl());
-        transport = ws;
+        // The room code is claimed in the database, so two rooms can
+        // never end up sharing one.
+        const fb = new FirebaseHostTransport();
+        code = await fb.start();
+        transport = fb;
         hostTransportRef.current = null;
       } else {
         code = randomRoomCode();
@@ -227,7 +233,7 @@ export default function NetScreen(props: Props) {
 
   // Shared tail of both join paths — wires a connected transport into a
   // RoomClient and flips the screen into the room.
-  const attachClient = (transport: TcpClientTransport | WsClientTransport) => {
+  const attachClient = (transport: TcpClientTransport | FirebaseClientTransport) => {
     clientRef.current = new RoomClient(
       transport,
       {
@@ -260,19 +266,23 @@ export default function NetScreen(props: Props) {
   };
 
   const joinOnline = async (code: string) => {
+    if (!firebaseConfigured()) {
+      setError(t("notConfigured"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const transport = new WsClientTransport();
-      await transport.connect(relayUrl(), code);
+      const transport = new FirebaseClientTransport();
+      await transport.connect(code);
       attachClient(transport);
     } catch (e) {
       const reason = e instanceof Error ? e.message : "";
       setError(
-        reason === "no-room" || reason === "bad-code"
+        reason === "no-room"
           ? t("roomNotFound")
-          : reason === "full"
-            ? t("roomFull")
+          : reason === "firebase-not-configured"
+            ? t("notConfigured")
             : t("relayFailed")
       );
     } finally {
