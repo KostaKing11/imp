@@ -4,6 +4,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BLEF_CLUES_PER_PLAYER, createBlefRound } from "./src/game/blefEngine";
 import { buildCategories, serializeCategories, StoredCategories } from "./src/game/categories";
 import { createRound } from "./src/game/engine";
+import {
+  buildFakerCategories,
+  createFakerRound,
+  serializeFakerCategories,
+  StoredFakerCategories,
+} from "./src/game/fakerEngine";
 import { createMafiaRound } from "./src/game/mafiaEngine";
 import {
   buildPairCategories,
@@ -15,6 +21,9 @@ import { DEFAULT_MAFIA_ROLES, DEFAULT_ROLES } from "./src/game/roles";
 import {
   BlefRound,
   CategoryState,
+  FakerAnswers,
+  FakerCategoryState,
+  FakerRound,
   GameMode,
   MafiaRound,
   OddRound,
@@ -28,8 +37,13 @@ import { getLanguage, Language, setLanguage, t, tf } from "./src/i18n";
 import BlefResultScreen from "./src/screens/BlefResultScreen";
 import BlefRevealScreen from "./src/screens/BlefRevealScreen";
 import DiscussionScreen from "./src/screens/DiscussionScreen";
-import HomeScreen from "./src/screens/HomeScreen";
+import FakerAnswerScreen from "./src/screens/faker/FakerAnswerScreen";
+import FakerAnswersScreen from "./src/screens/faker/FakerAnswersScreen";
+import FakerResultScreen from "./src/screens/faker/FakerResultScreen";
+import { joinCodeFromUrl } from "./src/net/config";
+import HomeScreen, { NetMode, PlayStyle } from "./src/screens/HomeScreen";
 import MafiaResultScreen from "./src/screens/MafiaResultScreen";
+import NetScreen from "./src/screens/net/NetScreen";
 import MafiaRevealScreen from "./src/screens/MafiaRevealScreen";
 import OddResultScreen from "./src/screens/OddResultScreen";
 import OddRevealScreen from "./src/screens/OddRevealScreen";
@@ -41,8 +55,18 @@ import { PLAYER_COLORS } from "./src/theme";
 import { confirmDialog, uid } from "./src/utils";
 
 // Simple state-machine navigation — no navigation library needed for
-// a pass-and-play game. Mafia skips "discussion" (it's played out loud).
-type ScreenName = "home" | "settings" | "reveal" | "discussion" | "result";
+// a pass-and-play game. Mafia skips "discussion" (it's played out loud);
+// the faker* screens belong to the Faker mode's own flow, and "net" is
+// local multiplayer (every player on their own phone).
+type ScreenName =
+  | "home"
+  | "settings"
+  | "reveal"
+  | "discussion"
+  | "result"
+  | "fakerAnswer"
+  | "fakerReveal"
+  | "net";
 
 const DEFAULT_SETTINGS: Settings = {
   impTimer: { enabled: false, seconds: 120 },
@@ -90,13 +114,26 @@ export default function App() {
   const [pairCategories, setPairCategories] = useState<PairCategoryState[]>(() =>
     buildPairCategories()
   );
+  const [fakerCategories, setFakerCategories] = useState<FakerCategoryState[]>(() =>
+    buildFakerCategories()
+  );
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [round, setRound] = useState<Round | null>(null);
   const [oddRound, setOddRound] = useState<OddRound | null>(null);
   const [mafiaRound, setMafiaRound] = useState<MafiaRound | null>(null);
   const [blefRound, setBlefRound] = useState<BlefRound | null>(null);
+  const [fakerRound, setFakerRound] = useState<FakerRound | null>(null);
+  const [fakerAnswers, setFakerAnswers] = useState<FakerAnswers>({});
+  const [playStyle, setPlayStyle] = useState<PlayStyle>("single");
+  const [netIntent, setNetIntent] = useState<"host" | "join">("host");
+  const [netName, setNetName] = useState("");
+  const [netColor, setNetColor] = useState(PLAYER_COLORS[1]);
+  const [netMode, setNetMode] = useState<NetMode>("online");
+  // Set when the app was opened from a room link (…?join=1234).
+  const [pendingJoinCode, setPendingJoinCode] = useState<string | null>(null);
   const [usedWords, setUsedWords] = useState<string[]>([]);
   const [usedPairs, setUsedPairs] = useState<string[]>([]);
+  const [usedQuestions, setUsedQuestions] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   // Only enabled players are dealt into a round.
@@ -114,7 +151,28 @@ export default function App() {
       const storedPairCategories = await loadJSON<
         StoredPairCategories | Record<string, boolean> | null
       >(KEYS.pairCategories, null);
+      const storedFakerCategories = await loadJSON<StoredFakerCategories | null>(
+        KEYS.fakerCategories,
+        null
+      );
       const storedLang = await loadJSON<Language | null>(KEYS.language, null);
+      const storedPlayStyle = await loadJSON<PlayStyle | null>(KEYS.playStyle, null);
+      if (storedPlayStyle === "single" || storedPlayStyle === "net") {
+        setPlayStyle(storedPlayStyle);
+      }
+      const storedNetName = await loadJSON<string | null>(KEYS.netName, null);
+      if (storedNetName) setNetName(storedNetName);
+      const storedNetColor = await loadJSON<string | null>(KEYS.netColor, null);
+      if (storedNetColor) setNetColor(storedNetColor);
+      const storedNetMode = await loadJSON<NetMode | null>(KEYS.netMode, null);
+      if (storedNetMode === "online" || storedNetMode === "lan") setNetMode(storedNetMode);
+      // Opened from a shared room link: jump straight to the join flow.
+      const linkCode = joinCodeFromUrl();
+      if (linkCode) {
+        setPendingJoinCode(linkCode);
+        setPlayStyle("net");
+        setNetMode("online");
+      }
       // Set the language FIRST so category sets + default names match it.
       const lang: Language = storedLang === "sr" ? "sr" : "en";
       setLanguage(lang);
@@ -128,6 +186,7 @@ export default function App() {
       setMafiaRoles(mergeRoles(DEFAULT_MAFIA_ROLES, storedMafiaRoles, "mafia"));
       setCategories(buildCategories(storedCategories, lang));
       setPairCategories(buildPairCategories(storedPairCategories, lang));
+      setFakerCategories(buildFakerCategories(storedFakerCategories, lang));
       if (storedSettings) {
         // Older saves had a single timer — apply it to both modes.
         const legacy = storedSettings as unknown as { timerEnabled?: boolean; timerSeconds?: number };
@@ -143,7 +202,13 @@ export default function App() {
           });
         }
       }
-      if (storedMode === "imp" || storedMode === "odd" || storedMode === "mafia") {
+      if (
+        storedMode === "imp" ||
+        storedMode === "odd" ||
+        storedMode === "mafia" ||
+        storedMode === "blef" ||
+        storedMode === "faker"
+      ) {
         setGameMode(storedMode);
       }
       setLoaded(true);
@@ -167,6 +232,21 @@ export default function App() {
     if (loaded) saveJSON(KEYS.pairCategories, serializePairCategories(pairCategories));
   }, [pairCategories, loaded]);
   useEffect(() => {
+    if (loaded) saveJSON(KEYS.fakerCategories, serializeFakerCategories(fakerCategories));
+  }, [fakerCategories, loaded]);
+  useEffect(() => {
+    if (loaded) saveJSON(KEYS.playStyle, playStyle);
+  }, [playStyle, loaded]);
+  useEffect(() => {
+    if (loaded) saveJSON(KEYS.netName, netName);
+  }, [netName, loaded]);
+  useEffect(() => {
+    if (loaded) saveJSON(KEYS.netColor, netColor);
+  }, [netColor, loaded]);
+  useEffect(() => {
+    if (loaded) saveJSON(KEYS.netMode, netMode);
+  }, [netMode, loaded]);
+  useEffect(() => {
     if (loaded) saveJSON(KEYS.settings, settings);
   }, [settings, loaded]);
   useEffect(() => {
@@ -183,6 +263,7 @@ export default function App() {
     setLanguageState(lang);
     setCategories((prev) => buildCategories(serializeCategories(prev), lang));
     setPairCategories((prev) => buildPairCategories(serializePairCategories(prev), lang));
+    setFakerCategories((prev) => buildFakerCategories(serializeFakerCategories(prev), lang));
   };
 
   const leaveGame = () => {
@@ -191,6 +272,8 @@ export default function App() {
     setOddRound(null);
     setMafiaRound(null);
     setBlefRound(null);
+    setFakerRound(null);
+    setFakerAnswers({});
     setScreen("home");
   };
 
@@ -215,7 +298,24 @@ export default function App() {
     return () => sub.remove();
   }, [screen]);
 
+  // Creates a Faker round and jumps into the answering phase. Used both
+  // from the play-style picker and from "New round" on the results screen.
+  const startFakerRound = () => {
+    const newRound = createFakerRound(activePlayers, fakerCategories, usedQuestions);
+    if (!newRound) return;
+    setFakerRound(newRound);
+    setFakerAnswers({});
+    setUsedQuestions((prev) =>
+      prev.includes(newRound.questionId) ? [newRound.questionId] : [...prev, newRound.questionId]
+    );
+    setScreen("fakerAnswer");
+  };
+
   const startGame = () => {
+    if (gameMode === "faker") {
+      startFakerRound();
+      return;
+    }
     if (gameMode === "imp") {
       const newRound = createRound(activePlayers, roles, categories, usedWords);
       if (!newRound) return;
@@ -252,6 +352,8 @@ export default function App() {
           <HomeScreen
             gameMode={gameMode}
             setGameMode={setGameMode}
+            playStyle={playStyle}
+            setPlayStyle={setPlayStyle}
             players={players}
             setPlayers={setPlayers}
             roles={roles}
@@ -262,7 +364,24 @@ export default function App() {
             setCategories={setCategories}
             pairCategories={pairCategories}
             setPairCategories={setPairCategories}
+            fakerCategories={fakerCategories}
+            setFakerCategories={setFakerCategories}
+            netName={netName}
+            setNetName={setNetName}
+            netColor={netColor}
+            setNetColor={setNetColor}
+            netMode={netMode}
+            setNetMode={setNetMode}
+            pendingJoinCode={pendingJoinCode}
             onStart={startGame}
+            onHost={() => {
+              setNetIntent("host");
+              setScreen("net");
+            }}
+            onJoin={() => {
+              setNetIntent("join");
+              setScreen("net");
+            }}
             onOpenSettings={() => setScreen("settings")}
           />
         );
@@ -276,6 +395,54 @@ export default function App() {
             onBack={() => setScreen("home")}
           />
         );
+      case "net":
+        return (
+          <NetScreen
+            intent={netIntent}
+            netMode={netMode}
+            initialCode={netIntent === "join" ? pendingJoinCode : null}
+            myName={netName.trim() || "?"}
+            myColor={netColor}
+            gameMode={gameMode}
+            setGameMode={setGameMode}
+            roles={roles}
+            setRoles={setRoles}
+            mafiaRoles={mafiaRoles}
+            setMafiaRoles={setMafiaRoles}
+            categories={categories}
+            setCategories={setCategories}
+            pairCategories={pairCategories}
+            setPairCategories={setPairCategories}
+            fakerCategories={fakerCategories}
+            setFakerCategories={setFakerCategories}
+            onExit={() => {
+              setPendingJoinCode(null);
+              setScreen("home");
+            }}
+          />
+        );
+      case "fakerAnswer":
+        return fakerRound ? (
+          <FakerAnswerScreen
+            players={activePlayers}
+            round={fakerRound}
+            onDone={(a) => {
+              setFakerAnswers(a);
+              setScreen("fakerReveal");
+            }}
+            onLeave={requestLeave}
+          />
+        ) : null;
+      case "fakerReveal":
+        return fakerRound ? (
+          <FakerAnswersScreen
+            players={activePlayers}
+            answers={fakerAnswers}
+            question={fakerRound.mainQuestion}
+            onReveal={() => setScreen("result")}
+            onLeave={requestLeave}
+          />
+        ) : null;
       case "reveal":
         if (gameMode === "odd") {
           return oddRound ? (
@@ -341,6 +508,16 @@ export default function App() {
         );
       }
       case "result":
+        if (gameMode === "faker") {
+          return fakerRound ? (
+            <FakerResultScreen
+              players={activePlayers}
+              round={fakerRound}
+              onNewRound={startFakerRound}
+              onBackToMenu={leaveGame}
+            />
+          ) : null;
+        }
         if (gameMode === "odd") {
           return oddRound ? (
             <OddResultScreen

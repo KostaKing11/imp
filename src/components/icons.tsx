@@ -1,5 +1,5 @@
 import React from "react";
-import Svg, { Circle, Line, Path } from "react-native-svg";
+import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { colors } from "../theme";
 import { hsvToHex } from "../utils";
 
@@ -22,6 +22,39 @@ export function WheelIcon({ size = 24 }: { size?: number }) {
       {wedges.map((w, i) => (
         <Path key={i} d={w.d} fill={w.fill} />
       ))}
+    </Svg>
+  );
+}
+
+// Miniature QR code — the button that opens the big one in the lobby.
+export function QrIcon({ size = 24, color = colors.text }: { size?: number; color?: string }) {
+  const eye = (x: number, y: number) => (
+    <>
+      <Rect
+        x={x}
+        y={y}
+        width="7"
+        height="7"
+        rx="1.5"
+        stroke={color}
+        strokeWidth="2"
+        fill="none"
+      />
+      <Rect x={x + 2.5} y={y + 2.5} width="2" height="2" fill={color} />
+    </>
+  );
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      {eye(2, 2)}
+      {eye(15, 2)}
+      {eye(2, 15)}
+      <Rect x="15" y="15" width="2.5" height="2.5" fill={color} />
+      <Rect x="19.5" y="15" width="2.5" height="2.5" fill={color} />
+      <Rect x="15" y="19.5" width="2.5" height="2.5" fill={color} />
+      <Rect x="19.5" y="19.5" width="2.5" height="2.5" fill={color} />
+      <Rect x="11" y="6" width="2" height="2" fill={color} />
+      <Rect x="11" y="11" width="2" height="2" fill={color} />
+      <Rect x="6" y="11" width="2" height="2" fill={color} />
     </Svg>
   );
 }

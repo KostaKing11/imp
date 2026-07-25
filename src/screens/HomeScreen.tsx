@@ -1,31 +1,43 @@
 import React, { useRef, useState } from "react";
-import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { HOW_TO_PLAY } from "../../data/howto";
-import { getLanguage, roleName, t, tf } from "../i18n";
 import AppModal from "../components/AppModal";
 import BigButton from "../components/BigButton";
 import Chip from "../components/Chip";
+import ColorPicker from "../components/ColorPicker";
 import { SlidersIcon } from "../components/icons";
 import Screen from "../components/Screen";
 import SectionTitle from "../components/SectionTitle";
+import TextField from "../components/TextField";
 import { BLEF_PLAYER_COUNT } from "../game/blefEngine";
 import { roleSlotCount } from "../game/engine";
+import { activeQuestionPool, FAKER_MIN_PLAYERS } from "../game/fakerEngine";
 import { activePairPool } from "../game/oddEngine";
-import { CategoryState, GameMode, PairCategoryState, Player, RoleDef } from "../game/types";
-import { colors, PLAYER_COLORS, radius, spacing } from "../theme";
+import {
+  CategoryState,
+  FakerCategoryState,
+  GameMode,
+  PairCategoryState,
+  Player,
+  RoleDef,
+} from "../game/types";
+import { getLanguage, t, tf } from "../i18n";
+import { colors, PLAYER_COLORS, spacing } from "../theme";
 import { uid } from "../utils";
-import CategoryEditor from "./editors/CategoryEditor";
-import PairCategoryEditor from "./editors/PairCategoryEditor";
 import PlayerEditor from "./editors/PlayerEditor";
-import RoleCountSheet from "./editors/RoleCountSheet";
-import RoleEditor from "./editors/RoleEditor";
+import GameSetup from "./setup/GameSetup";
 
 const MAX_PLAYERS = 12;
 const MIN_PLAYERS = 3;
 
+export type PlayStyle = "single" | "net";
+export type NetMode = "online" | "lan";
+
 type Props = {
   gameMode: GameMode;
   setGameMode: (mode: GameMode) => void;
+  playStyle: PlayStyle;
+  setPlayStyle: (style: PlayStyle) => void;
   players: Player[];
   setPlayers: (players: Player[]) => void;
   roles: RoleDef[];
@@ -36,13 +48,28 @@ type Props = {
   setCategories: (categories: CategoryState[]) => void;
   pairCategories: PairCategoryState[];
   setPairCategories: (categories: PairCategoryState[]) => void;
+  fakerCategories: FakerCategoryState[];
+  setFakerCategories: (categories: FakerCategoryState[]) => void;
+  // local multiplayer identity
+  netName: string;
+  setNetName: (name: string) => void;
+  netColor: string;
+  setNetColor: (color: string) => void;
+  netMode: NetMode;
+  setNetMode: (mode: NetMode) => void;
+  // room code the app was opened with (a scanned room link)
+  pendingJoinCode: string | null;
   onStart: () => void;
+  onHost: () => void;
+  onJoin: () => void;
   onOpenSettings: () => void;
 };
 
 export default function HomeScreen({
   gameMode,
   setGameMode,
+  playStyle,
+  setPlayStyle,
   players,
   setPlayers,
   roles,
@@ -53,18 +80,22 @@ export default function HomeScreen({
   setCategories,
   pairCategories,
   setPairCategories,
+  fakerCategories,
+  setFakerCategories,
+  netName,
+  setNetName,
+  netColor,
+  setNetColor,
+  netMode,
+  setNetMode,
+  pendingJoinCode,
   onStart,
+  onHost,
+  onJoin,
   onOpenSettings,
 }: Props) {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [playerIsNew, setPlayerIsNew] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<CategoryState | null>(null);
-  const [categoryIsNew, setCategoryIsNew] = useState(false);
-  const [editingPairCategory, setEditingPairCategory] = useState<PairCategoryState | null>(null);
-  const [pairCategoryIsNew, setPairCategoryIsNew] = useState(false);
-  const [editingRole, setEditingRole] = useState<RoleDef | null>(null);
-  const [roleIsNew, setRoleIsNew] = useState(false);
-  const [countRoleId, setCountRoleId] = useState<string | null>(null);
   const [howToOpen, setHowToOpen] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -74,12 +105,13 @@ export default function HomeScreen({
     extrapolate: "clamp",
   });
 
-  // Whichever role list the current mode uses (odd mode has none).
-  const isMafia = gameMode === "mafia";
-  const currentRoles = isMafia ? mafiaRoles : roles;
-  const setCurrentRoles = isMafia ? setMafiaRoles : setRoles;
+  const net = playStyle === "net";
+  // The browser has no raw sockets, so the web version can only use the
+  // online (relay) rooms — local Wi-Fi rooms need the installed app.
+  const isWeb = Platform.OS === "web";
+  const netBlocked = isWeb && netMode === "lan";
 
-  // ---- validation ----
+  // ---- validation (one-phone play only) ----
   const activePlayers = players.filter((p) => p.enabled);
   const slots = roleSlotCount(roles);
   const mafiaSlots = roleSlotCount(mafiaRoles);
@@ -88,6 +120,10 @@ export default function HomeScreen({
   if (gameMode === "blef" && activePlayers.length !== BLEF_PLAYER_COUNT)
     startError = t("errBlefPlayers");
   else if (gameMode === "blef" && enabledWords.length === 0) startError = t("errNoWords");
+  else if (gameMode === "faker" && activePlayers.length < FAKER_MIN_PLAYERS)
+    startError = t("errMinPlayers");
+  else if (gameMode === "faker" && activeQuestionPool(fakerCategories).length === 0)
+    startError = t("errNoQuestions");
   else if (gameMode !== "blef" && activePlayers.length < MIN_PLAYERS)
     startError = t("errMinPlayers");
   else if (gameMode === "imp" && slots > activePlayers.length - 1)
@@ -120,65 +156,30 @@ export default function HomeScreen({
     setPlayers(players.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p)));
   };
 
-  // ---- word categories (IMP Classic) ----
-  const toggleCategory = (id: string) => {
-    setCategories(categories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c)));
-  };
-
-  const addCategory = () => {
-    setEditingCategory({ id: `c:${uid()}`, name: "", enabled: true, custom: true, words: [] });
-    setCategoryIsNew(true);
-  };
-
-  const saveCategory = (c: CategoryState) => {
-    if (categoryIsNew) setCategories([...categories, c]);
-    else setCategories(categories.map((x) => (x.id === c.id ? c : x)));
-    setEditingCategory(null);
-  };
-
-  // ---- pair categories (Odd One Out) ----
-  const togglePairCategory = (id: string) => {
-    setPairCategories(
-      pairCategories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c))
-    );
-  };
-
-  const addPairCategory = () => {
-    setEditingPairCategory({ id: `pc:${uid()}`, name: "", enabled: true, custom: true, pairs: [] });
-    setPairCategoryIsNew(true);
-  };
-
-  const savePairCategory = (c: PairCategoryState) => {
-    if (pairCategoryIsNew) setPairCategories([...pairCategories, c]);
-    else setPairCategories(pairCategories.map((x) => (x.id === c.id ? c : x)));
-    setEditingPairCategory(null);
-  };
-
-  // ---- roles (IMP Classic & Mafia) ----
-  const addRole = () => {
-    setEditingRole({
-      id: `r:${uid()}`,
-      name: "",
-      description: "",
-      color: "#7B2CBF",
-      knowsWord: true,
-      enabled: true,
-      count: 1,
-      builtin: false,
-      kind: "custom",
-    });
-    setRoleIsNew(true);
-  };
-
-  const saveRole = (r: RoleDef) => {
-    if (roleIsNew) setCurrentRoles([...currentRoles, r]);
-    else setCurrentRoles(currentRoles.map((x) => (x.id === r.id ? r : x)));
-    setEditingRole(null);
-  };
-
-  const countRole = currentRoles.find((r) => r.id === countRoleId) ?? null;
   const howTos = HOW_TO_PLAY[getLanguage()];
   const howToText = howTos[gameMode];
+
+  const playersSection = (
+    <>
+      <SectionTitle>{t("players")}</SectionTitle>
+      <View style={styles.chipWrap}>
+        {players.map((p) => (
+          <Chip
+            key={p.id}
+            label={p.name}
+            bg={p.color}
+            active={p.enabled}
+            onPress={() => togglePlayer(p.id)}
+            onLongPress={() => {
+              setEditingPlayer(p);
+              setPlayerIsNew(false);
+            }}
+          />
+        ))}
+        {players.length < MAX_PLAYERS ? <Chip label="＋" onPress={addPlayer} /> : null}
+      </View>
+    </>
+  );
 
   return (
     <Screen>
@@ -193,11 +194,7 @@ export default function HomeScreen({
           style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}
           pointerEvents="none"
         >
-          <Image
-            source={require("../../assets/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
         </Animated.View>
         <Pressable style={styles.iconButton} onPress={onOpenSettings} hitSlop={8}>
           <SlidersIcon size={22} color={colors.textDim} />
@@ -207,193 +204,118 @@ export default function HomeScreen({
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: true,
         })}
         scrollEventThrottle={16}
       >
-        {/* game mode */}
-        <SectionTitle>{t("gameMode")}</SectionTitle>
-        {/* Horizontally scrollable so cards keep their size as modes are
-            added — no visible scrollbar, you just swipe the row. */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.modes}
-        >
-          {/* The border and dim overlay stay mounted with constant structure —
-              toggling borderWidth/children on Android glitches the rounded
-              clip and makes the image vanish. Only colors change. */}
-          <Pressable
-            onPress={() => setGameMode("imp")}
-            style={[styles.modeCard, gameMode === "imp" && styles.modeSelected]}
-          >
-            <Image
-              source={require("../../assets/modes/classic.png")}
-              style={styles.modeImage}
-              resizeMode="cover"
-            />
-            <View
-              style={[styles.modeDim, gameMode === "imp" && styles.modeDimOff]}
-              pointerEvents="none"
-            />
-          </Pressable>
-          <Pressable
-            onPress={() => setGameMode("odd")}
-            style={[styles.modeCard, gameMode === "odd" && styles.modeSelected]}
-          >
-            <Image
-              source={require("../../assets/modes/odd.png")}
-              style={styles.modeImage}
-              resizeMode="cover"
-            />
-            <View
-              style={[styles.modeDim, gameMode === "odd" && styles.modeDimOff]}
-              pointerEvents="none"
-            />
-          </Pressable>
-          <Pressable
-            onPress={() => setGameMode("mafia")}
-            style={[styles.modeCard, gameMode === "mafia" && styles.modeSelected]}
-          >
-            <Image
-              source={require("../../assets/modes/mafia.png")}
-              style={styles.modeImage}
-              resizeMode="cover"
-            />
-            <View
-              style={[styles.modeDim, gameMode === "mafia" && styles.modeDimOff]}
-              pointerEvents="none"
-            />
-          </Pressable>
-          <Pressable
-            onPress={() => setGameMode("blef")}
-            style={[styles.modeCard, gameMode === "blef" && styles.modeSelected]}
-          >
-            <Image
-              source={
-                getLanguage() === "sr"
-                  ? require("../../assets/modes/blef.png")
-                  : require("../../assets/modes/bluff.png")
-              }
-              style={styles.modeImage}
-              resizeMode="cover"
-            />
-            {/* 2-player badge — this mode is a duel */}
-            <View style={styles.playerBadge} pointerEvents="none">
-              <Text style={styles.playerBadgeText}>2</Text>
-            </View>
-            <View
-              style={[styles.modeDim, gameMode === "blef" && styles.modeDimOff]}
-              pointerEvents="none"
-            />
-          </Pressable>
-        </ScrollView>
-
-        {/* players */}
-        <SectionTitle>{t("players")}</SectionTitle>
+        {/* how you're playing: everyone around one phone, or each on their own */}
+        <SectionTitle>{t("playStyle")}</SectionTitle>
         <View style={styles.chipWrap}>
-          {players.map((p) => (
-            <Chip
-              key={p.id}
-              label={p.name}
-              bg={p.color}
-              active={p.enabled}
-              onPress={() => togglePlayer(p.id)}
-              onLongPress={() => {
-                setEditingPlayer(p);
-                setPlayerIsNew(false);
-              }}
-            />
-          ))}
-          {players.length < MAX_PLAYERS ? <Chip label="＋" onPress={addPlayer} /> : null}
+          <Chip
+            label={t("onePhone")}
+            active={!net}
+            onPress={() => setPlayStyle("single")}
+          />
+          <Chip
+            label={t("localMultiplayer")}
+            active={net}
+            onPress={() => setPlayStyle("net")}
+          />
         </View>
 
-        {/* categories — words for IMP Classic, pairs for Odd One Out */}
-        {gameMode !== "mafia" ? (
-          <>
-            <SectionTitle>{t("categories")}</SectionTitle>
+        {net ? (
+          // Local multiplayer: no roster, no categories here — the host
+          // sets all that up inside the room.
+          <View style={styles.netBox}>
+            {/* over the internet (works with iPhones) or straight over
+                the local Wi-Fi (no internet, installed app only) */}
             <View style={styles.chipWrap}>
-              {gameMode === "imp" || gameMode === "blef" ? (
-                <>
-                  {categories.map((c) => (
-                    <Chip
-                      key={c.id}
-                      label={c.name}
-                      badge={c.words.length}
-                      active={c.enabled}
-                      onPress={() => toggleCategory(c.id)}
-                      onLongPress={
-                        c.custom
-                          ? () => {
-                              setEditingCategory(c);
-                              setCategoryIsNew(false);
-                            }
-                          : undefined
-                      }
-                    />
-                  ))}
-                  <Chip label="＋" onPress={addCategory} />
-                </>
-              ) : (
-                <>
-                  {pairCategories.map((c) => (
-                    <Chip
-                      key={c.id}
-                      label={c.name}
-                      badge={c.pairs.length}
-                      active={c.enabled}
-                      onPress={() => togglePairCategory(c.id)}
-                      onLongPress={
-                        c.custom
-                          ? () => {
-                              setEditingPairCategory(c);
-                              setPairCategoryIsNew(false);
-                            }
-                          : undefined
-                      }
-                    />
-                  ))}
-                  <Chip label="＋" onPress={addPairCategory} />
-                </>
-              )}
+              <Chip
+                label={t("netModeOnline")}
+                active={netMode === "online"}
+                onPress={() => setNetMode("online")}
+              />
+              <Chip
+                label={t("netModeLan")}
+                active={netMode === "lan"}
+                onPress={() => setNetMode("lan")}
+              />
             </View>
-          </>
-        ) : null}
 
-        {/* roles — IMP Classic & Mafia only (Odd One Out and Blef have none) */}
-        {gameMode === "imp" || gameMode === "mafia" ? (
-          <>
-            <SectionTitle>{t("roles")}</SectionTitle>
-            <View style={styles.chipWrap}>
-              {currentRoles.map((r) => (
-                <Chip
-                  key={r.id}
-                  label={roleName(r)}
-                  bg={r.color}
-                  count={r.count}
-                  active={r.count > 0}
-                  onPress={() => setCountRoleId(r.id)}
-                  onLongPress={
-                    !r.builtin
-                      ? () => {
-                          setEditingRole(r);
-                          setRoleIsNew(false);
-                        }
-                      : undefined
-                  }
+            {netBlocked ? (
+              <Text style={styles.netBlocked}>{t("lanOnlyOnApp")}</Text>
+            ) : (
+              <>
+                <TextField
+                  label={t("yourName")}
+                  value={netName}
+                  onChangeText={setNetName}
+                  placeholder="…"
+                  autoCapitalize="words"
                 />
-              ))}
-              <Chip label="＋" onPress={addRole} />
-            </View>
-          </>
-        ) : null}
+                <ColorPicker value={netColor} onChange={setNetColor} />
+                {pendingJoinCode ? (
+                  <Text style={styles.netJoining}>
+                    {tf("joiningRoom", { code: pendingJoinCode })}
+                  </Text>
+                ) : (
+                  <Text style={styles.netHint}>
+                    {netMode === "online" ? t("onlineHint") : t("sameWifiHint")}
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
+        ) : (
+          <GameSetup
+            gameMode={gameMode}
+            setGameMode={setGameMode}
+            roles={roles}
+            setRoles={setRoles}
+            mafiaRoles={mafiaRoles}
+            setMafiaRoles={setMafiaRoles}
+            categories={categories}
+            setCategories={setCategories}
+            pairCategories={pairCategories}
+            setPairCategories={setPairCategories}
+            fakerCategories={fakerCategories}
+            setFakerCategories={setFakerCategories}
+            maxRoleCount={
+              gameMode === "mafia" ? activePlayers.length : activePlayers.length - 1
+            }
+            middleSlot={playersSection}
+          />
+        )}
       </Animated.ScrollView>
 
-      {/* fixed bottom: start */}
+      {/* fixed bottom: start, or host / join */}
       <View style={styles.startArea}>
-        {startError ? <Text style={styles.startError}>{startError}</Text> : null}
-        <BigButton label={t("start")} onPress={onStart} disabled={startError !== null} />
+        {net ? (
+          <View style={styles.netButtons}>
+            <View style={styles.netButton}>
+              <BigButton
+                label={t("hostGame")}
+                onPress={onHost}
+                disabled={netBlocked || netName.trim().length === 0}
+              />
+            </View>
+            <View style={styles.netButton}>
+              <BigButton
+                label={t("joinGame")}
+                variant="secondary"
+                onPress={onJoin}
+                disabled={netBlocked || netName.trim().length === 0}
+              />
+            </View>
+          </View>
+        ) : (
+          <>
+            {startError ? <Text style={styles.startError}>{startError}</Text> : null}
+            <BigButton label={t("start")} onPress={onStart} disabled={startError !== null} />
+          </>
+        )}
       </View>
 
       {/* pop-ups */}
@@ -409,51 +331,8 @@ export default function HomeScreen({
         }}
         onClose={() => setEditingPlayer(null)}
       />
-      <CategoryEditor
-        visible={editingCategory !== null}
-        category={editingCategory}
-        isNew={categoryIsNew}
-        onSave={saveCategory}
-        onDelete={(id) => {
-          setCategories(categories.filter((c) => c.id !== id));
-          setEditingCategory(null);
-        }}
-        onClose={() => setEditingCategory(null)}
-      />
-      <PairCategoryEditor
-        visible={editingPairCategory !== null}
-        category={editingPairCategory}
-        isNew={pairCategoryIsNew}
-        onSave={savePairCategory}
-        onDelete={(id) => {
-          setPairCategories(pairCategories.filter((c) => c.id !== id));
-          setEditingPairCategory(null);
-        }}
-        onClose={() => setEditingPairCategory(null)}
-      />
-      <RoleEditor
-        visible={editingRole !== null}
-        role={editingRole}
-        isNew={roleIsNew}
-        mafia={isMafia}
-        onSave={saveRole}
-        onDelete={(id) => {
-          setCurrentRoles(currentRoles.filter((r) => r.id !== id));
-          setEditingRole(null);
-        }}
-        onClose={() => setEditingRole(null)}
-      />
-      <RoleCountSheet
-        visible={countRole !== null}
-        role={countRole}
-        maxCount={Math.max(1, isMafia ? activePlayers.length : activePlayers.length - 1)}
-        onChangeCount={(roleId, count) =>
-          setCurrentRoles(currentRoles.map((r) => (r.id === roleId ? { ...r, count } : r)))
-        }
-        onClose={() => setCountRoleId(null)}
-      />
       <AppModal visible={howToOpen} title={t("howToPlay")} onClose={() => setHowToOpen(false)}>
-        <Text style={styles.howToText}>{howToText}</Text>
+        <Text style={styles.howToText}>{`${howToText}\n\n${t("howToNet")}`}</Text>
       </AppModal>
     </Screen>
   );
@@ -490,69 +369,41 @@ const styles = StyleSheet.create({
   scroll: {
     paddingBottom: spacing.md,
   },
-  modes: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingRight: spacing.sm,
-  },
-  modeCard: {
-    // Fixed width (not flex) so the row can scroll instead of squeezing.
-    width: 104,
-    aspectRatio: 0.85,
-    borderRadius: radius.lg,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    overflow: "hidden",
-    backgroundColor: "#000000",
-    borderWidth: 3,
-    borderColor: "transparent",
-  },
-  modeImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
-  },
-  modeSelected: {
-    borderColor: "#FFFFFF",
-  },
-  modeDim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  modeDimOff: {
-    backgroundColor: "transparent",
-  },
-  playerBadge: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    zIndex: 2,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 5,
-    backgroundColor: colors.blefTeal,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  playerBadgeText: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#04201C",
-  },
   chipWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.xs,
     justifyContent: "center",
+  },
+  netBox: {
+    gap: spacing.md,
+    paddingTop: spacing.md,
+  },
+  netHint: {
+    fontSize: 12,
+    color: colors.textDim,
+    textAlign: "center",
+  },
+  netJoining: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.accent,
+    textAlign: "center",
+  },
+  netBlocked: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textDim,
+    textAlign: "center",
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  netButtons: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  netButton: {
+    flex: 1,
   },
   startArea: {
     paddingTop: spacing.xs,

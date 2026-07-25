@@ -6,6 +6,18 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["expo", "start", "--web", "--port", "8081"],
       "port": 8081
+    },
+    {
+      "name": "imp-relay",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server/relay-node.mjs"],
+      "port": 8790
+    },
+    {
+      "name": "imp-web-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "serve", "dist", "-l", "8088", "-s"],
+      "port": 8088
     }
   ]
 }

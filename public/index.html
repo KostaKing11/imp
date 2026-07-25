@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="sr">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover so the app fills the screen behind the notch -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover"
+    />
+    <title>IMP</title>
+
+    <!-- installed app look: no browser chrome, dark status bar -->
+    <meta name="theme-color" content="#0A0B0D" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="IMP" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./icons/icon.png" />
+
+    <!-- The `react-native-web` recommended style reset -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background-color: #0a0b0d;
+      }
+      body {
+        overflow: hidden;
+        /* feels like an app: no rubber-band scroll, no text selection,
+           no 300ms tap delay, no long-press callout */
+        overscroll-behavior: none;
+        touch-action: manipulation;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* typing still needs selection */
+      input,
+      textarea {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Uključi JavaScript da bi igra radila.</noscript>
+    <div id="root"></div>
+    <script>
+      // Offline support. Needs https (or localhost) — over plain http the
+      // registration simply fails and the app still works online.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("./sw.js").catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>

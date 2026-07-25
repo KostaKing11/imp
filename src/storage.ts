@@ -9,6 +9,11 @@ export const KEYS = {
   pairCategories: "imp.paircategories",
   mafiaRoles: "imp.mafiaroles",
   language: "imp.language",
+  fakerCategories: "imp.fakercategories",
+  playStyle: "imp.playstyle",
+  netName: "imp.netname",
+  netColor: "imp.netcolor",
+  netMode: "imp.netmode",
 };
 
 export async function loadJSON<T>(key: string, fallback: T): Promise<T> {

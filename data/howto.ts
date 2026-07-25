@@ -37,6 +37,18 @@ export const HOW_TO_PLAY = {
 
 5. Reveal: see the real word and what you each were actually holding.`,
 
+    faker: `Faker — everyone answers the same question... except one player, who secretly got a slightly different one.
+
+1. Add your players, pick question categories, then press START and choose how you're playing (one phone, or everyone on their own — coming soon).
+
+2. Pass the phone around: each player privately reads their question and types an answer. The Faker doesn't know they're the Faker — their question just isn't quite the same.
+
+3. All answers are revealed with names. Read them out loud and discuss: whose answer doesn't quite fit?
+
+4. Pass the phone again — everyone votes for who they think got the different question. You can't vote for yourself.
+
+5. Results: the votes, who got voted out, who the Faker really was, and both questions side by side.`,
+
     odd: `Odd One Out — everyone gets a word... but one player's word is slightly different.
 
 1. Add your players, pick pair categories, then press START.
@@ -83,6 +95,18 @@ Tip: keep your clues a bit vague. Say too much and the Odd One Out figures out t
 4. Na tri, oboje naglas recite: da li je onaj drugi imao REČ ili samo TRAG?
 
 5. Otkrivanje: vidite pravu reč i šta je ko zapravo držao.`,
+
+    faker: `Folirant — svi odgovaraju na isto pitanje... osim jednog igrača, koji je tajno dobio malo drugačije.
+
+1. Dodaj igrače, izaberi kategorije pitanja, pritisni POČNI i izaberi kako igrate (jedan telefon, ili svako na svom — uskoro).
+
+2. Dodajite telefon ukrug: svako nasamo pročita svoje pitanje i upiše odgovor. Folirant ne zna da je folirant — njegovo pitanje samo nije baš isto.
+
+3. Svi odgovori se otkrivaju sa imenima. Pročitajte ih naglas i raspravite: čiji odgovor se ne uklapa?
+
+4. Dodajte telefon ponovo — svako glasa za onoga ko je po njemu dobio drugačije pitanje. Ne možeš da glasaš za sebe.
+
+5. Rezultati: glasovi, ko je izglasan, ko je stvarno bio folirant i oba pitanja jedno pored drugog.`,
 
     odd: `Uljez — svi dobijaju reč... ali jedan igrač ima malo drugačiju.
 

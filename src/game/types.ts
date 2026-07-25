@@ -1,9 +1,10 @@
 import { PairEntry } from "../../data/pairs";
+import { QuestionEntry } from "../../data/questions";
 import { WordEntry } from "../../data/words";
 
 // Shared types for all gamemodes.
 
-export type GameMode = "imp" | "odd" | "mafia" | "blef";
+export type GameMode = "imp" | "odd" | "mafia" | "blef" | "faker";
 
 export type Player = {
   id: string;
@@ -114,4 +115,28 @@ export type BlefRound = {
   // playerId -> what that player sees
   clues: Record<string, BlefClue>;
 };
+
+// ---- Faker ----
+
+export type FakerCategoryState = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  custom: boolean;
+  questions: QuestionEntry[];
+};
+
+export type FakerRound = {
+  // Canonical id of the question pair, for no-repeat tracking.
+  questionId: string;
+  mainQuestion: string;
+  oddQuestion: string;
+  oddPlayerId: string;
+};
+
+// playerId -> their typed answer
+export type FakerAnswers = Record<string, string>;
+
+// voterId -> suspectId
+export type FakerVotes = Record<string, string>;
 

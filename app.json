@@ -16,13 +16,28 @@
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "experiments": {
+      "//": "GitHub Pages serves the site under /<repo-name>. Change this to match the repo, or set it to \"\" if the site lives at the domain root (e.g. a <username>.github.io repo).",
+      "baseUrl": "/imp"
+    },
     "plugins": [
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "The app uses the camera only to scan a room QR code."
+        }
+      ]
     ]
   }
 }

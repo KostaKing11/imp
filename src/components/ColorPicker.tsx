@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { t } from "../i18n";
 import { colors, PLAYER_COLORS, radius, spacing } from "../theme";
 import ColorWheel from "./ColorWheel";
 import { WheelIcon } from "./icons";
@@ -18,7 +19,7 @@ export default function ColorPicker({ value, onChange }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Color</Text>
+      <Text style={styles.label}>{t("color")}</Text>
       <View style={styles.row}>
         <Pressable
           onPress={() => setWheelOpen(true)}
