@@ -10,10 +10,27 @@
 
 // @ts-ignore - plain JS module, typed loosely on purpose
 import { createRelay } from "./relay-core.mjs";
+// @ts-ignore - plain JS module
+import { createMemoryBus } from "./memory-bus.mjs";
 import { createKvBus } from "./kv-bus.ts";
 
 const log = (line: string) => console.log(`[relay] ${line}`);
-const bus = await createKvBus(log);
+
+// Rooms are shared between instances through KV. If no KV database is
+// attached to the app, keep running with rooms held in one instance —
+// players who land elsewhere are told the room doesn't exist, which
+// beats the whole relay being down.
+let shared = true;
+let bus;
+try {
+  bus = await createKvBus(log);
+  log("rooms are shared through KV");
+} catch (e) {
+  shared = false;
+  bus = createMemoryBus();
+  log(`NO KV DATABASE ATTACHED (${e}) — rooms stay inside a single instance`);
+}
+
 const relay = createRelay({ bus, log });
 
 const CORS = {
@@ -38,9 +55,10 @@ Deno.serve({ port }, (req: Request) => {
     return response;
   }
 
-  // Health page — instances are separate, so the numbers are per instance.
+  // Health page — the numbers are per instance; `shared` says whether
+  // rooms are visible to the other instances.
   if (url.pathname === "/" || url.pathname === "/health") {
-    return new Response(JSON.stringify({ ok: true, ...relay.stats() }), {
+    return new Response(JSON.stringify({ ok: true, shared, ...relay.stats() }), {
       headers: { "content-type": "application/json", ...CORS },
     });
   }

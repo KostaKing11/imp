@@ -15,10 +15,11 @@ const read = (file) => readFileSync(join(root, file), "utf8");
 // not import them.
 const strip = (src) => src.replace(/^export /gm, "");
 const inlinedCore = strip(read("server/relay-core.mjs"));
+const inlinedMemoryBus = strip(read("server/memory-bus.mjs"));
 const inlinedBus = strip(read("server/kv-bus.ts"));
 const inlinedEntry = read("server/relay.ts")
   .replace(/^\/\/ @ts-ignore.*$/gm, "")
-  .replace(/^import .*from "\.\/(relay-core\.mjs|kv-bus\.ts)";$/gm, "");
+  .replace(/^import .*from "\.\/(relay-core\.mjs|memory-bus\.mjs|kv-bus\.ts)";$/gm, "");
 
 // The inlined core is plain JavaScript, so type checking is turned off
 // for the merged file.
@@ -28,6 +29,7 @@ const out = `// @ts-nocheck
 //
 // Paste this whole file into a Deno Deploy playground and hit Save.
 ${inlinedCore}
+${inlinedMemoryBus}
 ${inlinedBus}
 ${inlinedEntry}`;
 

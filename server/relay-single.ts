@@ -279,6 +279,31 @@ function createRelay({ bus, log = () => {} }) {
   };
 }
 
+// Bus for a single-process server: every socket is already in the same
+// place, so publishing is a no-op and rooms are just a set of codes.
+
+function createMemoryBus() {
+  const codes = new Set();
+  return {
+    async claimRoom(code) {
+      if (codes.has(code)) return false;
+      codes.add(code);
+      return true;
+    },
+    async roomExists(code) {
+      return codes.has(code);
+    },
+    keepRoom() {},
+    releaseRoom(code) {
+      codes.delete(code);
+    },
+    publish() {},
+    subscribe() {},
+    unsubscribe() {},
+    onRemote() {},
+  };
+}
+
 // Bus backed by Deno KV, so a room works no matter which instance a
 // player's socket lands in (Deno Deploy runs several at once, and
 // BroadcastChannel does not carry between them).
@@ -440,8 +465,25 @@ async function createKvBus(log: (line: string) => void = () => {}) {
 
 
 
+
+
 const log = (line: string) => console.log(`[relay] ${line}`);
-const bus = await createKvBus(log);
+
+// Rooms are shared between instances through KV. If no KV database is
+// attached to the app, keep running with rooms held in one instance —
+// players who land elsewhere are told the room doesn't exist, which
+// beats the whole relay being down.
+let shared = true;
+let bus;
+try {
+  bus = await createKvBus(log);
+  log("rooms are shared through KV");
+} catch (e) {
+  shared = false;
+  bus = createMemoryBus();
+  log(`NO KV DATABASE ATTACHED (${e}) — rooms stay inside a single instance`);
+}
+
 const relay = createRelay({ bus, log });
 
 const CORS = {
@@ -466,9 +508,10 @@ Deno.serve({ port }, (req: Request) => {
     return response;
   }
 
-  // Health page — instances are separate, so the numbers are per instance.
+  // Health page — the numbers are per instance; `shared` says whether
+  // rooms are visible to the other instances.
   if (url.pathname === "/" || url.pathname === "/health") {
-    return new Response(JSON.stringify({ ok: true, ...relay.stats() }), {
+    return new Response(JSON.stringify({ ok: true, shared, ...relay.stats() }), {
       headers: { "content-type": "application/json", ...CORS },
     });
   }
