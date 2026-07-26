@@ -14,8 +14,6 @@ type Props = {
   onReady: () => void;
   readyCount: number;
   total: number;
-  isHost: boolean;
-  onContinue: () => void;
 };
 
 // Your own private card on your own phone: hold to flip, release to hide.
@@ -28,8 +26,6 @@ export default function NetCardView({
   onReady,
   readyCount,
   total,
-  isHost,
-  onContinue,
 }: Props) {
   const [holding, setHolding] = useState(false);
   const [peeked, setPeeked] = useState(false);
@@ -137,13 +133,6 @@ export default function NetCardView({
           <Text style={styles.privacy}>{t("waitingPlayers")}</Text>
         )}
         <Text style={styles.counter}>{tf("readyCount", { done: readyCount, total })}</Text>
-        {isHost ? (
-          <BigButton
-            label={t("continueBtn")}
-            variant={ready ? "primary" : "secondary"}
-            onPress={onContinue}
-          />
-        ) : null}
       </View>
     </View>
   );

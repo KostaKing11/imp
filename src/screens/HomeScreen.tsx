@@ -23,12 +23,11 @@ import {
 } from "../game/types";
 import { getLanguage, t, tf } from "../i18n";
 import { warmUpConnection } from "../net/firebase";
-import { colors, PLAYER_COLORS, spacing } from "../theme";
+import { colors, freeColor, MAX_PLAYERS, spacing } from "../theme";
 import { uid } from "../utils";
 import PlayerEditor from "./editors/PlayerEditor";
 import GameSetup from "./setup/GameSetup";
 
-const MAX_PLAYERS = 12;
 const MIN_PLAYERS = 3;
 
 export type PlayStyle = "single" | "net";
@@ -142,11 +141,10 @@ export default function HomeScreen({
 
   // ---- players ----
   const addPlayer = () => {
-    const color = PLAYER_COLORS[players.length % PLAYER_COLORS.length];
     setEditingPlayer({
       id: uid(),
       name: tf("playerN", { n: players.length + 1 }),
-      color,
+      color: freeColor(players.map((p) => p.color)),
       enabled: true,
     });
     setPlayerIsNew(true);
@@ -262,15 +260,12 @@ export default function HomeScreen({
                   autoCapitalize="words"
                 />
                 <ColorPicker value={netColor} onChange={setNetColor} />
+                <Text style={styles.netHint}>{t("colorMayChange")}</Text>
                 {pendingJoinCode ? (
                   <Text style={styles.netJoining}>
                     {tf("joiningRoom", { code: pendingJoinCode })}
                   </Text>
-                ) : (
-                  <Text style={styles.netHint}>
-                    {netMode === "online" ? t("onlineHint") : t("sameWifiHint")}
-                  </Text>
-                )}
+                ) : null}
               </>
             )}
           </View>
@@ -330,6 +325,7 @@ export default function HomeScreen({
         player={editingPlayer}
         isNew={playerIsNew}
         canDelete={players.length > MIN_PLAYERS}
+        takenColors={players.filter((p) => p.id !== editingPlayer?.id).map((p) => p.color)}
         onSave={savePlayer}
         onDelete={(id) => {
           setPlayers(players.filter((p) => p.id !== id));

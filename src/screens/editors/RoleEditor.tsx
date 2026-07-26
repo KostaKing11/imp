@@ -78,7 +78,7 @@ export default function RoleEditor({
         placeholder="…"
         multiline
       />
-      <ColorPicker value={color} onChange={setColor} />
+      <ColorPicker value={color} onChange={setColor} allowCustom />
 
       {mafia ? (
         <View style={styles.switchRow}>

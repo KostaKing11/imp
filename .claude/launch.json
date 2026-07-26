@@ -4,7 +4,13 @@
     {
       "name": "expo-web",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["expo", "start", "--web", "--port", "8081"],
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--web",
+        "--port",
+        "8081"
+      ],
       "port": 8081
     },
     {
@@ -23,14 +29,59 @@
     {
       "name": "imp-relay",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server/relay-node.mjs"],
+      "runtimeArgs": [
+        "server/relay-node.mjs"
+      ],
       "port": 8790
     },
     {
       "name": "imp-web-dist",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["-y", "serve", "dist", "-l", "8088", "-s"],
+      "runtimeArgs": [
+        "-y",
+        "serve",
+        "dist",
+        "-l",
+        "8088",
+        "-s"
+      ],
       "port": 8088
+    },
+    {
+      "name": "imp-web-subpath",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "serve",
+        "C:/Users/KOSTA/AppData/Local/Temp/claude/C--Users-KOSTA-Desktop-IMP-FINALLY/43e7b521-7ad1-470c-80b2-f552cc67a841/scratchpad/site",
+        "-l",
+        "8089"
+      ],
+      "port": 8089
+    },
+    {
+      "name": "imp-web-subpath-2",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "serve",
+        "C:/Users/KOSTA/AppData/Local/Temp/claude/C--Users-KOSTA-Desktop-IMP-FINALLY/43e7b521-7ad1-470c-80b2-f552cc67a841/scratchpad/site",
+        "-l",
+        "8090"
+      ],
+      "port": 8090
+    },
+    {
+      "name": "imp-web-subpath-3",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "serve",
+        "C:/Users/KOSTA/AppData/Local/Temp/claude/C--Users-KOSTA-Desktop-IMP-FINALLY/43e7b521-7ad1-470c-80b2-f552cc67a841/scratchpad/site",
+        "-l",
+        "8091"
+      ],
+      "port": 8091
     }
   ]
 }

@@ -20,18 +20,39 @@ export const colors = {
   blefTeal: "#2DD4BF",
 };
 
+// The only colors a player can be. Twenty of them, far enough apart that
+// nobody has to squint at two similar chips and wonder whose is whose —
+// and no two players in a game may share one.
 export const PLAYER_COLORS = [
-  "#111111",
-  "#1E4FFF",
-  "#D62828",
-  "#2DA44E",
-  "#FFD500",
-  "#8E44AD",
-  "#FF5A1F",
-  "#E85D9E",
-  "#12B5B0",
-  "#F5F5F5",
+  "#E03131", // red
+  "#FF7A1F", // orange
+  "#FFD500", // yellow
+  "#A6E22E", // lime
+  "#2DA44E", // green
+  "#00897B", // teal
+  "#17C7D4", // cyan
+  "#38A3FF", // sky
+  "#1E4FFF", // blue
+  "#8E44AD", // purple
+  "#C2185B", // magenta
+  "#E85D9E", // pink
+  "#FFAFC9", // rose
+  "#FF8A6B", // coral
+  "#7A4A2B", // brown
+  "#D9A05B", // tan
+  "#FFE49C", // banana
+  "#8A93A6", // gray
+  "#F5F5F5", // white
+  "#1B1B1F", // black
 ];
+
+export const MAX_PLAYERS = PLAYER_COLORS.length;
+
+// First color nobody else has taken (falls back to the first one).
+export function freeColor(taken: string[]): string {
+  const used = taken.map((c) => c.toUpperCase());
+  return PLAYER_COLORS.find((c) => !used.includes(c.toUpperCase())) ?? PLAYER_COLORS[0];
+}
 
 export const spacing = {
   xs: 6,

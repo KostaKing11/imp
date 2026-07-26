@@ -12,6 +12,8 @@ type Props = {
   player: Player | null; // the player being edited (with defaults pre-filled for new ones)
   isNew: boolean;
   canDelete: boolean;
+  // Colors the other players already have.
+  takenColors: string[];
   onSave: (player: Player) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -22,6 +24,7 @@ export default function PlayerEditor({
   player,
   isNew,
   canDelete,
+  takenColors,
   onSave,
   onDelete,
   onClose,
@@ -51,7 +54,7 @@ export default function PlayerEditor({
         placeholder={t("name")}
         autoCapitalize="words"
       />
-      <ColorPicker value={color} onChange={setColor} />
+      <ColorPicker value={color} onChange={setColor} taken={takenColors} />
       <BigButton
         label={t("save")}
         compact

@@ -10,6 +10,7 @@
     "expo-network": "~56.0.5",
     "expo-status-bar": "~56.0.4",
     "firebase": "^12.16.0",
+    "jsqr": "^1.4.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",

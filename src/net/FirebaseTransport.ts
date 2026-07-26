@@ -71,6 +71,21 @@ export class FirebaseHostTransport implements Transport {
   private leaveCb: PeerHandler = () => {};
   private closed = false;
 
+  // Takes over a room whose host went away. Only works while the host
+  // slot is empty, so two players cannot both grab it.
+  async takeOver(code: string): Promise<void> {
+    const uid = await this.conn.uid();
+    const db = this.conn.db;
+    const res = await runTransaction(ref(db, `rooms/${code}/host`), (current) =>
+      current === null ? { uid, at: Date.now() } : undefined
+    );
+    if (!res.committed) throw new Error("host-taken");
+    // We are the host now, not one of the players.
+    await remove(ref(db, `rooms/${code}/peers/${uid}`)).catch(() => {});
+    await remove(ref(db, `rooms/${code}/toPeer/${uid}`)).catch(() => {});
+    await this.attach(code);
+  }
+
   // Opens a room and resolves with the code players type in.
   async start(): Promise<string> {
     const uid = await this.conn.uid();
@@ -87,10 +102,17 @@ export class FirebaseHostTransport implements Transport {
     }
     if (code === null) throw new Error("no-code");
 
+    await this.attach(code);
+    return code;
+  }
+
+  private async attach(code: string): Promise<void> {
+    const db = this.conn.db;
     this.code = code;
     this.roomRef = ref(db, `rooms/${code}`);
-    // If this phone drops off, the whole room goes with it.
-    await onDisconnect(this.roomRef).remove();
+    // Only the host slot goes when this phone drops off — the players
+    // stay, so the earliest of them can take the room over.
+    await onDisconnect(ref(db, `rooms/${code}/host`)).remove();
 
     const peersRef = ref(db, `rooms/${code}/peers`);
     onChildAdded(peersRef, (snap) => {
@@ -112,8 +134,6 @@ export class FirebaseHostTransport implements Transport {
       if (value?.from) this.messageCb(String(value.from), decode(value.data));
     });
     this.watched.push(inboxRef);
-
-    return code;
   }
 
   send(to: string, msg: unknown): void {
@@ -154,7 +174,9 @@ export class FirebaseHostTransport implements Transport {
     for (const r of this.watched) off(r);
     this.watched = [];
     if (this.roomRef) {
-      onDisconnect(this.roomRef).cancel().catch(() => {});
+      onDisconnect(ref(this.conn.db, `rooms/${this.code}/host`)).cancel().catch(() => {});
+      // Closing on purpose closes the room; a lost connection only frees
+      // the host slot, which is what lets someone else take over.
       remove(this.roomRef).catch(() => {});
       this.roomRef = null;
     }

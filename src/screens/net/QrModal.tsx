@@ -13,8 +13,11 @@ type Props = {
 
 // The room's QR code as a pop-up: tap the backdrop or Close to dismiss.
 export default function QrModal({ visible, payload, code, onClose }: Props) {
+  // Mounted only while open: a hidden modal can stay on screen in the
+  // web build.
+  if (!visible) return null;
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         {/* Swallow taps on the card itself so it doesn't close. */}
         <Pressable style={styles.card} onPress={() => {}}>

@@ -1,4 +1,4 @@
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { useCameraPermissions } from "expo-camera";
 import * as Network from "expo-network";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import BigButton from "../../components/BigButton";
+import QrScanner from "../../components/QrScanner";
 import Screen from "../../components/Screen";
 import { BLEF_CLUES_PER_PLAYER } from "../../game/blefEngine";
 import {
@@ -22,7 +23,7 @@ import {
   PairCategoryState,
   RoleDef,
 } from "../../game/types";
-import { t, tf } from "../../i18n";
+import { getLanguage, setLanguage, t, tf } from "../../i18n";
 import { codeFromLink, roomLink } from "../../net/config";
 import { firebaseConfigured } from "../../net/firebase";
 import { FirebaseClientTransport, FirebaseHostTransport } from "../../net/FirebaseTransport";
@@ -30,6 +31,7 @@ import {
   decodeQr,
   encodeQr,
   NetCard,
+  NetSettings,
   randomRoomCode,
   RoomState,
 } from "../../net/protocol";
@@ -41,10 +43,12 @@ import {
   TcpHostTransport,
 } from "../../net/TcpTransport";
 import { colors, radius, spacing } from "../../theme";
-import { confirmDialog, textColorFor, uid } from "../../utils";
+import { confirmDialog, formatTime, textColorFor, uid } from "../../utils";
 import NetCardView from "./NetCardView";
+import NetEjectView from "./NetEjectView";
 import NetLobby from "./NetLobby";
 import NetResultsView from "./NetResultsView";
+import RoomSettingsSheet from "./RoomSettingsSheet";
 import NetVoteView from "./NetVoteView";
 
 const ANSWER_MAX = 50;
@@ -73,6 +77,11 @@ type Props = {
   setPairCategories: (categories: PairCategoryState[]) => void;
   fakerCategories: FakerCategoryState[];
   setFakerCategories: (categories: FakerCategoryState[]) => void;
+  // What the host starts a room with, and where their changes are kept.
+  roomSettings: NetSettings;
+  setRoomSettings: (settings: NetSettings) => void;
+  // The room's language, or null when we're not in one.
+  onRoomLanguage: (language: NetSettings["language"] | null) => void;
   onExit: () => void;
 };
 
@@ -98,6 +107,11 @@ export default function NetScreen(props: Props) {
 
   // per-phase local UI state
   const [ready, setReady] = useState(false);
+  // A phase that waits on everybody can stall on one person who put the
+  // phone down; after a while the host gets a way to move things along.
+  const [stuck, setStuck] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tick, setTick] = useState(0);
   const [answerText, setAnswerText] = useState("");
   const [answered, setAnswered] = useState(false);
   const [votedFor, setVotedFor] = useState<string | null>(null);
@@ -106,6 +120,8 @@ export default function NetScreen(props: Props) {
   const hostTransportRef = useRef<TcpHostTransport | null>(null);
   const clientRef = useRef<RoomClient | null>(null);
   const autoJoined = useRef(false);
+  const lastRoom = useRef<RoomState | null>(null);
+  const myIdRef = useRef<string | null>(null);
   const prevPhase = useRef<string>("lobby");
   const scanned = useRef(false);
   const exitedRef = useRef(false);
@@ -150,6 +166,27 @@ export default function NetScreen(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    setStuck(false);
+    if (room?.phase !== "cards" && room?.phase !== "vote") return;
+    const timer = setTimeout(() => setStuck(true), 20_000);
+    return () => clearTimeout(timer);
+  }, [room?.phase, room?.phaseAt]);
+
+  // Everyone plays in the language the host picked, and goes back to
+  // their own once they leave the room.
+  useEffect(() => {
+    props.onRoomLanguage(room?.settings?.language ?? null);
+  }, [room?.settings?.language, props.onRoomLanguage]);
+  useEffect(() => () => props.onRoomLanguage(null), []);
+
+  // Drives the discussion countdown.
+  useEffect(() => {
+    if (room?.phase !== "discuss" || !room?.settings?.timerEnabled) return;
+    const iv = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(iv);
+  }, [room?.phase, room?.settings?.timerEnabled]);
+
   const onStateUpdate = (state: RoomState) => {
     if (state.phase !== prevPhase.current) {
       if (state.phase === "cards") setReady(false);
@@ -166,7 +203,12 @@ export default function NetScreen(props: Props) {
       }
       prevPhase.current = state.phase;
     }
-    setMyId((prev) => hostRef.current?.myId ?? clientRef.current?.myId ?? prev);
+    setMyId((prev) => {
+      const id = hostRef.current?.myId ?? clientRef.current?.myId ?? prev;
+      myIdRef.current = id;
+      return id;
+    });
+    lastRoom.current = state;
     setRoom(state);
   };
 
@@ -208,7 +250,8 @@ export default function NetScreen(props: Props) {
         myColor,
         config(),
         code,
-        roomId
+        roomId,
+        props.roomSettings
       );
       // The first STATE fires inside the constructor, before hostRef is
       // assigned — so pick up our own id right here.
@@ -335,7 +378,8 @@ export default function NetScreen(props: Props) {
   };
 
   const openScanner = async () => {
-    if (!permission?.granted) {
+    // In a browser the scanner asks for the camera itself.
+    if (Platform.OS !== "web" && !permission?.granted) {
       const res = await requestPermission();
       if (!res.granted) {
         setError(t("cameraDenied"));
@@ -344,6 +388,71 @@ export default function NetScreen(props: Props) {
     }
     scanned.current = false;
     setScanOpen(true);
+  };
+
+  // The host's phone went away. Over the internet the room survives: the
+  // player who joined first takes it over and everyone lands back in the
+  // lobby with the same code. On a local Wi-Fi room there is nothing to
+  // take over, so it simply ends.
+  const handleHostLost = async () => {
+    const last = lastRoom.current;
+    clientRef.current = null;
+    if (!online || !last) {
+      endSession(t("hostLeft"));
+      return;
+    }
+    const heirs = last.players
+      .filter((p) => p.connected && p.id !== last.hostId)
+      .sort((a, b) => a.joinOrder - b.joinOrder);
+    const iAmHeir = heirs.length > 0 && heirs[0].id === myIdRef.current;
+
+    setRoom(null);
+    setCard(null);
+    setBusy(true);
+    setNotice(t("lookingForHost"));
+
+    if (iAmHeir) {
+      try {
+        const fb = new FirebaseHostTransport();
+        await fb.takeOver(last.code);
+        hostRef.current = new RoomHost(
+          fb,
+          { onState: onStateUpdate, onCard: setCard },
+          myName,
+          myColor,
+          config(),
+          last.code,
+          last.roomId,
+          last.settings
+        );
+        setMyId(hostRef.current.myId);
+        setConn("host");
+        prevPhase.current = "lobby";
+        setNotice(tf("newHostIs", { name: myName }));
+        setBusy(false);
+        return;
+      } catch {
+        // Someone else got there first — fall through and rejoin.
+      }
+    }
+
+    // Wait for whoever takes over, then walk back in.
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise((r) => setTimeout(r, 1200));
+      try {
+        const transport = new FirebaseClientTransport();
+        await transport.connect(last.code);
+        attachClient(transport);
+        setNotice(null);
+        setBusy(false);
+        return;
+      } catch {
+        // not up yet
+      }
+    }
+    setBusy(false);
+    setNotice(null);
+    endSession(t("hostLeft"));
   };
 
   // The room is over for us — drop everything and go back to the menu.
@@ -375,6 +484,11 @@ export default function NetScreen(props: Props) {
   // ---- my actions (host plays through its own room object) ----
 
   const isHost = conn === "host";
+  const changeSettings = (settings: NetSettings) => {
+    props.setRoomSettings(settings);
+    hostRef.current?.setSettings(settings);
+  };
+
   const sendReady = () => {
     if (isHost && hostRef.current) hostRef.current.markReady(hostRef.current.myId);
     else clientRef.current?.ready();
@@ -454,30 +568,25 @@ export default function NetScreen(props: Props) {
                 label={t("scanQr")}
                 variant="secondary"
                 compact
-                disabled={busy || Platform.OS === "web"}
+                disabled={busy}
                 onPress={openScanner}
               />
             </View>
           )}
-          <Text style={styles.hint}>{online ? t("onlineHint") : t("sameWifiHint")}</Text>
         </ScrollView>
 
-        {/* QR scanner */}
+        {/* QR scanner — camera behind a square window */}
         <Modal visible={scanOpen} animationType="slide" onRequestClose={() => setScanOpen(false)}>
-          <View style={styles.scanScreen}>
-            <CameraView
-              style={styles.camera}
-              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-              onBarcodeScanned={({ data }) => {
+          {scanOpen ? (
+            <QrScanner
+              onCode={(data) => {
                 if (scanned.current) return;
                 scanned.current = true;
-                joinByQr(String(data));
+                joinByQr(data);
               }}
+              onClose={() => setScanOpen(false)}
             />
-            <View style={styles.scanBottom}>
-              <BigButton label={t("close")} variant="secondary" onPress={() => setScanOpen(false)} />
-            </View>
-          </View>
+          ) : null}
         </Modal>
       </Screen>
     );
@@ -523,6 +632,7 @@ export default function NetScreen(props: Props) {
           startProblem={isHost ? (host?.startProblem() ?? null) : null}
           onKick={(id) => host?.kick(id)}
           onStart={() => host?.startRound()}
+          onOpenSettings={() => setSettingsOpen(true)}
           gameMode={props.gameMode}
           setGameMode={props.setGameMode}
           roles={props.roles}
@@ -535,6 +645,12 @@ export default function NetScreen(props: Props) {
           setPairCategories={props.setPairCategories}
           fakerCategories={props.fakerCategories}
           setFakerCategories={props.setFakerCategories}
+        />
+        <RoomSettingsSheet
+          visible={settingsOpen}
+          settings={room.settings}
+          onChange={changeSettings}
+          onClose={() => setSettingsOpen(false)}
         />
       </Screen>
     );
@@ -565,9 +681,17 @@ export default function NetScreen(props: Props) {
           onReady={sendReady}
           readyCount={room.readyIds.length}
           total={roundPlayers.length}
-          isHost={isHost}
-          onContinue={() => host?.continueFromCards()}
         />
+        {/* Only if someone never taps: a way out for the host. */}
+        {isHost && stuck ? (
+          <View style={styles.bottom}>
+            <BigButton
+              label={t("continueBtn")}
+              variant="secondary"
+              onPress={() => host?.continueFromCards()}
+            />
+          </View>
+        ) : null}
       </Screen>
     );
   }
@@ -575,6 +699,11 @@ export default function NetScreen(props: Props) {
   // ---- discussion ("X goes first") ----
   if (room.phase === "discuss") {
     const first = room.players.find((p) => p.id === room.firstPlayerId);
+    // Everyone counts down from the moment the phase started, so the
+    // clocks stay together without anything extra going over the wire.
+    const elapsed = Math.floor((Date.now() - room.phaseAt) / 1000);
+    const timeLeft = Math.max(0, room.settings.timerSeconds - elapsed);
+    void tick;
     const instructions =
       room.mode === "odd"
         ? t("discussionInstrOdd")
@@ -587,6 +716,11 @@ export default function NetScreen(props: Props) {
         <View style={styles.center}>
           <Text style={styles.heading}>{t("discussion")}</Text>
           <Text style={styles.instructions}>{instructions}</Text>
+          {room.settings.timerEnabled ? (
+            <Text style={[styles.timer, timeLeft === 0 && styles.timerDone]}>
+              {timeLeft === 0 ? t("timesUp") : formatTime(timeLeft)}
+            </Text>
+          ) : null}
           {first ? (
             <View style={[styles.firstChip, { backgroundColor: first.color }]}>
               <Text style={[styles.firstText, { color: textColorFor(first.color) }]}>
@@ -747,14 +881,25 @@ export default function NetScreen(props: Props) {
     return (
       <Screen>
         {leaveX}
-        <NetVoteView
-          state={room}
-          myId={myId}
-          votedFor={votedFor}
-          onVote={sendVote}
-          isHost={isHost}
-          onReveal={() => host?.revealResults()}
-        />
+        <NetVoteView state={room} myId={myId} votedFor={votedFor} onVote={sendVote} />
+        {isHost && stuck ? (
+          <View style={styles.bottom}>
+            <BigButton
+              label={t("continueBtn")}
+              variant="secondary"
+              onPress={() => host?.revealResults()}
+            />
+          </View>
+        ) : null}
+      </Screen>
+    );
+  }
+
+  // ---- the votes, then who was voted out ----
+  if (room.phase === "eject") {
+    return (
+      <Screen>
+        <NetEjectView state={room} myId={myId} />
       </Screen>
     );
   }
@@ -856,6 +1001,13 @@ const styles = StyleSheet.create({
   scanScreen: { flex: 1, backgroundColor: "#000" },
   camera: { flex: 1 },
   scanBottom: { padding: spacing.md },
+  timer: {
+    fontSize: 46,
+    fontWeight: "900",
+    color: colors.accent,
+    letterSpacing: 2,
+  },
+  timerDone: { color: colors.danger, fontSize: 30 },
   firstChip: {
     borderRadius: radius.md,
     paddingVertical: spacing.sm,

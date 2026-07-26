@@ -23,6 +23,7 @@ import {
   Round,
 } from "../game/types";
 import { roleDesc, roleName } from "../i18n";
+import { freeColor } from "../theme";
 import { uid } from "../utils";
 import {
   ClientMsg,
@@ -36,7 +37,9 @@ import {
   NetRoleInfo,
   netMaxPlayers,
   netMinPlayers,
+  NetSettings,
   RoomState,
+  EJECT_TOTAL_MS,
 } from "./protocol";
 import { Transport } from "./transport";
 
@@ -85,6 +88,7 @@ export class RoomHost {
   private playerToPeer = new Map<string, string>();
   private lastSeen = new Map<string, number>();
   private hbTimer: ReturnType<typeof setInterval> | null = null;
+  private ejectTimer: ReturnType<typeof setTimeout> | null = null;
   private nextJoin = 1;
 
   constructor(
@@ -94,7 +98,8 @@ export class RoomHost {
     hostColor: string,
     config: HostConfig,
     code: string,
-    roomId: string
+    roomId: string,
+    settings: NetSettings = { language: "en", timerEnabled: false, timerSeconds: 120 }
   ) {
     this.transport = transport;
     this.events = events;
@@ -120,6 +125,9 @@ export class RoomHost {
       answeredIds: [],
       votedIds: [],
       firstPlayerId: null,
+      phaseAt: Date.now(),
+      settings,
+      voteMap: null,
       answers: null,
       mainQuestion: null,
       answersShown: false,
@@ -164,6 +172,14 @@ export class RoomHost {
     return list.map((p) => ({ id: p.id, name: p.name, color: p.color, enabled: true }));
   }
 
+  // Two players in one room never share a colour — whoever asks second
+  // gets the next free one.
+  private uniqueColor(wanted: string): string {
+    const taken = this.state.players.filter((p) => p.connected).map((p) => p.color);
+    const free = !taken.some((c) => c.toUpperCase() === wanted.toUpperCase());
+    return free ? wanted : freeColor(taken);
+  }
+
   private uniqueName(name: string): string {
     const base = name.trim().slice(0, 18) || "?";
     let candidate = base;
@@ -193,7 +209,7 @@ export class RoomHost {
       this.state.players.push({
         id: playerId,
         name: this.uniqueName(msg.name),
-        color: msg.color,
+        color: this.uniqueColor(msg.color),
         joinOrder: this.nextJoin++,
         connected: true,
         // Mid-round joiners wait in the wings until the next round.
@@ -247,6 +263,11 @@ export class RoomHost {
     const p = this.player(playerId);
     if (!p?.inRound) return;
     if (!this.state.readyIds.includes(playerId)) this.state.readyIds.push(playerId);
+    // Nobody has to press anything: the last card closes the phase.
+    if (this.state.readyIds.length >= this.inRoundPlayers.length) {
+      this.continueFromCards();
+      return;
+    }
     this.emit();
   }
 
@@ -265,6 +286,10 @@ export class RoomHost {
     if (this.state.mode !== "blef" && playerId === choice) return;
     this.votes[playerId] = choice;
     if (!this.state.votedIds.includes(playerId)) this.state.votedIds.push(playerId);
+    if (this.state.votedIds.length >= this.inRoundPlayers.length) {
+      this.showEjection();
+      return;
+    }
     this.emit();
   }
 
@@ -276,6 +301,11 @@ export class RoomHost {
       this.state.mode = config.mode;
       this.emit();
     }
+  }
+
+  setSettings(settings: NetSettings): void {
+    this.state.settings = settings;
+    this.emit();
   }
 
   kick(playerId: string): void {
@@ -323,7 +353,7 @@ export class RoomHost {
   }
 
   backToLobby(): void {
-    this.state.phase = "lobby";
+    this.setPhase("lobby");
     this.state.readyIds = [];
     this.state.answeredIds = [];
     this.state.votedIds = [];
@@ -331,6 +361,7 @@ export class RoomHost {
     this.state.mainQuestion = null;
     this.state.answersShown = false;
     this.state.results = null;
+    this.state.voteMap = null;
     this.state.firstPlayerId = null;
     this.state.mode = this.config.mode;
     for (const p of this.state.players) if (p.connected) p.inRound = true;
@@ -343,13 +374,13 @@ export class RoomHost {
   continueFromCards(): void {
     if (this.state.phase !== "cards") return;
     if (this.state.mode === "mafia") {
-      this.state.phase = "playing";
+        this.setPhase("playing");
     } else {
       const list = this.inRoundPlayers;
       this.state.firstPlayerId = list.length
         ? list[Math.floor(Math.random() * list.length)].id
         : null;
-      this.state.phase = "discuss";
+      this.setPhase("discuss");
     }
     this.emit();
   }
@@ -365,7 +396,7 @@ export class RoomHost {
     this.state.answers = list;
     this.state.mainQuestion = this.fakerRound.mainQuestion;
     this.state.answersShown = false;
-    this.state.phase = "answers";
+    this.setPhase("answers");
     this.emit();
   }
 
@@ -377,16 +408,36 @@ export class RoomHost {
 
   startVote(): void {
     if (this.state.phase !== "discuss" && this.state.phase !== "answers") return;
-    this.state.phase = "vote";
+    this.setPhase("vote");
     this.state.votedIds = [];
     this.votes = {};
     this.emit();
   }
 
-  revealResults(): void {
-    if (this.state.phase !== "vote" && this.state.phase !== "playing") return;
+  // Voting is over: show who got the votes, hold, then the full results.
+  showEjection(): void {
+    if (this.state.phase !== "vote") return;
     this.state.results = this.buildResults();
-    this.state.phase = "results";
+    this.state.voteMap = { ...this.votes };
+    this.setPhase("eject");
+    this.emit();
+    if (this.ejectTimer) clearTimeout(this.ejectTimer);
+    this.ejectTimer = setTimeout(() => {
+      this.ejectTimer = null;
+      if (this.state.phase !== "eject") return;
+      this.setPhase("results");
+      this.emit();
+    }, EJECT_TOTAL_MS);
+  }
+
+  revealResults(): void {
+    if (this.state.phase === "vote") {
+      this.showEjection();
+      return;
+    }
+    if (this.state.phase !== "playing") return;
+    this.state.results = this.buildResults();
+    this.setPhase("results");
     this.emit();
   }
 
@@ -434,7 +485,7 @@ export class RoomHost {
     this.cards = {};
     this.state.mode = mode;
     // Faker starts straight at its question; the others deal cards first.
-    this.state.phase = mode === "faker" ? "question" : "cards";
+    this.setPhase(mode === "faker" ? "question" : "cards");
     this.state.readyIds = [];
     this.state.answeredIds = [];
     this.state.votedIds = [];
@@ -443,6 +494,7 @@ export class RoomHost {
     this.state.mainQuestion = null;
     this.state.answersShown = false;
     this.state.results = null;
+    this.state.voteMap = null;
     this.emit();
 
     // Private cards — each phone only ever receives its own.
@@ -631,6 +683,11 @@ export class RoomHost {
 
   // ---- plumbing ----
 
+  private setPhase(phase: RoomState["phase"]): void {
+    this.state.phase = phase;
+    this.state.phaseAt = Date.now();
+  }
+
   private emit(): void {
     this.transport.send("all", { type: "STATE", state: this.state } satisfies HostMsg);
     this.events.onState({ ...this.state, players: [...this.state.players] });
@@ -642,6 +699,7 @@ export class RoomHost {
 
   close(): void {
     if (this.hbTimer) clearInterval(this.hbTimer);
+    if (this.ejectTimer) clearTimeout(this.ejectTimer);
     this.transport.close();
   }
 }
@@ -654,6 +712,7 @@ export class RoomClient {
   private events: RoomEvents;
   private lastHostSeen = Date.now();
   private hbTimer: ReturnType<typeof setInterval> | null = null;
+  private ejectTimer: ReturnType<typeof setTimeout> | null = null;
   private closed = false;
 
   constructor(transport: Transport, events: RoomEvents, myName: string, myColor: string) {

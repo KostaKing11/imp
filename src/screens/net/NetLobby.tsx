@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
-import { QrIcon } from "../../components/icons";
+import { QrIcon, SlidersIcon } from "../../components/icons";
 import SectionTitle from "../../components/SectionTitle";
 import {
   CategoryState,
@@ -26,6 +26,7 @@ type Props = {
   startProblem: "few" | "many" | "content" | null;
   onKick: (playerId: string) => void;
   onStart: () => void;
+  onOpenSettings: () => void;
   // host game setup (the same lists the one-phone setup edits)
   gameMode: GameMode;
   setGameMode: (mode: GameMode) => void;
@@ -76,6 +77,15 @@ export default function NetLobby(props: Props) {
           {isHost ? (
             <Pressable onPress={() => setQrOpen(true)} hitSlop={10} style={styles.qrButton}>
               <QrIcon size={26} color={colors.textDim} />
+            </Pressable>
+          ) : null}
+          {isHost ? (
+            <Pressable
+              onPress={props.onOpenSettings}
+              hitSlop={10}
+              style={styles.qrButton}
+            >
+              <SlidersIcon size={24} color={colors.textDim} />
             </Pressable>
           ) : null}
         </View>

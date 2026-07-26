@@ -9,7 +9,10 @@ export const DISCOVERY_PORT = 47777;
 export const GAME_PORT = 47778;
 export const HEARTBEAT_MS = 3000;
 export const HEARTBEAT_TIMEOUT_MS = 10000;
-export const NET_MAX_PLAYERS = 12;
+export const NET_MAX_PLAYERS = 20;
+// How long the ejection screen holds before the full results.
+export const EJECT_TALLY_MS = 2600;
+export const EJECT_TOTAL_MS = 6200;
 
 // Blef is a duel; everything else needs a group.
 export function netMinPlayers(mode: GameMode): number {
@@ -27,16 +30,25 @@ export type NetPhase =
   | "answers" // faker: the shared question first, then the answers
   | "playing" // mafia: played out loud, host reveals at the end
   | "vote"
+  | "eject" // the votes appear, then who was voted out and what they were
   | "results";
 
 export type NetPlayer = {
   id: string;
   name: string;
   color: string;
+  // Lowest number joined first — that is who takes over if the host drops.
   joinOrder: number;
   connected: boolean;
   // false = joined mid-round; they sit out until the next round
   inRound: boolean;
+};
+
+// The host decides these for the whole room.
+export type NetSettings = {
+  language: "en" | "sr";
+  timerEnabled: boolean;
+  timerSeconds: number;
 };
 
 // What a single player privately sees when a round starts. Role names and
@@ -101,6 +113,12 @@ export type RoomState = {
   answeredIds: string[];
   votedIds: string[];
   firstPlayerId: string | null;
+  // When the current phase began — the discussion timer counts from here.
+  phaseAt: number;
+  settings: NetSettings;
+  // Who voted for whom. Only filled in once voting is over, so nobody can
+  // peek at it while the vote is still running.
+  voteMap: Record<string, string> | null;
   answers: NetAnswer[] | null;
   // Faker: the shared question is revealed before the answers are.
   mainQuestion: string | null;

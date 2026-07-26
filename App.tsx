@@ -41,6 +41,7 @@ import FakerAnswerScreen from "./src/screens/faker/FakerAnswerScreen";
 import FakerAnswersScreen from "./src/screens/faker/FakerAnswersScreen";
 import FakerResultScreen from "./src/screens/faker/FakerResultScreen";
 import { joinCodeFromUrl } from "./src/net/config";
+import { NetSettings } from "./src/net/protocol";
 import HomeScreen, { NetMode, PlayStyle } from "./src/screens/HomeScreen";
 import MafiaResultScreen from "./src/screens/MafiaResultScreen";
 import NetScreen from "./src/screens/net/NetScreen";
@@ -129,6 +130,13 @@ export default function App() {
   const [netName, setNetName] = useState("");
   const [netColor, setNetColor] = useState(PLAYER_COLORS[1]);
   const [netMode, setNetMode] = useState<NetMode>("online");
+  // While in a room, the host's language wins over this phone's own.
+  const [roomLanguage, setRoomLanguage] = useState<Language | null>(null);
+  const [roomSettings, setRoomSettings] = useState<NetSettings>({
+    language: "en",
+    timerEnabled: false,
+    timerSeconds: 120,
+  });
   // Set when the app was opened from a room link (…?join=1234).
   const [pendingJoinCode, setPendingJoinCode] = useState<string | null>(null);
   const [usedWords, setUsedWords] = useState<string[]>([]);
@@ -266,6 +274,10 @@ export default function App() {
     setFakerCategories((prev) => buildFakerCategories(serializeFakerCategories(prev), lang));
   };
 
+  // The timer belonging to whatever mode is picked right now.
+  const currentTimer = () =>
+    gameMode === "odd" ? settings.oddTimer : gameMode === "blef" ? settings.blefTimer : settings.impTimer;
+
   const leaveGame = () => {
     // Clear round state so nothing stale leaks into the next game.
     setRound(null);
@@ -375,6 +387,11 @@ export default function App() {
             pendingJoinCode={pendingJoinCode}
             onStart={startGame}
             onHost={() => {
+              setRoomSettings({
+                language,
+                timerEnabled: currentTimer().enabled,
+                timerSeconds: currentTimer().seconds,
+              });
               setNetIntent("host");
               setScreen("net");
             }}
@@ -401,6 +418,9 @@ export default function App() {
             intent={netIntent}
             netMode={netMode}
             initialCode={netIntent === "join" ? pendingJoinCode : null}
+            roomSettings={roomSettings}
+            setRoomSettings={setRoomSettings}
+            onRoomLanguage={setRoomLanguage}
             myName={netName.trim() || "?"}
             myColor={netColor}
             gameMode={gameMode}
@@ -563,7 +583,8 @@ export default function App() {
 
   // Keep the i18n module in sync with state on every render (survives
   // Fast Refresh, which can reset the module-level language back to "en").
-  if (getLanguage() !== language) setLanguage(language);
+  const shownLanguage = roomLanguage ?? language;
+  if (getLanguage() !== shownLanguage) setLanguage(shownLanguage);
 
   return <SafeAreaProvider>{renderScreen()}</SafeAreaProvider>;
 }
