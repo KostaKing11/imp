@@ -48,6 +48,41 @@ export const PLAYER_COLORS = [
 
 export const MAX_PLAYERS = PLAYER_COLORS.length;
 
+// Closest palette colour to any given one.
+function nearestColor(hex: string): string {
+  const rgb = (c: string) => {
+    const h = c.replace("#", "");
+    return h.length === 6
+      ? [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+      : [0, 0, 0];
+  };
+  const [r, g, b] = rgb(hex);
+  let best = PLAYER_COLORS[0];
+  let bestDist = Infinity;
+  for (const c of PLAYER_COLORS) {
+    const [cr, cg, cb] = rgb(c);
+    const dist = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = c;
+    }
+  }
+  return best;
+}
+
+// Brings a saved roster onto the palette: anything off-palette snaps to
+// the nearest colour, and duplicates are pushed to a free one.
+export function snapColors<T extends { color: string }>(players: T[]): T[] {
+  const taken: string[] = [];
+  return players.map((p) => {
+    const onPalette = PLAYER_COLORS.find((c) => c.toUpperCase() === p.color.toUpperCase());
+    let color = onPalette ?? nearestColor(p.color);
+    if (taken.some((c) => c.toUpperCase() === color.toUpperCase())) color = freeColor(taken);
+    taken.push(color);
+    return { ...p, color };
+  });
+}
+
 // First color nobody else has taken (falls back to the first one).
 export function freeColor(taken: string[]): string {
   const used = taken.map((c) => c.toUpperCase());

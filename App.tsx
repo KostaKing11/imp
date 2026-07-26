@@ -52,7 +52,7 @@ import ResultScreen from "./src/screens/ResultScreen";
 import RevealScreen from "./src/screens/RevealScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import { KEYS, loadJSON, saveJSON } from "./src/storage";
-import { PLAYER_COLORS } from "./src/theme";
+import { PLAYER_COLORS, snapColors } from "./src/theme";
 import { confirmDialog, uid } from "./src/utils";
 
 // Simple state-machine navigation — no navigation library needed for
@@ -171,7 +171,7 @@ export default function App() {
       const storedNetName = await loadJSON<string | null>(KEYS.netName, null);
       if (storedNetName) setNetName(storedNetName);
       const storedNetColor = await loadJSON<string | null>(KEYS.netColor, null);
-      if (storedNetColor) setNetColor(storedNetColor);
+      if (storedNetColor) setNetColor(snapColors([{ color: storedNetColor }])[0].color);
       const storedNetMode = await loadJSON<NetMode | null>(KEYS.netMode, null);
       if (storedNetMode === "online" || storedNetMode === "lan") setNetMode(storedNetMode);
       // Opened from a shared room link: jump straight to the join flow.
@@ -186,7 +186,8 @@ export default function App() {
       setLanguage(lang);
       setLanguageState(lang);
       if (storedPlayers && storedPlayers.length >= 3) {
-        setPlayers(storedPlayers.map((p) => ({ ...p, enabled: p.enabled ?? true })));
+        // Older saves may hold colours that are no longer on the palette.
+        setPlayers(snapColors(storedPlayers.map((p) => ({ ...p, enabled: p.enabled ?? true }))));
       } else {
         setPlayers(defaultPlayers()); // regenerate with correct language names
       }
