@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import AppModal from "../../components/AppModal";
 import BigButton from "../../components/BigButton";
+import ColorPicker from "../../components/ColorPicker";
 import { QrIcon, SlidersIcon } from "../../components/icons";
 import SectionTitle from "../../components/SectionTitle";
 import {
@@ -27,6 +29,7 @@ type Props = {
   onKick: (playerId: string) => void;
   onStart: () => void;
   onOpenSettings: () => void;
+  onChangeColor: (color: string) => void;
   // host game setup (the same lists the one-phone setup edits)
   gameMode: GameMode;
   setGameMode: (mode: GameMode) => void;
@@ -45,6 +48,7 @@ type Props = {
 export default function NetLobby(props: Props) {
   const { state, isHost, myId, qrPayload, notice, startProblem, onKick, onStart } = props;
   const [qrOpen, setQrOpen] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
 
   const players = state.players.filter((p) => p.connected);
   const min = netMinPlayers(state.mode);
@@ -59,7 +63,15 @@ export default function NetLobby(props: Props) {
           ? t("errNetContent")
           : null;
 
-  const kick = (p: NetPlayer) => {
+  const me = players.find((p) => p.id === myId) ?? null;
+
+  // Your own chip opens the colour picker; the host's tap on anyone
+  // else's is a kick.
+  const tapPlayer = (p: NetPlayer) => {
+    if (p.id === myId) {
+      setColorOpen(true);
+      return;
+    }
     if (!isHost || p.id === state.hostId) return;
     confirmDialog(t("kickQ"), tf("kickText", { name: p.name }), () => onKick(p.id));
   };
@@ -98,11 +110,11 @@ export default function NetLobby(props: Props) {
           {players.map((p) => (
             <Pressable
               key={p.id}
-              onPress={() => kick(p)}
+              onPress={() => tapPlayer(p)}
               style={({ pressed }) => [
                 styles.playerChip,
                 { backgroundColor: p.color },
-                pressed && isHost && p.id !== state.hostId && styles.pressed,
+                pressed && styles.pressed,
               ]}
             >
               <Text style={[styles.playerName, { color: textColorFor(p.color) }]}>
@@ -116,9 +128,9 @@ export default function NetLobby(props: Props) {
             </Pressable>
           ))}
         </View>
-        {isHost && players.length > 1 ? (
-          <Text style={styles.hint}>{t("kickHint")}</Text>
-        ) : null}
+        <Text style={styles.hint}>
+          {isHost && players.length > 1 ? t("kickHint") : t("tapSelfColor")}
+        </Text>
 
         {/* only the host configures the game */}
         {isHost ? (
@@ -155,6 +167,21 @@ export default function NetLobby(props: Props) {
           />
         </View>
       ) : null}
+
+      <AppModal
+        visible={colorOpen}
+        title={t("color")}
+        onClose={() => setColorOpen(false)}
+      >
+        <ColorPicker
+          value={me?.color ?? "#E03131"}
+          taken={players.filter((p) => p.id !== myId).map((p) => p.color)}
+          onChange={(color) => {
+            props.onChangeColor(color);
+            setColorOpen(false);
+          }}
+        />
+      </AppModal>
 
       <QrModal
         visible={qrOpen}

@@ -65,6 +65,7 @@ type Props = {
   initialCode?: string | null;
   myName: string;
   myColor: string;
+  setMyColor: (color: string) => void;
   gameMode: GameMode;
   setGameMode: (mode: GameMode) => void;
   roles: RoleDef[];
@@ -484,6 +485,14 @@ export default function NetScreen(props: Props) {
   // ---- my actions (host plays through its own room object) ----
 
   const isHost = conn === "host";
+  // Picking a colour in the lobby: the host changes it directly, a
+  // player asks the host for it. Either way it sticks for next time.
+  const changeMyColor = (color: string) => {
+    if (isHost && hostRef.current) hostRef.current.changeColor(hostRef.current.myId, color);
+    else clientRef.current?.color(color);
+    props.setMyColor(color);
+  };
+
   const changeSettings = (settings: NetSettings) => {
     props.setRoomSettings(settings);
     hostRef.current?.setSettings(settings);
@@ -633,6 +642,7 @@ export default function NetScreen(props: Props) {
           onKick={(id) => host?.kick(id)}
           onStart={() => host?.startRound()}
           onOpenSettings={() => setSettingsOpen(true)}
+          onChangeColor={changeMyColor}
           gameMode={props.gameMode}
           setGameMode={props.setGameMode}
           roles={props.roles}

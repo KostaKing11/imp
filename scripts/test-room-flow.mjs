@@ -72,6 +72,22 @@ check(
   "players are told which language the room uses"
 );
 
+// a player picks a different colour in the lobby
+const free = "#8E44AD";
+guests[0].client.color(free);
+await wait(50);
+check(
+  host.state.players.find((p) => p.name === "Ana")?.color === free,
+  "a player can pick a free colour in the lobby"
+);
+const hostColor = host.state.players[0].color;
+guests[1].client.color(hostColor);
+await wait(50);
+check(
+  host.state.players.find((p) => p.name === "Marko")?.color !== hostColor,
+  "a colour someone else holds is refused"
+);
+
 host.startRound();
 await wait(30);
 check(host.state.phase === "cards", "the round deals cards");

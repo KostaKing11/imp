@@ -227,6 +227,9 @@ export class RoomHost {
       case "READY":
         this.markReady(playerId);
         break;
+      case "COLOR":
+        this.changeColor(playerId, msg.color);
+        break;
       case "ANSWER":
         this.submitAnswer(playerId, msg.text);
         break;
@@ -268,6 +271,20 @@ export class RoomHost {
       this.continueFromCards();
       return;
     }
+    this.emit();
+  }
+
+  // Players pick their own colour in the lobby; two of them can never
+  // end up with the same one.
+  changeColor(playerId: string, color: string): void {
+    if (this.state.phase !== "lobby") return;
+    const player = this.player(playerId);
+    if (!player) return;
+    const taken = this.state.players
+      .filter((p) => p.connected && p.id !== playerId)
+      .map((c) => c.color.toUpperCase());
+    if (taken.includes(color.toUpperCase())) return;
+    player.color = color;
     this.emit();
   }
 
@@ -766,6 +783,9 @@ export class RoomClient {
 
   ready(): void {
     this.transport.send("host", { type: "READY" } satisfies ClientMsg);
+  }
+  color(color: string): void {
+    this.transport.send("host", { type: "COLOR", color } satisfies ClientMsg);
   }
   answer(text: string): void {
     this.transport.send("host", { type: "ANSWER", text } satisfies ClientMsg);

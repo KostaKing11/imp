@@ -424,6 +424,7 @@ export default function App() {
             onRoomLanguage={setRoomLanguage}
             myName={netName.trim() || "?"}
             myColor={netColor}
+            setMyColor={setNetColor}
             gameMode={gameMode}
             setGameMode={setGameMode}
             roles={roles}

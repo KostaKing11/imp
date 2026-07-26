@@ -130,6 +130,7 @@ export type RoomState = {
 export type ClientMsg =
   | { type: "JOIN"; name: string; color: string }
   | { type: "READY" } // I've seen my card
+  | { type: "COLOR"; color: string } // I'd like a different colour
   | { type: "ANSWER"; text: string }
   | { type: "VOTE"; choice: string } // playerId, or "word" / "hint" in Blef
   | { type: "LEAVE" }
