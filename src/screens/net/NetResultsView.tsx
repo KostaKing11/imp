@@ -1,6 +1,7 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
+import PlayerCard from "../../components/PlayerCard";
 import { t, tf } from "../../i18n";
 import { NetPlayer, NetResults, RoomState } from "../../net/protocol";
 import { colors, radius, spacing } from "../../theme";
@@ -66,12 +67,12 @@ export default function NetResultsView({
         {[...roundPlayers]
           .sort((a, b) => (results.counts[b.id] ?? 0) - (results.counts[a.id] ?? 0))
           .map((p) => (
-            <View key={p.id} style={styles.voteRow}>
-              <View style={[styles.chip, { backgroundColor: p.color }]}>
-                <Text style={[styles.chipText, { color: textColorFor(p.color) }]}>{p.name}</Text>
-              </View>
-              <Text style={styles.voteCount}>{results.counts[p.id] ?? 0}</Text>
-            </View>
+            <PlayerCard
+              key={p.id}
+              name={p.name}
+              color={p.color}
+              right={<Text style={[styles.voteCount, { color: p.color }]}>{results.counts[p.id] ?? 0}</Text>}
+            />
           ))}
       </>
     );
@@ -183,17 +184,18 @@ export default function NetResultsView({
               .map((r) => {
                 const p = byId(r.playerId);
                 return (
-                  <View key={r.playerId} style={styles.playerRow}>
-                    <View style={[styles.dot, { backgroundColor: p?.color ?? colors.card }]} />
-                    <Text style={styles.playerName} numberOfLines={1}>
-                      {p?.name}
-                    </Text>
-                    <View style={[styles.roleBadge, { backgroundColor: r.roleColor }]}>
-                      <Text style={[styles.roleBadgeText, { color: textColorFor(r.roleColor) }]}>
-                        {r.roleName}
-                      </Text>
-                    </View>
-                  </View>
+                  <PlayerCard
+                    key={r.playerId}
+                    name={p?.name ?? ""}
+                    color={p?.color ?? colors.border}
+                    right={
+                      <View style={[styles.roleBadge, { borderColor: r.roleColor }]}>
+                        <Text style={[styles.roleBadgeText, { color: r.roleColor }]}>
+                          {r.roleName}
+                        </Text>
+                      </View>
+                    }
+                  />
                 );
               })}
           </>
@@ -207,7 +209,10 @@ export default function NetResultsView({
               const guess = other ? results.guesses?.[other.id] : undefined;
               const right = guess ? (guess === "word") === c.isWord : null;
               return (
-                <View key={c.playerId} style={styles.blefCard}>
+                <View
+                  key={c.playerId}
+                  style={[styles.blefCard, { borderColor: p?.color ?? colors.border }]}
+                >
                   <Text style={[styles.blefName, { color: p?.color ?? colors.text }]}>
                     {p?.name}
                   </Text>
@@ -328,7 +333,12 @@ const styles = StyleSheet.create({
   },
   dot: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: colors.border },
   playerName: { flex: 1, fontSize: 18, fontWeight: "700", color: colors.text },
-  roleBadge: { borderRadius: radius.sm, paddingVertical: 6, paddingHorizontal: spacing.sm },
+  roleBadge: {
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    paddingVertical: 5,
+    paddingHorizontal: spacing.sm,
+  },
   roleBadgeText: { fontSize: 14, fontWeight: "800" },
   blefCard: {
     alignSelf: "stretch",
@@ -358,7 +368,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: spacing.sm,
   },
-  voteCount: { fontSize: 20, fontWeight: "900", color: colors.textDim },
+  voteCount: { fontSize: 24, fontWeight: "900", minWidth: 26, textAlign: "right" },
   notice: { fontSize: 14, color: colors.textDim, textAlign: "center" },
   bottom: { gap: spacing.sm, paddingBottom: spacing.md },
 });

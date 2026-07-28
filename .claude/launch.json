@@ -38,6 +38,18 @@
         "-s"
       ],
       "port": 8088
+    },
+    {
+      "name": "imp-web-subpath",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "serve",
+        "C:/Users/KOSTA/AppData/Local/Temp/claude/C--Users-KOSTA-Desktop-IMP-FINALLY/43e7b521-7ad1-470c-80b2-f552cc67a841/scratchpad/site",
+        "-l",
+        "8089"
+      ],
+      "port": 8089
     }
   ]
 }

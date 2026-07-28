@@ -6,7 +6,7 @@ import Screen from "../components/Screen";
 import { Player } from "../game/types";
 import { t, tf } from "../i18n";
 import { colors, radius, spacing } from "../theme";
-import { formatTime, textColorFor } from "../utils";
+import { formatTime } from "../utils";
 
 type Props = {
   timerEnabled: boolean;
@@ -70,8 +70,8 @@ export default function DiscussionScreen({
         <Text style={styles.instructions}>{instructions ?? t("discussionInstr")}</Text>
 
         {firstPlayer ? (
-          <View style={[styles.firstChip, { backgroundColor: firstPlayer.color }]}>
-            <Text style={[styles.firstText, { color: textColorFor(firstPlayer.color) }]}>
+          <View style={[styles.firstChip, { borderColor: firstPlayer.color }]}>
+            <Text style={[styles.firstText, { color: firstPlayer.color }]}>
               {tf("goesFirst", { name: firstPlayer.name })}
             </Text>
           </View>

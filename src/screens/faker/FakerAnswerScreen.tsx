@@ -1,6 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
-  Animated,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,11 +10,12 @@ import {
   View,
 } from "react-native";
 import BigButton from "../../components/BigButton";
+import FlipCard from "../../components/FlipCard";
+import PlayerCard from "../../components/PlayerCard";
 import Screen from "../../components/Screen";
 import { FakerAnswers, FakerRound, Player } from "../../game/types";
-import { t, tf } from "../../i18n";
+import { t } from "../../i18n";
 import { colors, radius, spacing } from "../../theme";
-import { textColorFor } from "../../utils";
 
 export const FAKER_ANSWER_MAX = 50;
 
@@ -26,119 +26,51 @@ type Props = {
   onLeave: () => void;
 };
 
-// Pass-and-play answering. Each player flips their card (hold to reveal,
-// like the other modes) to read their question; once they let go, the
-// answer box appears. The layout is IDENTICAL for everyone — the Faker's
-// screen gives no hint that their question is the odd one.
+// Pass-and-play answering, laid out like every other mode: everyone taps
+// their own card, holds it to read their question and types an answer.
+// The card looks IDENTICAL for everyone — nothing gives the Faker away.
 export default function FakerAnswerScreen({ players, round, onDone, onLeave }: Props) {
-  const [index, setIndex] = useState(0);
-  const [revealed, setRevealed] = useState(false);
-  const [peeked, setPeeked] = useState(false);
-  const [holding, setHolding] = useState(false);
-  const [text, setText] = useState("");
   const [answers, setAnswers] = useState<FakerAnswers>({});
-  const flip = useRef(new Animated.Value(0)).current;
+  const [active, setActive] = useState<Player | null>(null);
+  const [peeked, setPeeked] = useState(false);
+  const [text, setText] = useState("");
 
-  const player = players[index];
-  const isLast = index === players.length - 1;
-  const question =
-    player.id === round.oddPlayerId ? round.oddQuestion : round.mainQuestion;
+  const allAnswered = players.every((p) => answers[p.id] !== undefined);
 
-  const pressIn = () => {
-    setHolding(true);
-    setPeeked(true);
-    Animated.spring(flip, { toValue: 1, friction: 8, useNativeDriver: true }).start();
-  };
-
-  const pressOut = () => {
-    setHolding(false);
-    Animated.spring(flip, { toValue: 0, friction: 8, useNativeDriver: true }).start();
+  const open = (player: Player) => {
+    setPeeked(false);
+    setText("");
+    setActive(player);
   };
 
   const lockIn = () => {
-    const next = { ...answers, [player.id]: text.trim() };
-    if (isLast) {
-      onDone(next);
-    } else {
-      setAnswers(next);
-      setText("");
-      setPeeked(false);
-      setHolding(false);
-      flip.setValue(0);
-      setRevealed(false);
-      setIndex(index + 1);
-    }
+    if (!active) return;
+    setAnswers({ ...answers, [active.id]: text.trim() });
+    setActive(null);
   };
 
-  const frontRotate = flip.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
-  const backRotate = flip.interpolate({ inputRange: [0, 1], outputRange: ["180deg", "360deg"] });
+  const questionFor = (player: Player) =>
+    player.id === round.oddPlayerId ? round.oddQuestion : round.mainQuestion;
 
-  return (
-    <Screen>
-      <Pressable onPress={onLeave} hitSlop={10} style={styles.leaveButton}>
-        <Text style={styles.leaveText}>✕</Text>
-      </Pressable>
-
-      {!revealed ? (
-        <>
-          <View style={styles.center}>
-            <Text style={styles.passLabel}>{t("passPhoneTo")}</Text>
-            <Text style={styles.playerName}>{player.name}</Text>
-            <Text style={styles.privacy}>{t("nobodyLooking")}</Text>
-          </View>
-          <View style={styles.bottom}>
-            <BigButton
-              label={tf("fakerTapQuestion", { name: player.name })}
-              onPress={() => setRevealed(true)}
-            />
-          </View>
-        </>
-      ) : (
+  if (active) {
+    return (
+      <Screen>
         <KeyboardAvoidingView
-          style={styles.flex}
-          behavior="padding"
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+          style={styles.cardScreen}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <ScrollView
-            contentContainerStyle={styles.cardArea}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+          <FlipCard
+            name={active.name}
+            color={active.color}
+            faceColor={colors.accent}
+            onPeeked={() => setPeeked(true)}
           >
-            <Text style={styles.cardOwner}>{player.name}</Text>
-            <Text style={styles.cardInstruction}>
-              {peeked && !holding ? " " : t("holdCardInstr")}
-            </Text>
+            <Text style={styles.qLabel}>{t("fakerYourQuestion")}</Text>
+            <Text style={styles.question}>{questionFor(active)}</Text>
+          </FlipCard>
 
-            {/* the flip card — question on the back */}
-            <Pressable onPressIn={pressIn} onPressOut={pressOut} style={styles.card}>
-              <Animated.View
-                style={[
-                  styles.cardFace,
-                  { backgroundColor: player.color },
-                  { transform: [{ perspective: 1200 }, { rotateY: frontRotate }] },
-                ]}
-              >
-                <Text style={[styles.cardBackLogo, { color: textColorFor(player.color) }]}>
-                  IMP
-                </Text>
-                <Text style={[styles.cardBackHint, { color: textColorFor(player.color) }]}>
-                  {t("holdToReveal")}
-                </Text>
-              </Animated.View>
-              <Animated.View
-                style={[
-                  styles.cardFace,
-                  styles.questionFace,
-                  { transform: [{ perspective: 1200 }, { rotateY: backRotate }] },
-                ]}
-              >
-                <Text style={styles.questionLabel}>{t("fakerYourQuestion")}</Text>
-                <Text style={styles.question}>{question}</Text>
-              </Animated.View>
-            </Pressable>
-
-            {/* once they've seen the question, the answer box appears */}
-            {peeked && !holding ? (
+          <View style={styles.cardBottom}>
+            {peeked ? (
               <>
                 <TextInput
                   style={styles.input}
@@ -147,36 +79,63 @@ export default function FakerAnswerScreen({ players, round, onDone, onLeave }: P
                   placeholder={t("fakerAnswerPlaceholder")}
                   placeholderTextColor={colors.textDim}
                   maxLength={FAKER_ANSWER_MAX}
-                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={() => text.trim() && lockIn()}
                 />
-                <Text style={styles.charCount}>
-                  {text.length}/{FAKER_ANSWER_MAX}
-                </Text>
+                <BigButton
+                  label={t("fakerLockIn")}
+                  disabled={text.trim().length === 0}
+                  onPress={lockIn}
+                />
               </>
-            ) : null}
-          </ScrollView>
-
-          {peeked && !holding ? (
-            <View style={styles.bottom}>
-              <BigButton
-                label={t("fakerLockIn")}
-                disabled={text.trim().length === 0}
-                onPress={lockIn}
-              />
-            </View>
-          ) : (
-            <Text style={styles.privacyBottom}>{t("nobodyLooking")}</Text>
-          )}
+            ) : (
+              <Text style={styles.privacy}>{t("nobodyLooking")}</Text>
+            )}
+          </View>
         </KeyboardAvoidingView>
-      )}
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen>
+      <Pressable onPress={onLeave} hitSlop={10} style={styles.leaveButton}>
+        <Text style={styles.leaveText}>✕</Text>
+      </Pressable>
+      <Text style={styles.heading}>{t("whoAreYou")}</Text>
+      <Text style={styles.subheading}>{t("fakerHandoutInstr")}</Text>
+
+      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {players.map((p) => {
+          const done = answers[p.id] !== undefined;
+          return (
+            <PlayerCard
+              key={p.id}
+              name={p.name}
+              color={p.color}
+              note={done ? null : t("tapToReveal")}
+              dimmed={done}
+              disabled={done}
+              onPress={() => open(p)}
+              right={done ? <Text style={[styles.check, { color: p.color }]}>✓</Text> : null}
+            />
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.bottom}>
+        <BigButton
+          label={t("everyonesReady")}
+          onPress={() => onDone(answers)}
+          disabled={!allAnswered}
+        />
+      </View>
+
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
   leaveButton: {
     position: "absolute",
     top: spacing.sm,
@@ -190,90 +149,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  leaveText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.textDim,
+  leaveText: { fontSize: 17, fontWeight: "700", color: colors.textDim },
+  heading: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: colors.text,
+    textAlign: "center",
+    marginTop: spacing.sm,
   },
-  center: {
+  subheading: {
+    fontSize: 14,
+    color: colors.textDim,
+    textAlign: "center",
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  list: { gap: spacing.xs, paddingBottom: spacing.md },
+  check: { fontSize: 22, fontWeight: "900" },
+  bottom: { paddingBottom: spacing.md },
+  cardScreen: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
   },
-  passLabel: {
-    fontSize: 20,
-    color: colors.textDim,
-  },
-  playerName: {
-    fontSize: 44,
-    fontWeight: "900",
-    color: colors.text,
-    textAlign: "center",
-  },
-  privacy: {
-    fontSize: 14,
-    color: colors.textDim,
-    marginTop: spacing.sm,
-  },
-  privacyBottom: {
-    fontSize: 14,
-    color: colors.textDim,
-    textAlign: "center",
-    paddingBottom: spacing.md,
-  },
-  cardArea: {
-    flexGrow: 1,
-    alignItems: "center",
+  cardBottom: {
+    marginTop: spacing.md,
+    minHeight: 70,
+    alignSelf: "stretch",
     justifyContent: "center",
     gap: spacing.sm,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
   },
-  cardOwner: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: colors.text,
-  },
-  cardInstruction: {
-    fontSize: 14,
-    color: colors.textDim,
-  },
-  card: {
-    width: "88%",
-    aspectRatio: 1.25,
-  },
-  cardFace: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.md,
-    backfaceVisibility: "hidden",
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.25)",
-  },
-  cardBackLogo: {
-    fontSize: 48,
-    fontWeight: "900",
-    letterSpacing: 4,
-  },
-  cardBackHint: {
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 3,
-    marginTop: spacing.sm,
-  },
-  questionFace: {
-    backgroundColor: colors.card,
-    borderColor: colors.accent,
-    gap: spacing.xs,
-  },
-  questionLabel: {
+  qLabel: {
     fontSize: 13,
     fontWeight: "700",
     color: colors.textDim,
@@ -281,14 +188,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   question: {
-    fontSize: 21,
-    lineHeight: 29,
+    fontSize: 24,
+    lineHeight: 32,
     fontWeight: "800",
     color: colors.text,
     textAlign: "center",
   },
   input: {
-    alignSelf: "stretch",
     backgroundColor: colors.chip,
     borderWidth: 1,
     borderColor: colors.border,
@@ -298,12 +204,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 12,
   },
-  charCount: {
-    alignSelf: "flex-end",
-    fontSize: 12,
-    color: colors.textDim,
-  },
-  bottom: {
-    paddingBottom: spacing.md,
-  },
+  privacy: { fontSize: 14, color: colors.textDim, textAlign: "center" },
 });

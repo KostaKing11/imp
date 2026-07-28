@@ -1,7 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { colors, radius, spacing } from "../theme";
-import { textColorFor } from "../utils";
 
 type Props = {
   label: string;
@@ -18,8 +17,10 @@ type Props = {
 };
 
 export default function Chip({ label, bg, active = true, onPress, onLongPress, count, badge }: Props) {
-  const background = bg ?? colors.chip;
-  const textColor = textColorFor(background);
+  // Coloured chips (players, roles) are outlined in their colour with
+  // the label in the same colour — the same look the cards use.
+  const accentColor = bg ?? colors.border;
+  const textColor = bg ?? colors.text;
 
   return (
     <Pressable
@@ -27,7 +28,7 @@ export default function Chip({ label, bg, active = true, onPress, onLongPress, c
       onLongPress={onLongPress}
       style={({ pressed }) => [
         styles.chip,
-        { backgroundColor: background },
+        { borderColor: accentColor },
         active ? styles.active : styles.inactive,
         pressed && styles.pressed,
       ]}
@@ -48,26 +49,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderRadius: radius.md,
-    paddingVertical: 14,
+    backgroundColor: colors.card,
+    borderWidth: 2.5,
+    paddingVertical: 13,
     paddingHorizontal: spacing.md,
     minHeight: 52,
     overflow: "hidden",
   },
-  active: {
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
+  active: {},
   inactive: {
-    borderWidth: 2,
-    borderColor: "transparent",
-    opacity: 0.35,
+    opacity: 0.32,
   },
   pressed: {
     opacity: 0.7,
   },
   label: {
     fontSize: 17,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   badge: {
     fontSize: 13,

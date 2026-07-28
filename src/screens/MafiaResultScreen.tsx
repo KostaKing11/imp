@@ -6,7 +6,6 @@ import { MAFIA_CIVILIAN } from "../game/roles";
 import { MafiaRound, Player, RoleDef } from "../game/types";
 import { roleName, t, tf } from "../i18n";
 import { colors, radius, spacing } from "../theme";
-import { textColorFor } from "../utils";
 
 type Props = {
   players: Player[];
@@ -92,12 +91,11 @@ export default function MafiaResultScreen({
               const role = roleFor(p.id);
               return (
                 <View key={p.id} style={styles.playerRow}>
-                  <View style={[styles.playerDot, { backgroundColor: p.color }]} />
-                  <Text style={styles.playerName} numberOfLines={1}>
+                  <Text style={[styles.playerName, { color: p.color }]} numberOfLines={1}>
                     {p.name}
                   </Text>
-                  <View style={[styles.roleBadge, { backgroundColor: role.color }]}>
-                    <Text style={[styles.roleBadgeText, { color: textColorFor(role.color) }]}>
+                  <View style={[styles.roleBadge, { borderColor: role.color }]}>
+                    <Text style={[styles.roleBadgeText, { color: role.color }]}>
                       {roleName(role)}
                     </Text>
                   </View>
@@ -191,13 +189,13 @@ const styles = StyleSheet.create({
   },
   playerName: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text,
+    fontSize: 19,
+    fontWeight: "900",
   },
   roleBadge: {
     borderRadius: radius.sm,
-    paddingVertical: 6,
+    borderWidth: 2,
+    paddingVertical: 5,
     paddingHorizontal: spacing.sm,
   },
   roleBadgeText: {

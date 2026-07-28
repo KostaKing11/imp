@@ -13,9 +13,13 @@ import {
   View,
 } from "react-native";
 import BigButton from "../../components/BigButton";
+import FlipCard from "../../components/FlipCard";
 import QrScanner from "../../components/QrScanner";
 import Screen from "../../components/Screen";
 import { BLEF_CLUES_PER_PLAYER } from "../../game/blefEngine";
+import { buildCategories, serializeCategories } from "../../game/categories";
+import { buildFakerCategories, serializeFakerCategories } from "../../game/fakerEngine";
+import { buildPairCategories, serializePairCategories } from "../../game/oddEngine";
 import {
   CategoryState,
   FakerCategoryState,
@@ -115,6 +119,7 @@ export default function NetScreen(props: Props) {
   const [tick, setTick] = useState(0);
   const [answerText, setAnswerText] = useState("");
   const [answered, setAnswered] = useState(false);
+  const [questionPeeked, setQuestionPeeked] = useState(false);
   const [votedFor, setVotedFor] = useState<string | null>(null);
 
   const hostRef = useRef<RoomHost | null>(null);
@@ -127,14 +132,23 @@ export default function NetScreen(props: Props) {
   const scanned = useRef(false);
   const exitedRef = useRef(false);
 
-  const config = (): HostConfig => ({
-    mode: props.gameMode,
-    roles: props.roles,
-    mafiaRoles: props.mafiaRoles,
-    categories: props.categories,
-    pairCategories: props.pairCategories,
-    fakerCategories: props.fakerCategories,
-  });
+  // The room's words come in the room's language, not in whatever this
+  // phone happens to be set to — otherwise the host could hand out
+  // English words while everyone's screen is in Serbian.
+  const config = (): HostConfig => {
+    const lang = props.roomSettings.language;
+    return {
+      mode: props.gameMode,
+      roles: props.roles,
+      mafiaRoles: props.mafiaRoles,
+      categories: buildCategories(serializeCategories(props.categories), lang),
+      pairCategories: buildPairCategories(serializePairCategories(props.pairCategories), lang),
+      fakerCategories: buildFakerCategories(
+        serializeFakerCategories(props.fakerCategories),
+        lang
+      ),
+    };
+  };
 
   // Keep the host's copy of the setup in sync while it's being edited.
   useEffect(() => {
@@ -147,6 +161,7 @@ export default function NetScreen(props: Props) {
     props.categories,
     props.pairCategories,
     props.fakerCategories,
+    props.roomSettings.language,
   ]);
 
   const cleanup = () => {
@@ -194,6 +209,7 @@ export default function NetScreen(props: Props) {
       if (state.phase === "question") {
         setAnswerText("");
         setAnswered(false);
+        setQuestionPeeked(false);
       }
       if (state.phase === "vote") setVotedFor(null);
       if (state.phase === "lobby") {
@@ -732,8 +748,8 @@ export default function NetScreen(props: Props) {
             </Text>
           ) : null}
           {first ? (
-            <View style={[styles.firstChip, { backgroundColor: first.color }]}>
-              <Text style={[styles.firstText, { color: textColorFor(first.color) }]}>
+            <View style={[styles.firstChip, { borderColor: first.color }]}>
+              <Text style={[styles.firstText, { color: first.color }]}>
                 {tf("goesFirst", { name: first.name })}
               </Text>
             </View>
@@ -755,18 +771,24 @@ export default function NetScreen(props: Props) {
     return (
       <Screen>
         {leaveX}
-        <KeyboardAvoidingView style={styles.flex} behavior="padding">
-          <ScrollView
-            contentContainerStyle={styles.questionArea}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <FlipCard
+            name={me?.name ?? myName}
+            color={me?.color ?? myColor}
+            faceColor={colors.accent}
+            onPeeked={() => setQuestionPeeked(true)}
           >
             <Text style={styles.qLabel}>{t("fakerYourQuestion")}</Text>
-            <View style={styles.questionCard}>
-              <Text style={styles.question}>{card?.question ?? "…"}</Text>
-            </View>
+            <Text style={styles.question}>{card?.question ?? "…"}</Text>
+          </FlipCard>
 
-            {!answered ? (
+          <View style={styles.bottom}>
+            {answered ? (
+              <Text style={styles.notice}>{t("waitingOthers")}</Text>
+            ) : questionPeeked ? (
               <>
                 <TextInput
                   style={styles.input}
@@ -776,26 +798,18 @@ export default function NetScreen(props: Props) {
                   placeholderTextColor={colors.textDim}
                   maxLength={ANSWER_MAX}
                 />
-                <Text style={styles.charCount}>
-                  {answerText.length}/{ANSWER_MAX}
-                </Text>
+                <BigButton
+                  label={t("fakerLockIn")}
+                  disabled={answerText.trim().length === 0}
+                  onPress={sendAnswer}
+                />
               </>
             ) : (
-              <Text style={styles.notice}>{t("waitingOthers")}</Text>
+              <Text style={styles.notice}>{t("nobodyLooking")}</Text>
             )}
-
             <Text style={styles.counter}>
               {tf("answeredCount", { done: room.answeredIds.length, total: roundPlayers.length })}
             </Text>
-          </ScrollView>
-          <View style={styles.bottom}>
-            {!answered ? (
-              <BigButton
-                label={t("fakerLockIn")}
-                disabled={answerText.trim().length === 0}
-                onPress={sendAnswer}
-              />
-            ) : null}
             {isHost ? (
               <BigButton
                 label={t("continueBtn")}
@@ -836,10 +850,8 @@ export default function NetScreen(props: Props) {
               const p = room.players.find((x) => x.id === a.playerId);
               return (
                 <View key={a.playerId} style={styles.answerCard}>
-                  <View style={[styles.nameChip, { backgroundColor: p?.color ?? colors.card }]}>
-                    <Text
-                      style={[styles.nameChipText, { color: textColorFor(p?.color ?? "#000") }]}
-                    >
+                  <View style={[styles.nameChip, { borderColor: p?.color ?? colors.border }]}>
+                    <Text style={[styles.nameChipText, { color: p?.color ?? colors.text }]}>
                       {a.name}
                     </Text>
                   </View>
@@ -1020,6 +1032,8 @@ const styles = StyleSheet.create({
   timerDone: { color: colors.danger, fontSize: 30 },
   firstChip: {
     borderRadius: radius.md,
+    borderWidth: 3,
+    backgroundColor: colors.card,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
@@ -1083,7 +1097,13 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     gap: spacing.xs,
   },
-  nameChip: { alignSelf: "flex-start", borderRadius: radius.sm, paddingVertical: 4, paddingHorizontal: 10 },
+  nameChip: {
+    alignSelf: "flex-start",
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
   nameChipText: { fontSize: 14, fontWeight: "800" },
   answer: { fontSize: 20, fontWeight: "700", color: colors.text },
   bottom: { gap: spacing.sm, paddingBottom: spacing.md },

@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import PlayerCard from "../../components/PlayerCard";
 import { t, tf } from "../../i18n";
 import { EJECT_TALLY_MS, RoomState } from "../../net/protocol";
 import { colors, radius, spacing } from "../../theme";
-import { textColorFor } from "../../utils";
 
 type Props = {
   state: RoomState;
   myId: string | null;
 };
 
-// The beat between voting and the results: first the votes land under the
-// names, then the room hears who was voted out and what they were.
+// The beat between voting and the results: first the votes land on the
+// cards, then the room hears who was voted out and what they were.
 export default function NetEjectView({ state, myId }: Props) {
   const [showVerdict, setShowVerdict] = useState(false);
 
@@ -25,7 +25,7 @@ export default function NetEjectView({ state, myId }: Props) {
   const byId = (id: string | null | undefined) => state.players.find((p) => p.id === id);
   const votedOut = byId(results?.votedOutId);
 
-  // Who voted for whom — one little dot in each voter's colour.
+  // Who voted for whom — one dot in each voter's colour.
   const votersFor = (playerId: string) =>
     Object.entries(state.voteMap ?? {})
       .filter(([, choice]) => choice === playerId)
@@ -62,9 +62,9 @@ export default function NetEjectView({ state, myId }: Props) {
     return (
       <View style={styles.center}>
         {votedOut ? (
-          <View style={[styles.ejectedCard, { backgroundColor: votedOut.color }]}>
+          <View style={[styles.ejectedCard, { borderColor: votedOut.color }]}>
             <Text
-              style={[styles.ejectedName, { color: textColorFor(votedOut.color) }]}
+              style={[styles.ejectedName, { color: votedOut.color }]}
               numberOfLines={2}
             >
               {votedOut.name}
@@ -78,30 +78,23 @@ export default function NetEjectView({ state, myId }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
       {roundPlayers.map((p) => {
         const voters = votersFor(p.id);
         return (
-          <View key={p.id} style={styles.slot}>
-            <View style={[styles.playerCard, { backgroundColor: p.color }]}>
-              <Text
-                style={[styles.playerName, { color: textColorFor(p.color) }]}
-                numberOfLines={2}
-              >
-                {p.name}
-              </Text>
-              {p.id === myId ? (
-                <Text style={[styles.youTag, { color: textColorFor(p.color) }]}>
-                  {t("youTag")}
-                </Text>
-              ) : null}
-            </View>
-            <View style={styles.dots}>
-              {voters.map((v) => (
-                <View key={v.id} style={[styles.dot, { backgroundColor: v.color }]} />
-              ))}
-            </View>
-          </View>
+          <PlayerCard
+            key={p.id}
+            name={p.name}
+            color={p.color}
+            note={p.id === myId ? t("youTag") : null}
+            right={
+              <View style={styles.dots}>
+                {voters.map((v) => (
+                  <View key={v.id} style={[styles.dot, { backgroundColor: v.color }]} />
+                ))}
+              </View>
+            }
+          />
         );
       })}
     </ScrollView>
@@ -109,38 +102,20 @@ export default function NetEjectView({ state, myId }: Props) {
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    justifyContent: "center",
-    paddingVertical: spacing.lg,
-  },
-  slot: { width: "47%", gap: spacing.xs },
-  playerCard: {
-    minHeight: 92,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.sm,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.28)",
-  },
-  playerName: { fontSize: 20, fontWeight: "900", textAlign: "center" },
-  youTag: { fontSize: 12, fontWeight: "700", opacity: 0.75 },
+  list: { gap: spacing.xs, paddingVertical: spacing.lg },
   dots: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 5,
-    justifyContent: "center",
-    minHeight: 18,
+    justifyContent: "flex-end",
+    maxWidth: 150,
   },
   dot: {
-    width: 15,
-    height: 15,
-    borderRadius: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.45)",
+    borderColor: "rgba(255,255,255,0.5)",
   },
   center: {
     flex: 1,
@@ -155,11 +130,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.28)",
+    borderWidth: 4,
+    backgroundColor: colors.card,
     padding: spacing.md,
   },
-  ejectedName: { fontSize: 34, fontWeight: "900", textAlign: "center" },
+  ejectedName: { fontSize: 36, fontWeight: "900", textAlign: "center" },
   verdict: {
     fontSize: 24,
     fontWeight: "900",

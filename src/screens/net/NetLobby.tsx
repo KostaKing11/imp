@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import AppModal from "../../components/AppModal";
 import BigButton from "../../components/BigButton";
 import ColorPicker from "../../components/ColorPicker";
+import PlayerCard from "../../components/PlayerCard";
 import { QrIcon, SlidersIcon } from "../../components/icons";
 import SectionTitle from "../../components/SectionTitle";
 import {
@@ -15,7 +16,7 @@ import {
 import { modeLabel, t, tf } from "../../i18n";
 import { netMaxPlayers, netMinPlayers, NetPlayer, RoomState } from "../../net/protocol";
 import { colors, radius, spacing } from "../../theme";
-import { confirmDialog, textColorFor } from "../../utils";
+import { confirmDialog } from "../../utils";
 import GameSetup from "../setup/GameSetup";
 import QrModal from "./QrModal";
 
@@ -108,24 +109,19 @@ export default function NetLobby(props: Props) {
         <SectionTitle>{tf("playersCount", { n: players.length })}</SectionTitle>
         <View style={styles.playerList}>
           {players.map((p) => (
-            <Pressable
+            <PlayerCard
               key={p.id}
+              name={p.name}
+              color={p.color}
+              note={p.id === myId ? t("youTag") : null}
+              badge={p.id === state.hostId ? t("hostTag") : null}
               onPress={() => tapPlayer(p)}
-              style={({ pressed }) => [
-                styles.playerChip,
-                { backgroundColor: p.color },
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={[styles.playerName, { color: textColorFor(p.color) }]}>
-                {p.name}
-                {p.id === state.hostId ? " ★" : ""}
-                {p.id === myId ? " •" : ""}
-              </Text>
-              {isHost && p.id !== state.hostId ? (
-                <Text style={[styles.kickMark, { color: textColorFor(p.color) }]}>✕</Text>
-              ) : null}
-            </Pressable>
+              right={
+                isHost && p.id !== state.hostId ? (
+                  <Text style={[styles.kickMark, { color: colors.textDim }]}>✕</Text>
+                ) : null
+              }
+            />
           ))}
         </View>
         <Text style={styles.hint}>
@@ -241,12 +237,7 @@ const styles = StyleSheet.create({
   },
   hint: { fontSize: 12, color: colors.textDim, textAlign: "center" },
   error: { fontSize: 14, color: colors.danger, textAlign: "center" },
-  playerList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-    justifyContent: "center",
-  },
+  playerList: { gap: spacing.xs, alignSelf: "stretch" },
   playerChip: {
     flexDirection: "row",
     alignItems: "center",

@@ -98,6 +98,8 @@ const en = {
   passPhoneTo: "Pass the phone to",
   fakerTapQuestion: "I'm {name} — show my question",
   fakerYourQuestion: "Your question",
+  fakerHandoutInstr:
+    "Everyone taps THEIR OWN card, reads the question in secret and types an answer.",
   fakerAnswerPlaceholder: "Type your answer…",
   fakerLockIn: "Lock in my answer",
   fakerAnswersTitle: "The answers",
@@ -131,6 +133,7 @@ const en = {
     "This needs the installed app — a browser can't open a room without internet.",
   colorMayChange: "If someone already has this color, the room gives you another one.",
   youTag: "(you)",
+  hostTag: "HOST",
   votedTag: "voted",
   voteFor: "Vote for {name}?",
   voteSkipped: "You can't vote for yourself.",
@@ -373,6 +376,8 @@ const sr: typeof en = {
   passPhoneTo: "Dodaj telefon igraču",
   fakerTapQuestion: "Ja sam {name} — pokaži mi pitanje",
   fakerYourQuestion: "Tvoje pitanje",
+  fakerHandoutInstr:
+    "Svako dodirne SVOJU karticu, tajno pročita pitanje i upiše odgovor.",
   fakerAnswerPlaceholder: "Upiši svoj odgovor…",
   fakerLockIn: "Zaključaj odgovor",
   fakerAnswersTitle: "Odgovori",
@@ -406,6 +411,7 @@ const sr: typeof en = {
     "Za ovo treba instalirana aplikacija — browser ne može da otvori sobu bez interneta.",
   colorMayChange: "Ako neko već ima ovu boju, soba ti dodeli drugu.",
   youTag: "(ti)",
+  hostTag: "DOMAĆIN",
   votedTag: "glasao",
   voteFor: "Glasati za igrača {name}?",
   voteSkipped: "Ne možeš da glasaš za sebe.",

@@ -5,7 +5,6 @@ import Screen from "../../components/Screen";
 import { FakerAnswers, Player } from "../../game/types";
 import { t } from "../../i18n";
 import { colors, radius, spacing } from "../../theme";
-import { textColorFor } from "../../utils";
 
 type Props = {
   players: Player[];
@@ -65,8 +64,8 @@ export default function FakerAnswersScreen({
         </View>
         {players.map((p) => (
           <View key={p.id} style={styles.answerCard}>
-            <View style={[styles.nameChip, { backgroundColor: p.color }]}>
-              <Text style={[styles.nameText, { color: textColorFor(p.color) }]} numberOfLines={1}>
+            <View style={[styles.nameChip, { borderColor: p.color }]}>
+              <Text style={[styles.nameText, { color: p.color }]} numberOfLines={1}>
                 {p.name}
               </Text>
             </View>
@@ -164,7 +163,8 @@ const styles = StyleSheet.create({
   nameChip: {
     alignSelf: "flex-start",
     borderRadius: radius.sm,
-    paddingVertical: 4,
+    borderWidth: 2,
+    paddingVertical: 3,
     paddingHorizontal: 10,
   },
   nameText: {
