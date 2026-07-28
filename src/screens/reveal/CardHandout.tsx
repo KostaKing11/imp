@@ -44,8 +44,10 @@ export default function CardHandout({
     setActive(player);
   };
 
+  // "Got it" marks the card as seen; backing out of one you opened by
+  // mistake (without looking) simply returns to the list.
   const close = () => {
-    if (active) setSeen(new Set(seen).add(active.id));
+    if (active && peeked) setSeen(new Set(seen).add(active.id));
     setActive(null);
   };
 
@@ -53,6 +55,9 @@ export default function CardHandout({
   if (active) {
     return (
       <Screen>
+        <Pressable onPress={close} hitSlop={10} style={styles.leaveButton}>
+          <Text style={styles.leaveText}>✕</Text>
+        </Pressable>
         <View style={styles.cardScreen}>
           <FlipCard
             name={active.name}

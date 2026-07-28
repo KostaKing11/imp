@@ -1,16 +1,15 @@
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { useKeyboardInset } from "./useKeyboardInset";
 import { colors, radius, spacing } from "../theme";
 
 type Props = {
@@ -23,6 +22,7 @@ type Props = {
 // Bottom sheet used by all pop-ups: tap the empty space above it or
 // pull it down (by the handle/title) to dismiss.
 export default function AppModal({ visible, title, onClose, children }: Props) {
+  const keyboardInset = useKeyboardInset();
   const translateY = useRef(new Animated.Value(0)).current;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -52,12 +52,17 @@ export default function AppModal({ visible, title, onClose, children }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.wrap}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      {/* The sheet rides above the keyboard: this modal is its own
+          window on Android and would otherwise sit under it. */}
+      <View style={[styles.wrap, { paddingBottom: keyboardInset }]}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+        <Animated.View
+          style={[
+            styles.sheet,
+            keyboardInset > 0 && styles.sheetWithKeyboard,
+            { transform: [{ translateY }] },
+          ]}
+        >
           <View style={styles.grabArea} {...pan.panHandlers}>
             <View style={styles.handle} />
             <Text style={styles.title}>{title}</Text>
@@ -66,7 +71,7 @@ export default function AppModal({ visible, title, onClose, children }: Props) {
             {children}
           </ScrollView>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -89,6 +94,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     maxHeight: "82%",
+  },
+  // With the keyboard up there is far less room; let the sheet use it.
+  sheetWithKeyboard: {
+    maxHeight: "100%",
   },
   grabArea: {
     alignItems: "center",

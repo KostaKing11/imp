@@ -9,6 +9,9 @@ type Props = {
   placeholder?: string;
   multiline?: boolean;
   autoCapitalize?: "none" | "sentences" | "words";
+  // Tapping in highlights what's there, so a default name can just be
+  // typed over.
+  selectOnFocus?: boolean;
 };
 
 export default function TextField({
@@ -18,6 +21,7 @@ export default function TextField({
   placeholder,
   multiline = false,
   autoCapitalize = "sentences",
+  selectOnFocus = false,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -30,6 +34,7 @@ export default function TextField({
         placeholderTextColor={colors.textDim}
         multiline={multiline}
         autoCapitalize={autoCapitalize}
+        selectTextOnFocus={selectOnFocus}
       />
     </View>
   );

@@ -9,6 +9,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { useKeyboardInset } from "./useKeyboardInset";
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop, LinearGradient } from "react-native-svg";
 import { t } from "../i18n";
 import { colors, radius, spacing } from "../theme";
@@ -26,6 +27,7 @@ type Props = {
 
 // Hue/saturation wheel + brightness bar, sized to fit any screen.
 export default function ColorWheelModal({ visible, initial, onDone, onClose }: Props) {
+  const keyboardInset = useKeyboardInset();
   const { width } = useWindowDimensions();
   // Backdrop padding + card padding must always leave room for the wheel.
   const SIZE = Math.min(300, width - 104);
@@ -93,7 +95,9 @@ export default function ColorWheelModal({ visible, initial, onDone, onClose }: P
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      {/* Same as the sheets: this modal is its own window on Android, so
+          the hex box has to be lifted over the keyboard by hand. */}
+      <View style={[styles.backdrop, { paddingBottom: keyboardInset }]}>
         <Pressable style={styles.backdropPress} onPress={onClose} />
         <View style={styles.card}>
           <Text style={styles.title}>{t("pickColor")}</Text>

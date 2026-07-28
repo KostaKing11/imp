@@ -53,6 +53,7 @@ export default function PlayerEditor({
         onChangeText={setName}
         placeholder={t("name")}
         autoCapitalize="words"
+        selectOnFocus
       />
       <ColorPicker value={color} onChange={setColor} taken={takenColors} />
       <BigButton
