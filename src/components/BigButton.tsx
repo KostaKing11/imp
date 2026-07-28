@@ -1,15 +1,20 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, ViewStyle } from "react-native";
-import { colors, radius, spacing } from "../theme";
+import { Animated, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
+import { alpha, colors, elevation, radius, spacing, type } from "../theme";
+import { usePressScale } from "./usePressScale";
 
 type Props = {
   label: string;
   onPress?: () => void;
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   disabled?: boolean;
   subLabel?: string;
   // Smaller size for bottom sheets.
   compact?: boolean;
+  // Paints a primary button in a specific colour (a player's, a role's).
+  tone?: string;
+  // Anything before the label: an icon, a count, a coloured dot.
+  icon?: React.ReactNode;
   style?: ViewStyle;
 };
 
@@ -20,89 +25,104 @@ export default function BigButton({
   disabled = false,
   subLabel,
   compact = false,
+  tone,
+  icon,
   style,
 }: Props) {
+  const press = usePressScale(0.97);
+  const solid = variant === "primary" || variant === "danger";
+  const fill = tone ?? (variant === "danger" ? colors.danger : colors.accent);
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.base,
-        variant === "primary" && styles.primary,
-        variant === "secondary" && styles.secondary,
-        variant === "ghost" && styles.ghost,
-        compact && styles.compact,
-        pressed && !disabled && styles.pressed,
-        disabled && styles.disabled,
-        style,
-      ]}
-    >
-      <Text
-        style={[
-          styles.label,
-          compact && styles.labelCompact,
-          variant === "primary" && styles.labelPrimary,
-          disabled && styles.labelDisabled,
+    <Animated.View style={[styles.wrap, press.style, style]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        disabled={disabled}
+        style={({ pressed }) => [
+          styles.base,
+          compact && styles.compact,
+          solid && { backgroundColor: fill },
+          solid && !disabled && elevation.glow(fill),
+          variant === "secondary" && styles.secondary,
+          variant === "ghost" && styles.ghost,
+          pressed && !disabled && styles.pressed,
+          disabled && styles.disabled,
         ]}
       >
-        {label}
-      </Text>
+        {icon}
+        <Text
+          style={[
+            styles.label,
+            compact && styles.labelCompact,
+            solid && styles.labelSolid,
+            disabled && styles.labelDisabled,
+          ]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </Pressable>
+
       {subLabel ? <Text style={styles.subLabel}>{subLabel}</Text> : null}
-    </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    alignSelf: "stretch",
+  },
   base: {
-    minHeight: 64,
-    borderRadius: radius.md,
+    flexDirection: "row",
+    gap: spacing.xs,
+    minHeight: 62,
+    borderRadius: radius.lg,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    width: "100%",
-  },
-  primary: {
-    backgroundColor: colors.accent,
   },
   secondary: {
     backgroundColor: colors.card,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
   ghost: {
-    backgroundColor: "transparent",
+    backgroundColor: alpha(colors.text, 0.04),
   },
   compact: {
-    minHeight: 46,
-    paddingVertical: 8,
-    borderRadius: 12,
+    minHeight: 48,
+    paddingVertical: 10,
+    borderRadius: radius.md,
   },
   pressed: {
-    opacity: 0.75,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.88,
   },
   disabled: {
     backgroundColor: colors.disabled,
-    opacity: 0.5,
+    borderColor: "transparent",
+    opacity: 0.55,
   },
   label: {
-    fontSize: 20,
-    fontWeight: "700",
+    ...type.button,
+    fontSize: 19,
     color: colors.text,
   },
   labelCompact: {
     fontSize: 16,
   },
-  labelPrimary: {
+  labelSolid: {
     color: colors.accentText,
   },
   labelDisabled: {
     color: colors.textDim,
   },
   subLabel: {
-    marginTop: 4,
-    fontSize: 13,
+    ...type.caption,
+    marginTop: spacing.xs,
     color: colors.textDim,
+    textAlign: "center",
   },
 });

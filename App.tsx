@@ -34,6 +34,7 @@ import {
   Settings,
 } from "./src/game/types";
 import { getLanguage, Language, setLanguage, t, tf } from "./src/i18n";
+import ConfirmHost from "./src/components/ConfirmHost";
 import BlefResultScreen from "./src/screens/BlefResultScreen";
 import BlefRevealScreen from "./src/screens/BlefRevealScreen";
 import DiscussionScreen from "./src/screens/DiscussionScreen";
@@ -588,5 +589,12 @@ export default function App() {
   const shownLanguage = roomLanguage ?? language;
   if (getLanguage() !== shownLanguage) setLanguage(shownLanguage);
 
-  return <SafeAreaProvider>{renderScreen()}</SafeAreaProvider>;
+  return (
+    <SafeAreaProvider>
+      {renderScreen()}
+      {/* Sits above every screen so confirmDialog() can be called from
+          anywhere, including the hardware back handler. */}
+      <ConfirmHost />
+    </SafeAreaProvider>
+  );
 }

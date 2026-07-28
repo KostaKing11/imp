@@ -1,12 +1,13 @@
 import React from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
-import { colors, radius, spacing } from "../theme";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { alpha, colors, radius, spacing, type } from "../theme";
+import { usePressScale } from "./usePressScale";
 
 type Props = {
   label: string;
-  // Chip background; defaults to the dark chip color.
+  // The thing's own colour (a player's, a role's); defaults to neutral.
   bg?: string;
-  // Dimmed + no border when false (used for toggles).
+  // Dimmed when false (used for toggles).
   active?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -14,33 +15,62 @@ type Props = {
   count?: number;
   // Small dim number after the label (e.g. words in a category).
   badge?: number;
+  // The "＋" tile at the end of a list — dashed and quiet.
+  add?: boolean;
 };
 
-export default function Chip({ label, bg, active = true, onPress, onLongPress, count, badge }: Props) {
-  // Coloured chips (players, roles) are outlined in their colour with
-  // the label in the same colour — the same look the cards use.
-  const accentColor = bg ?? colors.border;
-  const textColor = bg ?? colors.text;
+// A pill: a dot in the thing's own colour, its name, and an optional
+// count. On means tinted and lit; off means drained of colour, so a
+// glance at the row tells you what's in play without reading a word.
+export default function Chip({
+  label,
+  bg,
+  active = true,
+  onPress,
+  onLongPress,
+  count,
+  badge,
+  add = false,
+}: Props) {
+  const press = usePressScale(0.94);
+  const tint = bg ?? colors.textDim;
+  const textColor = add ? colors.textDim : active ? (bg ?? colors.text) : colors.textFaint;
 
   return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      style={({ pressed }) => [
-        styles.chip,
-        { borderColor: accentColor },
-        active ? styles.active : styles.inactive,
-        pressed && styles.pressed,
-      ]}
-    >
-      <Text style={[styles.label, { color: textColor }]}>
-        {label}
-        {count && count > 1 ? `  ×${count}` : ""}
-      </Text>
-      {badge !== undefined ? (
-        <Text style={[styles.badge, { color: textColor }]}>{badge}</Text>
-      ) : null}
-    </Pressable>
+    <Animated.View style={press.style}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={({ pressed }) => [
+          styles.chip,
+          add
+            ? styles.add
+            : active
+              ? { borderColor: alpha(tint, 0.85), backgroundColor: alpha(tint, 0.12) }
+              : styles.off,
+          pressed && styles.pressed,
+        ]}
+      >
+        {bg && !add ? (
+          <View
+            style={[styles.dot, { backgroundColor: active ? bg : colors.disabled }]}
+          />
+        ) : null}
+
+        <Text style={[styles.label, { color: textColor }, add && styles.addLabel]}>
+          {label}
+          {count && count > 1 ? `  ×${count}` : ""}
+        </Text>
+
+        {badge !== undefined ? (
+          <View style={[styles.badge, active && { backgroundColor: alpha(tint, 0.18) }]}>
+            <Text style={[styles.badgeText, { color: textColor }]}>{badge}</Text>
+          </View>
+        ) : null}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -48,29 +78,49 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: radius.md,
-    backgroundColor: colors.card,
-    borderWidth: 2.5,
-    paddingVertical: 13,
-    paddingHorizontal: spacing.md,
-    minHeight: 52,
-    overflow: "hidden",
+    gap: spacing.xs + 2,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.sm + 3,
+    minHeight: 48,
   },
-  active: {},
-  inactive: {
-    opacity: 0.32,
+  off: {
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.chip,
+  },
+  add: {
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    backgroundColor: "transparent",
+    paddingHorizontal: spacing.sm + 2,
   },
   pressed: {
-    opacity: 0.7,
+    opacity: 0.75,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   label: {
-    fontSize: 17,
-    fontWeight: "800",
+    ...type.button,
+    fontSize: 16,
+  },
+  addLabel: {
+    fontSize: 18,
   },
   badge: {
-    fontSize: 13,
-    fontWeight: "700",
-    opacity: 0.55,
-    marginLeft: 7,
+    minWidth: 22,
+    borderRadius: radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    backgroundColor: alpha(colors.text, 0.06),
+    alignItems: "center",
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    opacity: 0.85,
   },
 });

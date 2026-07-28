@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { useKeyboardInset } from "./useKeyboardInset";
-import { colors, radius, spacing } from "../theme";
+import { colors, elevation, radius, spacing, type } from "../theme";
 
 type Props = {
   visible: boolean;
@@ -87,13 +87,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.72)",
   },
   sheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
+    backgroundColor: colors.bgSoft,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    borderTopWidth: 1,
+    borderColor: colors.border,
     maxHeight: "82%",
+    ...elevation.sheet,
   },
   // With the keyboard up there is far less room; let the sheet use it.
   sheetWithKeyboard: {
@@ -101,19 +104,19 @@ const styles = StyleSheet.create({
   },
   grabArea: {
     alignItems: "center",
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   handle: {
-    width: 44,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.border,
-    marginBottom: spacing.xs,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderStrong,
+    marginBottom: spacing.sm,
   },
   title: {
-    fontSize: 19,
-    fontWeight: "800",
+    ...type.heading,
+    fontSize: 20,
     color: colors.text,
   },
   content: {

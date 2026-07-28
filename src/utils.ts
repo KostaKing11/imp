@@ -80,10 +80,20 @@ export function formatTime(s: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// Alert.alert is a no-op on react-native-web, so fall back to confirm().
+// Asks the in-app dialog (ConfirmHost, mounted at the root) rather than
+// the OS one, so a "are you sure?" looks like the rest of the app on
+// every platform. The Alert / window.confirm path is only a safety net
+// for the moment before the host has mounted.
 export function confirmDialog(title: string, message: string, onYes: () => void): void {
   // Imported lazily to avoid a utils <-> i18n import cycle at module load.
   const { t } = require("./i18n") as typeof import("./i18n");
+  const confirm = require("./components/confirm") as typeof import("./components/confirm");
+
+  if (confirm.isConfirmHostMounted()) {
+    confirm.askConfirm({ title, message, onYes });
+    return;
+  }
+
   if (Platform.OS === "web") {
     // eslint-disable-next-line no-alert
     if (typeof window !== "undefined" && window.confirm(`${title}\n\n${message}`)) onYes();

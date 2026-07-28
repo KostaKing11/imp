@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
 import FlipCard from "../../components/FlipCard";
 import PlayerCard from "../../components/PlayerCard";
 import Screen from "../../components/Screen";
 import { Player } from "../../game/types";
 import { t } from "../../i18n";
-import { colors, spacing } from "../../theme";
+import { colors, radius, spacing, type } from "../../theme";
 
 type Props = {
   players: Player[];
@@ -39,6 +39,16 @@ export default function CardHandout({
 
   const allSeen = seen.size === players.length;
 
+  const progress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(progress, {
+      toValue: seen.size / Math.max(1, players.length),
+      speed: 14,
+      bounciness: 6,
+      useNativeDriver: true,
+    }).start();
+  }, [seen, players.length, progress]);
+
   const open = (player: Player) => {
     setPeeked(false);
     setActive(player);
@@ -53,8 +63,10 @@ export default function CardHandout({
 
   // Looking at a card takes over the screen.
   if (active) {
+    // The bloom takes the player's own colour, never the role's — the
+    // role must not leak before the card is flipped.
     return (
-      <Screen>
+      <Screen glow={active.color}>
         <Pressable onPress={close} hitSlop={10} style={styles.leaveButton}>
           <Text style={styles.leaveText}>✕</Text>
         </Pressable>
@@ -86,6 +98,13 @@ export default function CardHandout({
       </Pressable>
       <Text style={styles.heading}>{heading ?? t("whoAreYou")}</Text>
       <Text style={styles.subheading}>{instructions ?? t("revealInstr")}</Text>
+
+      {/* How far round the table the phone has got. The bar is full width
+          and squashed from the left rather than animated in percentages,
+          which react-native-web does not propagate to the DOM. */}
+      <View style={styles.progressTrack}>
+        <Animated.View style={[styles.progressFill, { transform: [{ scaleX: progress }] }]} />
+      </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {players.map((p) => {
@@ -119,28 +138,44 @@ const styles = StyleSheet.create({
     top: spacing.sm,
     left: spacing.md,
     zIndex: 1,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
   },
-  leaveText: { fontSize: 17, fontWeight: "700", color: colors.textDim },
+  leaveText: { fontSize: 16, fontWeight: "700", color: colors.textDim },
   heading: {
+    ...type.title,
     fontSize: 28,
-    fontWeight: "900",
     color: colors.text,
     textAlign: "center",
     marginTop: spacing.sm,
   },
   subheading: {
+    ...type.caption,
     fontSize: 14,
     color: colors.textDim,
     textAlign: "center",
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.chip,
+    overflow: "hidden",
+    marginBottom: spacing.sm,
+  },
+  progressFill: {
+    height: "100%",
+    width: "100%",
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+    transformOrigin: "left center",
   },
   list: { gap: spacing.xs, paddingBottom: spacing.md },
   check: { fontSize: 22, fontWeight: "900" },
@@ -156,5 +191,5 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     justifyContent: "center",
   },
-  privacy: { fontSize: 14, color: colors.textDim, textAlign: "center" },
+  privacy: { ...type.caption, fontSize: 14, color: colors.textDim, textAlign: "center" },
 });

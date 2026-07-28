@@ -5,7 +5,7 @@ import BigButton from "../components/BigButton";
 import Screen from "../components/Screen";
 import { Player } from "../game/types";
 import { t, tf } from "../i18n";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, type } from "../theme";
 import { formatTime } from "../utils";
 
 type Props = {
@@ -86,7 +86,7 @@ export default function DiscussionScreen({
                   cx={SIZE / 2}
                   cy={SIZE / 2}
                   r={R}
-                  stroke={colors.border}
+                  stroke={colors.chip}
                   strokeWidth={STROKE}
                   fill={colors.card}
                 />
@@ -148,26 +148,27 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   heading: {
+    ...type.title,
     fontSize: 34,
-    fontWeight: "900",
     color: colors.text,
   },
   instructions: {
-    fontSize: 16,
+    ...type.body,
     lineHeight: 24,
     color: colors.textDim,
     textAlign: "center",
     paddingHorizontal: spacing.sm,
   },
   firstChip: {
-    borderRadius: radius.md,
-    borderWidth: 2,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    backgroundColor: colors.card,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
   },
   firstText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
   },
   timerArea: {
@@ -191,28 +192,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   time: {
-    fontSize: 52,
-    fontWeight: "900",
+    ...type.display,
+    fontSize: 54,
     color: colors.text,
     fontVariant: ["tabular-nums"],
   },
   tapHint: {
-    fontSize: 13,
-    color: colors.textDim,
+    ...type.caption,
+    color: colors.textFaint,
     marginTop: 2,
   },
   timeUp: {
+    ...type.title,
     fontSize: 32,
-    fontWeight: "900",
     color: colors.danger,
     textAlign: "center",
   },
   playButton: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: radius.pill,
     backgroundColor: colors.card,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",

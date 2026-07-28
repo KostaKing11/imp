@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Chip from "../../components/Chip";
 import SectionTitle from "../../components/SectionTitle";
+import { usePressScale } from "../../components/usePressScale";
 import {
   CategoryState,
   FakerCategoryState,
@@ -9,14 +10,83 @@ import {
   PairCategoryState,
   RoleDef,
 } from "../../game/types";
-import { getLanguage, roleName, t } from "../../i18n";
-import { colors, radius, spacing } from "../../theme";
+import { getLanguage, modeLabel, roleName, t } from "../../i18n";
+import { colors, elevation, radius, spacing } from "../../theme";
 import { uid } from "../../utils";
 import CategoryEditor from "../editors/CategoryEditor";
 import FakerCategoryEditor from "../editors/FakerCategoryEditor";
 import PairCategoryEditor from "../editors/PairCategoryEditor";
 import RoleCountSheet from "../editors/RoleCountSheet";
 import RoleEditor from "../editors/RoleEditor";
+
+// Each mode's artwork has its own colour; the selected card is outlined
+// and lit in it, so which mode is picked reads from across the table.
+const MODE_TINT: Record<GameMode, string> = {
+  imp: colors.impRed,
+  odd: colors.oddYellow,
+  mafia: "#E8EAF0",
+  blef: colors.blefTeal,
+  faker: "#B79BFF",
+};
+
+// One mode's artwork. The picked card grows out of the row and lights
+// up; the rest sit back, dimmed and slightly smaller, so the row reads
+// as one choice rather than five equal tiles.
+function ModeCard({
+  selected,
+  tint,
+  source,
+  badge,
+  onPress,
+}: {
+  selected: boolean;
+  tint: string;
+  source: number;
+  badge?: string;
+  onPress: () => void;
+}) {
+  const press = usePressScale(0.93);
+  const lift = useRef(new Animated.Value(selected ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(lift, {
+      toValue: selected ? 1 : 0,
+      speed: 16,
+      bounciness: 9,
+      useNativeDriver: true,
+    }).start();
+  }, [selected, lift]);
+
+  const grow = lift.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1] });
+
+  // Both scales go in one transform array — a second `transform` in a
+  // later style would replace this one outright, not compose with it.
+  return (
+    <Animated.View style={{ transform: [{ scale: grow }, { scale: press.scale }] }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={[
+          styles.modeCard,
+          { borderColor: selected ? tint : colors.borderSoft },
+          selected && [styles.modeSelected, elevation.glow(tint)],
+        ]}
+      >
+        <Image source={source} style={styles.modeImage} resizeMode="cover" />
+        {badge ? (
+          <View style={styles.playerBadge} pointerEvents="none">
+            <Text style={styles.playerBadgeText}>{badge}</Text>
+          </View>
+        ) : null}
+        {/* The dim overlay stays mounted with constant structure — toggling
+            children on Android glitches the rounded clip and makes the
+            image vanish. Only the colour changes. */}
+        <View style={[styles.modeDim, selected && styles.modeDimOff]} pointerEvents="none" />
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 // The mode / categories / roles part of a game setup. Shared by the home
 // screen (one phone) and the local-multiplayer lobby (host only), so both
@@ -148,30 +218,37 @@ export default function GameSetup({
 
   const countRole = currentRoles.find((r) => r.id === countRoleId) ?? null;
 
+  // "3/8" next to the section heading — how many of the lists are in play
+  // without having to count the lit pills.
+  const activeCategories =
+    gameMode === "faker" ? fakerCategories : gameMode === "odd" ? pairCategories : categories;
+  const categoryHint = `${activeCategories.filter((c) => c.enabled).length}/${activeCategories.length}`;
+  const roleHint = `${currentRoles.reduce((n, r) => n + r.count, 0)}`;
+
   const modeCard = (mode: GameMode, source: number, badge?: string) => (
-    <Pressable
+    <ModeCard
+      key={mode}
+      selected={gameMode === mode}
+      tint={MODE_TINT[mode] ?? colors.accent}
+      source={source}
+      badge={badge}
       onPress={() => setGameMode(mode)}
-      style={[styles.modeCard, gameMode === mode && styles.modeSelected]}
-    >
-      <Image source={source} style={styles.modeImage} resizeMode="cover" />
-      {badge ? (
-        <View style={styles.playerBadge} pointerEvents="none">
-          <Text style={styles.playerBadgeText}>{badge}</Text>
-        </View>
-      ) : null}
-      <View style={[styles.modeDim, gameMode === mode && styles.modeDimOff]} pointerEvents="none" />
-    </Pressable>
+    />
   );
 
   return (
     <>
-      <SectionTitle>{t("gameMode")}</SectionTitle>
+      <SectionTitle hint={modeLabel(gameMode)}>{t("gameMode")}</SectionTitle>
       {/* Horizontally scrollable so cards keep their size as modes are
-          added — no visible scrollbar, you just swipe the row. */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modes}>
-        {/* The border and dim overlay stay mounted with constant structure —
-            toggling borderWidth/children on Android glitches the rounded
-            clip and makes the image vanish. Only colors change. */}
+          added — no visible scrollbar, you just swipe the row. It bleeds
+          past the screen padding so a card can sit half off the edge and
+          say "there is more this way". */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.modeScroll}
+        contentContainerStyle={styles.modes}
+      >
         {modeCard("imp", require("../../../assets/modes/classic.png"))}
         {modeCard("odd", require("../../../assets/modes/odd.png"))}
         {modeCard("mafia", require("../../../assets/modes/mafia.png"))}
@@ -195,7 +272,7 @@ export default function GameSetup({
       {/* categories — words (IMP/Bluff), pairs (Odd One Out), questions (Faker) */}
       {gameMode !== "mafia" ? (
         <>
-          <SectionTitle>{t("categories")}</SectionTitle>
+          <SectionTitle hint={categoryHint}>{t("categories")}</SectionTitle>
           <View style={styles.chipWrap}>
             {gameMode === "faker" ? (
               <>
@@ -216,7 +293,7 @@ export default function GameSetup({
                     }
                   />
                 ))}
-                <Chip label="＋" onPress={addFakerCategory} />
+                <Chip label="＋" add onPress={addFakerCategory} />
               </>
             ) : gameMode === "imp" || gameMode === "blef" ? (
               <>
@@ -237,7 +314,7 @@ export default function GameSetup({
                     }
                   />
                 ))}
-                <Chip label="＋" onPress={addCategory} />
+                <Chip label="＋" add onPress={addCategory} />
               </>
             ) : (
               <>
@@ -258,7 +335,7 @@ export default function GameSetup({
                     }
                   />
                 ))}
-                <Chip label="＋" onPress={addPairCategory} />
+                <Chip label="＋" add onPress={addPairCategory} />
               </>
             )}
           </View>
@@ -268,7 +345,7 @@ export default function GameSetup({
       {/* roles — IMP Classic & Mafia only (Odd One Out and Blef have none) */}
       {gameMode === "imp" || gameMode === "mafia" ? (
         <>
-          <SectionTitle>{t("roles")}</SectionTitle>
+          <SectionTitle hint={roleHint}>{t("roles")}</SectionTitle>
           <View style={styles.chipWrap}>
             {currentRoles.map((r) => (
               <Chip
@@ -288,7 +365,7 @@ export default function GameSetup({
                 }
               />
             ))}
-            <Chip label="＋" onPress={addRole} />
+            <Chip label="＋" add onPress={addRole} />
           </View>
         </>
       ) : null}
@@ -353,22 +430,29 @@ export default function GameSetup({
 }
 
 const styles = StyleSheet.create({
+  // Negative margins cancel the screen's side padding so the row runs
+  // edge to edge; the content padding puts it back at the ends.
+  modeScroll: {
+    marginHorizontal: -spacing.md,
+  },
   modes: {
     flexDirection: "row",
     gap: spacing.sm,
-    paddingRight: spacing.sm,
+    paddingHorizontal: spacing.md,
+    // room for the selected card's glow
+    paddingVertical: spacing.xs,
   },
   modeCard: {
     // Fixed width (not flex) so the row can scroll instead of squeezing.
-    width: 104,
-    aspectRatio: 0.85,
+    // Square, because the artwork is.
+    width: 110,
+    aspectRatio: 1,
     borderRadius: radius.lg,
     alignItems: "center",
     justifyContent: "flex-end",
     overflow: "hidden",
     backgroundColor: "#000000",
-    borderWidth: 3,
-    borderColor: "transparent",
+    borderWidth: 2,
   },
   modeImage: {
     position: "absolute",
@@ -380,7 +464,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   modeSelected: {
-    borderColor: "#FFFFFF",
+    borderWidth: 2.5,
   },
   modeDim: {
     position: "absolute",
@@ -388,20 +472,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
   modeDimOff: {
     backgroundColor: "transparent",
   },
   playerBadge: {
     position: "absolute",
-    top: 6,
-    right: 6,
+    top: 7,
+    right: 7,
     zIndex: 2,
     minWidth: 22,
     height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 5,
+    borderRadius: radius.pill,
+    paddingHorizontal: 6,
     backgroundColor: colors.blefTeal,
     alignItems: "center",
     justifyContent: "center",
@@ -414,7 +498,6 @@ const styles = StyleSheet.create({
   chipWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xs,
-    justifyContent: "center",
+    gap: spacing.xs + 2,
   },
 });

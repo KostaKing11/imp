@@ -1,5 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { HOW_TO_PLAY } from "../../data/howto";
 import AppModal from "../components/AppModal";
 import BigButton from "../components/BigButton";
@@ -8,6 +18,7 @@ import ColorPicker from "../components/ColorPicker";
 import { SlidersIcon } from "../components/icons";
 import Screen from "../components/Screen";
 import SectionTitle from "../components/SectionTitle";
+import Segmented from "../components/Segmented";
 import TextField from "../components/TextField";
 import { BLEF_PLAYER_COUNT } from "../game/blefEngine";
 import { roleSlotCount } from "../game/engine";
@@ -23,12 +34,15 @@ import {
 } from "../game/types";
 import { getLanguage, t, tf } from "../i18n";
 import { warmUpConnection } from "../net/firebase";
-import { colors, freeColor, MAX_PLAYERS, spacing } from "../theme";
+import { alpha, colors, freeColor, MAX_PLAYERS, radius, spacing, type } from "../theme";
 import { uid } from "../utils";
 import PlayerEditor from "./editors/PlayerEditor";
 import GameSetup from "./setup/GameSetup";
 
 const MIN_PLAYERS = 3;
+
+// Height of the gradient that hides the scroll under the Start button.
+const FADE_HEIGHT = 44;
 
 export type PlayStyle = "single" | "net";
 export type NetMode = "online" | "lan";
@@ -94,6 +108,7 @@ export default function HomeScreen({
   onJoin,
   onOpenSettings,
 }: Props) {
+  const { width: windowWidth } = useWindowDimensions();
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [playerIsNew, setPlayerIsNew] = useState(false);
   const [howToOpen, setHowToOpen] = useState(false);
@@ -107,6 +122,13 @@ export default function HomeScreen({
   const logoScale = scrollY.interpolate({
     inputRange: [0, 90],
     outputRange: [1, 0.64],
+    extrapolate: "clamp",
+  });
+  // The header only draws its hairline once something has scrolled under
+  // it — at rest the top of the screen stays open.
+  const headerLine = scrollY.interpolate({
+    inputRange: [0, 24],
+    outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
@@ -165,7 +187,7 @@ export default function HomeScreen({
 
   const playersSection = (
     <>
-      <SectionTitle>{t("players")}</SectionTitle>
+      <SectionTitle hint={`${activePlayers.length}/${players.length}`}>{t("players")}</SectionTitle>
       <View style={styles.chipWrap}>
         {players.map((p) => (
           <Chip
@@ -180,7 +202,7 @@ export default function HomeScreen({
             }}
           />
         ))}
-        {players.length < MAX_PLAYERS ? <Chip label="＋" onPress={addPlayer} /> : null}
+        {players.length < MAX_PLAYERS ? <Chip label="＋" add onPress={addPlayer} /> : null}
       </View>
     </>
   );
@@ -204,6 +226,7 @@ export default function HomeScreen({
           <SlidersIcon size={22} color={colors.textDim} />
         </Pressable>
       </View>
+      <Animated.View style={[styles.headerLine, { opacity: headerLine }]} pointerEvents="none" />
 
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
@@ -215,19 +238,15 @@ export default function HomeScreen({
         scrollEventThrottle={16}
       >
         {/* how you're playing: everyone around one phone, or each on their own */}
-        <SectionTitle>{t("playStyle")}</SectionTitle>
-        <View style={styles.chipWrap}>
-          <Chip
-            label={t("onePhone")}
-            active={!net}
-            onPress={() => setPlayStyle("single")}
-          />
-          <Chip
-            label={t("localMultiplayer")}
-            active={net}
-            onPress={() => setPlayStyle("net")}
-          />
-        </View>
+        <SectionTitle first>{t("playStyle")}</SectionTitle>
+        <Segmented
+          value={playStyle}
+          onChange={setPlayStyle}
+          options={[
+            { value: "single", label: t("onePhone") },
+            { value: "net", label: t("localMultiplayer") },
+          ]}
+        />
 
         {net ? (
           // Local multiplayer: no roster, no categories here — the host
@@ -235,18 +254,14 @@ export default function HomeScreen({
           <View style={styles.netBox}>
             {/* over the internet (works with iPhones) or straight over
                 the local Wi-Fi (no internet, installed app only) */}
-            <View style={styles.chipWrap}>
-              <Chip
-                label={t("netModeOnline")}
-                active={netMode === "online"}
-                onPress={() => setNetMode("online")}
-              />
-              <Chip
-                label={t("netModeLan")}
-                active={netMode === "lan"}
-                onPress={() => setNetMode("lan")}
-              />
-            </View>
+            <Segmented
+              value={netMode}
+              onChange={setNetMode}
+              options={[
+                { value: "online", label: t("netModeOnline") },
+                { value: "lan", label: t("netModeLan") },
+              ]}
+            />
 
             {netBlocked ? (
               <Text style={styles.netBlocked}>{t("lanOnlyOnApp")}</Text>
@@ -262,9 +277,11 @@ export default function HomeScreen({
                 <ColorPicker value={netColor} onChange={setNetColor} />
                 <Text style={styles.netHint}>{t("colorMayChange")}</Text>
                 {pendingJoinCode ? (
-                  <Text style={styles.netJoining}>
-                    {tf("joiningRoom", { code: pendingJoinCode })}
-                  </Text>
+                  <View style={styles.netJoining}>
+                    <Text style={styles.netJoiningText}>
+                      {tf("joiningRoom", { code: pendingJoinCode })}
+                    </Text>
+                  </View>
                 ) : null}
               </>
             )}
@@ -291,29 +308,44 @@ export default function HomeScreen({
         )}
       </Animated.ScrollView>
 
-      {/* fixed bottom: start, or host / join */}
+      {/* fixed bottom: start, or host / join. The gradient above it lets
+          the list scroll away under the button instead of colliding. */}
       <View style={styles.startArea}>
+        <View style={[styles.fade, { width: windowWidth }]} pointerEvents="none">
+          <Svg width={windowWidth} height={FADE_HEIGHT}>
+            <Defs>
+              <LinearGradient id="startFade" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={colors.bg} stopOpacity={0} />
+                <Stop offset="1" stopColor={colors.bg} stopOpacity={1} />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width={windowWidth} height={FADE_HEIGHT} fill="url(#startFade)" />
+          </Svg>
+        </View>
+
         {net ? (
           <View style={styles.netButtons}>
-            <View style={styles.netButton}>
-              <BigButton
-                label={t("hostGame")}
-                onPress={onHost}
-                disabled={netBlocked || netName.trim().length === 0}
-              />
-            </View>
-            <View style={styles.netButton}>
-              <BigButton
-                label={t("joinGame")}
-                variant="secondary"
-                onPress={onJoin}
-                disabled={netBlocked || netName.trim().length === 0}
-              />
-            </View>
+            <BigButton
+              style={styles.netButton}
+              label={t("hostGame")}
+              onPress={onHost}
+              disabled={netBlocked || netName.trim().length === 0}
+            />
+            <BigButton
+              style={styles.netButton}
+              label={t("joinGame")}
+              variant="secondary"
+              onPress={onJoin}
+              disabled={netBlocked || netName.trim().length === 0}
+            />
           </View>
         ) : (
           <>
-            {startError ? <Text style={styles.startError}>{startError}</Text> : null}
+            {startError ? (
+              <View style={styles.startError}>
+                <Text style={styles.startErrorText}>{startError}</Text>
+              </View>
+            ) : null}
             <BigButton label={t("start")} onPress={onStart} disabled={startError !== null} />
           </>
         )}
@@ -347,11 +379,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -368,32 +401,47 @@ const styles = StyleSheet.create({
     width: 140,
     height: 89,
   },
+  headerLine: {
+    height: 1,
+    marginTop: spacing.xs,
+    marginHorizontal: -spacing.md,
+    backgroundColor: colors.borderSoft,
+  },
   scroll: {
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
   },
   chipWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xs,
-    justifyContent: "center",
+    gap: spacing.xs + 2,
   },
   netBox: {
     gap: spacing.md,
     paddingTop: spacing.md,
   },
   netHint: {
+    ...type.caption,
     fontSize: 12,
-    color: colors.textDim,
+    color: colors.textFaint,
     textAlign: "center",
   },
   netJoining: {
+    alignSelf: "center",
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.sm + 2,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
+  },
+  netJoiningText: {
+    ...type.caption,
     fontSize: 14,
-    fontWeight: "700",
     color: colors.accent,
     textAlign: "center",
   },
   netBlocked: {
-    fontSize: 15,
+    ...type.body,
     lineHeight: 22,
     color: colors.textDim,
     textAlign: "center",
@@ -408,18 +456,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   startArea: {
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
-    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    gap: spacing.sm,
+  },
+  // Sits above the buttons and reaches up into the scroll area. Placed
+  // off the top edge of the button area rather than with bottom:"100%",
+  // which react-native-web resolves against the wrong box.
+  fade: {
+    position: "absolute",
+    left: -spacing.md,
+    top: -FADE_HEIGHT,
+    height: FADE_HEIGHT,
   },
   startError: {
-    fontSize: 14,
+    alignSelf: "center",
+    borderRadius: radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.sm + 2,
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: alpha(colors.danger, 0.35),
+  },
+  startErrorText: {
+    ...type.caption,
+    fontSize: 13,
     color: colors.danger,
     textAlign: "center",
   },
   howToText: {
+    ...type.body,
     fontSize: 15,
-    lineHeight: 23,
-    color: colors.text,
+    lineHeight: 24,
+    color: colors.textDim,
   },
 });

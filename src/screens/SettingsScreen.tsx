@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Screen from "../components/Screen";
+import SectionTitle from "../components/SectionTitle";
+import Segmented from "../components/Segmented";
 import Slider from "../components/Slider";
 import Toggle from "../components/Toggle";
 import { ModeTimer, Settings } from "../game/types";
 import { Language, t } from "../i18n";
-import { colors, radius, spacing } from "../theme";
-import { formatTime, parseTimeInput, textColorFor } from "../utils";
+import { colors, radius, spacing, type } from "../theme";
+import { formatTime, parseTimeInput } from "../utils";
 
 type Props = {
   settings: Settings;
@@ -96,30 +98,14 @@ export default function SettingsScreen({
       </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionLabel}>{t("language")}</Text>
-        <View style={styles.langRow}>
-          {LANGUAGES.map((l) => {
-            const active = language === l.code;
-            return (
-              <Pressable
-                key={l.code}
-                onPress={() => onLanguageChange(l.code)}
-                style={[styles.langButton, active && styles.langButtonActive]}
-              >
-                <Text
-                  style={[
-                    styles.langText,
-                    { color: active ? textColorFor(colors.accent) : colors.text },
-                  ]}
-                >
-                  {l.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SectionTitle first>{t("language")}</SectionTitle>
+        <Segmented
+          value={language}
+          onChange={onLanguageChange}
+          options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
+        />
 
-        <Text style={styles.sectionLabel}>{t("discussionTimers")}</Text>
+        <SectionTitle>{t("discussionTimers")}</SectionTitle>
         <TimerCard
           title="IMP Classic"
           timer={settings.impTimer}
@@ -147,58 +133,37 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   backButton: {
-    width: 44,
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.card,
     alignItems: "center",
+    justifyContent: "center",
   },
   backArrow: {
-    fontSize: 40,
-    lineHeight: 42,
+    fontSize: 32,
+    lineHeight: 36,
     color: colors.text,
     fontWeight: "700",
   },
   title: {
     flex: 1,
+    ...type.title,
     fontSize: 26,
-    fontWeight: "900",
     color: colors.text,
     textAlign: "center",
   },
   list: {
     gap: spacing.sm,
-  },
-  langRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  langButton: {
-    flex: 1,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  langButtonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  langText: {
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.textDim,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    paddingBottom: spacing.lg,
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSoft,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -206,10 +171,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: spacing.sm,
   },
   rowLabel: {
+    ...type.bodyStrong,
     fontSize: 17,
-    fontWeight: "700",
     color: colors.text,
   },
   timerArea: {
@@ -223,20 +189,21 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   timeValue: {
+    ...type.title,
     fontSize: 32,
-    fontWeight: "900",
-    color: colors.text,
+    color: colors.accent,
     fontVariant: ["tabular-nums"],
   },
   timeInput: {
-    width: 90,
+    width: 92,
     backgroundColor: colors.chip,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.md,
     color: colors.text,
     fontSize: 17,
+    fontWeight: "700",
     textAlign: "center",
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
 });

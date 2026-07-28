@@ -1,24 +1,55 @@
-// Central place for colors / spacing so all gamemodes look consistent.
+// Central place for colors / spacing / type so all gamemodes look consistent.
+
+import { Platform, TextStyle, ViewStyle } from "react-native";
 
 export const colors = {
-  bg: "#0A0B0D",
-  card: "#15171C",
-  cardPressed: "#1D2026",
-  chip: "#101216",
-  border: "#2A2F39",
-  text: "#F4F6FA",
-  textDim: "#98A0B3",
+  // Surfaces, darkest to lightest. Anything that sits on top of something
+  // else steps up one level — that's the whole depth model.
+  bg: "#08090C",
+  bgSoft: "#0D0F14",
+  card: "#14171E",
+  cardPressed: "#1C202A",
+  cardAlt: "#1C202A",
+  chip: "#0F1218",
+
+  // Hairlines. `border` is the default; the other two are for pulling an
+  // edge back into the background or pushing it forward.
+  border: "#272D38",
+  borderSoft: "#1C212A",
+  borderStrong: "#3A4252",
+
+  text: "#F5F7FB",
+  textDim: "#98A1B4",
+  textFaint: "#6B7489",
+
   accent: "#FF5A1F", // IMP orange
   accentText: "#FFFFFF",
+  accentSoft: "rgba(255,90,31,0.14)",
+  accentGlow: "rgba(255,90,31,0.30)",
+
   good: "#2ED573",
+  goodSoft: "rgba(46,213,115,0.14)",
   danger: "#FF4757",
+  dangerSoft: "rgba(255,71,87,0.14)",
   word: "#FFD166",
-  disabled: "#3A4152",
+  disabled: "#2B3140",
+
   // Gamemode branding (logo + selected mode card).
   impRed: "#E32636",
   oddYellow: "#F5C518",
   blefTeal: "#2DD4BF",
 };
+
+// #RRGGBB + opacity -> rgba(). Used for tinted fills and glows so a colour
+// only has to be defined once.
+export function alpha(hex: string, a: number): string {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
 
 // The only colors a player can be. Twenty of them, far enough apart that
 // nobody has to squint at two similar chips and wonder whose is whose —
@@ -90,6 +121,7 @@ export function freeColor(taken: string[]): string {
 }
 
 export const spacing = {
+  xxs: 4,
   xs: 6,
   sm: 12,
   md: 20,
@@ -98,7 +130,50 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 10,
-  md: 16,
-  lg: 24,
+  xs: 8,
+  sm: 12,
+  md: 18,
+  lg: 26,
+  xl: 34,
+  pill: 999,
+};
+
+// One type scale for the whole app. Screens reach for these instead of
+// inventing another 17px/700 somewhere.
+export const type: Record<string, TextStyle> = {
+  // Big numbers and single-word moments (timer, the word, a score).
+  display: { fontSize: 46, fontWeight: "900", letterSpacing: -1 },
+  // Screen titles.
+  title: { fontSize: 30, fontWeight: "900", letterSpacing: -0.6 },
+  // Card headings, player names.
+  heading: { fontSize: 22, fontWeight: "800", letterSpacing: -0.3 },
+  // Buttons and chips.
+  button: { fontSize: 18, fontWeight: "800", letterSpacing: 0.2 },
+  body: { fontSize: 16, fontWeight: "500", letterSpacing: 0 },
+  bodyStrong: { fontSize: 16, fontWeight: "700" },
+  // Small print under something.
+  caption: { fontSize: 13, fontWeight: "600", letterSpacing: 0 },
+  // The little uppercase label above a section.
+  eyebrow: { fontSize: 12, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase" },
+};
+
+// Shadows read as almost nothing on a dark background, so they're used
+// only to lift the things that should feel tappable.
+const shadow = (color: string, opacity: number, radiusPx: number, y: number, elevation: number) =>
+  Platform.select<ViewStyle>({
+    android: { elevation },
+    default: {
+      shadowColor: color,
+      shadowOpacity: opacity,
+      shadowRadius: radiusPx,
+      shadowOffset: { width: 0, height: y },
+    },
+  }) as ViewStyle;
+
+export const elevation = {
+  card: shadow("#000000", 0.35, 12, 4, 3),
+  sheet: shadow("#000000", 0.5, 24, -6, 16),
+  // Coloured lift for the primary button — the orange bleeds a little.
+  accent: shadow(colors.accent, 0.4, 16, 6, 8),
+  glow: (color: string) => shadow(color, 0.45, 18, 6, 8),
 };

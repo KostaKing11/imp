@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, type } from "../theme";
 
 type Props = {
   label: string;
@@ -23,15 +23,20 @@ export default function TextField({
   autoCapitalize = "sentences",
   selectOnFocus = false,
 }: Props) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
       <TextInput
-        style={[styles.input, multiline && styles.multiline]}
+        style={[styles.input, multiline && styles.multiline, focused && styles.inputFocused]}
         value={value}
         onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         placeholder={placeholder}
-        placeholderTextColor={colors.textDim}
+        placeholderTextColor={colors.textFaint}
+        selectionColor={colors.accent}
         multiline={multiline}
         autoCapitalize={autoCapitalize}
         selectTextOnFocus={selectOnFocus}
@@ -45,24 +50,29 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.textDim,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    ...type.eyebrow,
+    color: colors.textFaint,
+  },
+  labelFocused: {
+    color: colors.accent,
   },
   input: {
     backgroundColor: colors.chip,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.md,
     color: colors.text,
     fontSize: 17,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 12,
+    fontWeight: "600",
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 14,
+  },
+  inputFocused: {
+    borderColor: colors.accent,
+    backgroundColor: colors.card,
   },
   multiline: {
-    minHeight: 80,
+    minHeight: 88,
     textAlignVertical: "top",
   },
 });

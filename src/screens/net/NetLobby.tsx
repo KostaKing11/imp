@@ -15,7 +15,7 @@ import {
 } from "../../game/types";
 import { modeLabel, t, tf } from "../../i18n";
 import { netMaxPlayers, netMinPlayers, NetPlayer, RoomState } from "../../net/protocol";
-import { colors, radius, spacing } from "../../theme";
+import { colors, radius, spacing, type } from "../../theme";
 import { confirmDialog } from "../../utils";
 import GameSetup from "../setup/GameSetup";
 import QrModal from "./QrModal";
@@ -82,31 +82,35 @@ export default function NetLobby(props: Props) {
       <ScrollView contentContainerStyle={styles.area} showsVerticalScrollIndicator={false}>
         <Text style={styles.heading}>{t("lobbyTitle")}</Text>
 
-        {/* room code + the little QR button next to it */}
-        <Text style={styles.codeLabel}>{t("roomCode")}</Text>
-        <View style={styles.codeRow}>
-          <Text style={styles.code}>{state.code}</Text>
+        {/* The room code is what everyone else has to type, so it gets a
+            panel of its own — code on the left, the host's hand-out
+            buttons on the right. */}
+        <View style={styles.codeCard}>
+          <View style={styles.codeText}>
+            <Text style={styles.codeLabel}>{t("roomCode")}</Text>
+            <Text style={styles.code}>{state.code}</Text>
+          </View>
           {/* only the host can hand out a QR — it points at their phone */}
           {isHost ? (
-            <Pressable onPress={() => setQrOpen(true)} hitSlop={10} style={styles.qrButton}>
-              <QrIcon size={26} color={colors.textDim} />
-            </Pressable>
-          ) : null}
-          {isHost ? (
-            <Pressable
-              onPress={props.onOpenSettings}
-              hitSlop={10}
-              style={styles.qrButton}
-            >
-              <SlidersIcon size={24} color={colors.textDim} />
-            </Pressable>
+            <View style={styles.codeActions}>
+              <Pressable onPress={() => setQrOpen(true)} hitSlop={8} style={styles.qrButton}>
+                <QrIcon size={24} color={colors.text} />
+              </Pressable>
+              <Pressable onPress={props.onOpenSettings} hitSlop={8} style={styles.qrButton}>
+                <SlidersIcon size={22} color={colors.text} />
+              </Pressable>
+            </View>
           ) : null}
         </View>
 
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-        <Text style={styles.modeLine}>{modeLabel(state.mode)}</Text>
+        <View style={styles.modePill}>
+          <Text style={styles.modeLine}>{modeLabel(state.mode)}</Text>
+        </View>
 
-        <SectionTitle>{tf("playersCount", { n: players.length })}</SectionTitle>
+        <SectionTitle hint={`${players.length}/${max}`}>
+          {tf("playersCount", { n: players.length })}
+        </SectionTitle>
         <View style={styles.playerList}>
           {players.map((p) => (
             <PlayerCard
@@ -192,64 +196,67 @@ export default function NetLobby(props: Props) {
 const styles = StyleSheet.create({
   area: { paddingBottom: spacing.md, gap: spacing.xs },
   heading: {
+    ...type.title,
     fontSize: 26,
-    fontWeight: "900",
     color: colors.text,
     textAlign: "center",
     marginTop: spacing.xs,
   },
-  codeLabel: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.textDim,
-    letterSpacing: 2,
-    textAlign: "center",
-    marginTop: spacing.xs,
-  },
-  codeRow: {
+  codeCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: spacing.sm,
+    marginTop: spacing.sm,
+    padding: spacing.sm + 2,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accentGlow,
+  },
+  codeText: { flex: 1 },
+  codeLabel: {
+    ...type.eyebrow,
+    color: colors.accent,
+    opacity: 0.85,
   },
   code: {
-    fontSize: 58,
+    fontSize: 46,
     fontWeight: "900",
     color: colors.accent,
-    letterSpacing: 10,
+    letterSpacing: 8,
+    fontVariant: ["tabular-nums"],
   },
+  codeActions: { flexDirection: "row", gap: spacing.xs },
   qrButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    borderWidth: 1.5,
+    width: 46,
+    height: 46,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
-  notice: { fontSize: 14, color: colors.textDim, textAlign: "center" },
+  notice: { ...type.caption, fontSize: 14, color: colors.textDim, textAlign: "center" },
+  modePill: {
+    alignSelf: "center",
+    marginTop: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.chip,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+  },
   modeLine: {
-    fontSize: 16,
+    ...type.caption,
+    fontSize: 14,
     fontWeight: "800",
     color: colors.text,
-    textAlign: "center",
-    marginTop: spacing.xs,
   },
-  hint: { fontSize: 12, color: colors.textDim, textAlign: "center" },
-  error: { fontSize: 14, color: colors.danger, textAlign: "center" },
+  hint: { ...type.caption, fontSize: 12, color: colors.textFaint, textAlign: "center" },
+  error: { ...type.caption, fontSize: 14, color: colors.danger, textAlign: "center" },
   playerList: { gap: spacing.xs, alignSelf: "stretch" },
-  playerChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderRadius: radius.md,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.sm,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  pressed: { opacity: 0.7 },
-  playerName: { fontSize: 16, fontWeight: "800" },
-  kickMark: { fontSize: 13, fontWeight: "900", opacity: 0.7 },
+  kickMark: { fontSize: 14, fontWeight: "900", opacity: 0.7 },
   bottom: { gap: spacing.xs, paddingBottom: spacing.md },
 });

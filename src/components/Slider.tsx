@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { GestureResponderEvent, StyleSheet, View } from "react-native";
-import { colors } from "../theme";
+import { colors, elevation } from "../theme";
 
 type Props = {
   min: number;
@@ -59,21 +59,26 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   track: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.border,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.chip,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
   },
   fill: {
     position: "absolute",
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.accent,
   },
   thumb: {
     position: "absolute",
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: "#FFFFFF",
+    borderWidth: 3,
+    borderColor: colors.accent,
+    ...elevation.card,
   },
 });
