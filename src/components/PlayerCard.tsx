@@ -18,6 +18,11 @@ type Props = {
   selected?: boolean;
   // Sticker poking out of the top-left corner.
   badge?: string | null;
+  // Same corner, but an icon instead of a word (takes precedence).
+  badgeIcon?: React.ReactNode;
+  // Sticker on the top-right corner, with an optional colour of its own.
+  badgeRight?: React.ReactNode;
+  badgeRightColor?: string;
   // Anything on the right: a tick and a cross, vote dots, a count…
   right?: React.ReactNode;
   style?: ViewStyle;
@@ -47,6 +52,9 @@ export default function PlayerCard({
   dimmed = false,
   selected = false,
   badge,
+  badgeIcon,
+  badgeRight,
+  badgeRightColor,
   right,
   style,
 }: Props) {
@@ -87,9 +95,22 @@ export default function PlayerCard({
         {right ? <View style={styles.right}>{right}</View> : null}
       </Pressable>
 
-      {badge ? (
-        <View style={[styles.badge, { borderColor: color }]} pointerEvents="none">
-          <Text style={styles.badgeText}>{badge}</Text>
+      {badgeIcon ?? badge ? (
+        <View style={[styles.badge, styles.badgeLeft, { borderColor: color }]} pointerEvents="none">
+          {badgeIcon ?? <Text style={styles.badgeText}>{badge}</Text>}
+        </View>
+      ) : null}
+
+      {badgeRight ? (
+        <View
+          style={[
+            styles.badge,
+            styles.badgeRight,
+            { borderColor: badgeRightColor ?? color },
+          ]}
+          pointerEvents="none"
+        >
+          {badgeRight}
         </View>
       ) : null}
     </Animated.View>
@@ -99,9 +120,9 @@ export default function PlayerCard({
 const styles = StyleSheet.create({
   wrap: {
     alignSelf: "stretch",
-    // room for the badge to poke out of the corner
-    paddingTop: 8,
-    paddingLeft: 6,
+    // room for the badges to poke out of the corners
+    paddingTop: 9,
+    paddingHorizontal: 6,
   },
   card: {
     flexDirection: "row",
@@ -153,15 +174,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
   },
+  // Solid, not tinted — a badge sits over the card's own colour wash and
+  // its border, and anything see-through there reads as a smudge.
   badge: {
     position: "absolute",
     top: 0,
-    left: 0,
-    backgroundColor: colors.bg,
+    minHeight: 26,
+    minWidth: 26,
+    backgroundColor: colors.bgSoft,
     borderWidth: 1.5,
     borderRadius: radius.pill,
-    paddingHorizontal: 9,
+    paddingHorizontal: 7,
     paddingVertical: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    ...elevation.card,
+  },
+  badgeLeft: {
+    left: 0,
+  },
+  badgeRight: {
+    right: 0,
   },
   badgeText: {
     fontSize: 10,

@@ -14,10 +14,14 @@ if (-not (Test-Path $androidDir)) {
 }
 
 # ---- build ----
-Write-Step "Building release APK..."
+# Only the two ARM architectures go in. x86/x86_64 are emulator-only and
+# were costing ~45 MB of the APK for something no phone ever loads. If you
+# ever need to run the release build on an emulator, add them back here.
+Write-Step "Building release APK (arm64-v8a, armeabi-v7a)..."
 Push-Location $androidDir
 try {
-    & .\gradlew.bat assembleRelease
+    # Quoted: PowerShell would otherwise read the comma as an array operator.
+    & .\gradlew.bat assembleRelease "-PreactNativeArchitectures=arm64-v8a,armeabi-v7a"
     $buildOk = ($LASTEXITCODE -eq 0)
 } finally {
     Pop-Location

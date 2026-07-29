@@ -1,7 +1,50 @@
 import React from "react";
-import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 import { colors } from "../theme";
 import { hsvToHex } from "../utils";
+
+// Thumb up / thumb down. The voting screen leans on these: a thumb up
+// says "this one has voted", a thumb down in your own colour says "this
+// is who you picked".
+function Thumb({ size, color, down }: { size: number; color: string; down: boolean }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <G transform={down ? "rotate(180 12 12)" : undefined}>
+        <Path
+          d="M7.4 10.6 L11 3.6 a2.3 2.3 0 0 1 4.3 1.5 L14.6 9.6 h4.2 a2.1 2.1 0 0 1 2 2.7 l-1.7 6 a2.3 2.3 0 0 1 -2.2 1.6 H7.4 z"
+          fill={color}
+        />
+        <Rect x="2.4" y="10.2" width="3.6" height="9.7" rx="1.3" fill={color} />
+      </G>
+    </Svg>
+  );
+}
+
+export function ThumbUpIcon({ size = 18, color = colors.text }: { size?: number; color?: string }) {
+  return <Thumb size={size} color={color} down={false} />;
+}
+
+export function ThumbDownIcon({ size = 18, color = colors.text }: { size?: number; color?: string }) {
+  return <Thumb size={size} color={color} down />;
+}
+
+// The little figure that drifts off into the dark once somebody has been
+// voted out. Drawn in the ejected player's own colour.
+export function FloaterIcon({ size = 120, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size * 1.15} viewBox="0 0 100 115">
+      {/* body */}
+      <Path
+        d="M50 6 c22 0 33 15 33 35 v52 c0 5-5.5 7.5-9.4 4.6 l-7-5.2 c-2.3-1.7-5.5-1.3-7.3 1 l-4.6 5.6 c-2.6 3.2-7.5 3.2-10.1 0 l-4.6-5.6 c-1.8-2.3-5-2.7-7.3-1 l-7 5.2 C21.8 100.5 17 98 17 93 V41 C17 21 28 6 50 6 z"
+        fill={color}
+        opacity={0.92}
+      />
+      {/* visor */}
+      <Ellipse cx="50" cy="41" rx="24" ry="18" fill="rgba(10,12,16,0.55)" />
+      <Ellipse cx="42" cy="35" rx="7" ry="5.5" fill="rgba(255,255,255,0.5)" />
+    </Svg>
+  );
+}
 
 // Small rainbow wheel used on the "open the color wheel" square.
 export function WheelIcon({ size = 24 }: { size?: number }) {

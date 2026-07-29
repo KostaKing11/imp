@@ -436,6 +436,16 @@ export class RoomHost {
     if (this.state.phase !== "vote") return;
     this.state.results = this.buildResults();
     this.state.voteMap = { ...this.votes };
+
+    // Blef has nobody to eject — the calls are about the other player's
+    // card, not about who leaves — so it goes straight to the reveal
+    // instead of sitting on an empty tally board.
+    if (this.state.mode === "blef") {
+      this.setPhase("results");
+      this.emit();
+      return;
+    }
+
     this.setPhase("eject");
     this.emit();
     if (this.ejectTimer) clearTimeout(this.ejectTimer);
@@ -573,10 +583,11 @@ export class RoomHost {
       };
     }
     if (mode === "blef" && this.blefRound) {
+      const clue = this.blefRound.clues[playerId];
       return {
         mode,
-        valueKind: "clue",
-        value: this.blefRound.clues[playerId]?.text ?? "",
+        valueKind: clue?.isWord ? "blefWord" : "blefHint",
+        value: clue?.text ?? "",
       };
     }
     if (mode === "faker" && this.fakerRound) {

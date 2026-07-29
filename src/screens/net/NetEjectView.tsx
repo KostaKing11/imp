@@ -1,14 +1,70 @@
-import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Easing, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FloaterIcon } from "../../components/icons";
 import PlayerCard from "../../components/PlayerCard";
+import Typewriter from "../../components/Typewriter";
 import { t, tf } from "../../i18n";
 import { EJECT_TALLY_MS, RoomState } from "../../net/protocol";
-import { colors, radius, spacing } from "../../theme";
+import { alpha, colors, spacing, type } from "../../theme";
 
 type Props = {
   state: RoomState;
   myId: string | null;
 };
+
+// One vote landing on a card. They arrive one after another, sliding in
+// from the left, so the board fills up like votes being counted out loud
+// rather than all appearing at once.
+function VoteDot({ color, index, stagger }: { color: string; index: number; stagger: number }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 380,
+      delay: 260 + index * stagger,
+      easing: Easing.out(Easing.back(2)),
+      useNativeDriver: true,
+    }).start();
+  }, [anim, index, stagger]);
+
+  const translateX = anim.interpolate({ inputRange: [0, 1], outputRange: [-44, 0] });
+
+  return (
+    <Animated.View
+      style={[styles.dot, { backgroundColor: color, opacity: anim, transform: [{ translateX }] }]}
+    />
+  );
+}
+
+// The ejected player drifting off into the dark: turning slowly, rising
+// and falling, lit by their own colour.
+function Floater({ color }: { color: string }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 4200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [anim]);
+
+  const translateY = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [10, -14, 10] });
+  const rotate = anim.interpolate({ inputRange: [0, 1], outputRange: ["-9deg", "13deg"] });
+
+  return (
+    <View style={styles.floaterWrap}>
+      <View style={[styles.floaterGlow, { backgroundColor: alpha(color, 0.16) }]} />
+      <Animated.View style={{ transform: [{ translateY }, { rotate }] }}>
+        <FloaterIcon size={116} color={color} />
+      </Animated.View>
+    </View>
+  );
+}
 
 // The beat between voting and the results: first the votes land on the
 // cards, then the room hears who was voted out and what they were.
@@ -25,9 +81,16 @@ export default function NetEjectView({ state, myId }: Props) {
   const byId = (id: string | null | undefined) => state.players.find((p) => p.id === id);
   const votedOut = byId(results?.votedOutId);
 
-  // Who voted for whom — one dot in each voter's colour.
+  // Who voted for whom — one dot in each voter's colour. The order the
+  // votes came in decides the order they fly in, board-wide, so no two
+  // dots land at the same instant.
+  const voteEntries = Object.entries(state.voteMap ?? {});
+  const arrivalOf = (voterId: string) => voteEntries.findIndex(([id]) => id === voterId);
+  // Squeeze the gap between dots when the room is big, so the last vote
+  // still lands well before the verdict takes the board away.
+  const stagger = Math.min(240, 3200 / Math.max(1, voteEntries.length));
   const votersFor = (playerId: string) =>
-    Object.entries(state.voteMap ?? {})
+    voteEntries
       .filter(([, choice]) => choice === playerId)
       .map(([voterId]) => byId(voterId))
       .filter((p): p is NonNullable<typeof p> => !!p);
@@ -62,17 +125,25 @@ export default function NetEjectView({ state, myId }: Props) {
     return (
       <View style={styles.center}>
         {votedOut ? (
-          <View style={[styles.ejectedCard, { borderColor: votedOut.color }]}>
-            <Text
-              style={[styles.ejectedName, { color: votedOut.color }]}
-              numberOfLines={2}
-            >
+          <>
+            <Floater color={votedOut.color} />
+            <Text style={[styles.ejectedName, { color: votedOut.color }]} numberOfLines={2}>
               {votedOut.name}
             </Text>
-          </View>
+          </>
         ) : null}
-        <Text style={styles.verdict}>{line}</Text>
-        {role ? <Text style={styles.verdictRole}>{role}</Text> : null}
+
+        {/* The line types itself out, so the whole room arrives at the
+            answer together instead of reading ahead. */}
+        <Typewriter text={line} style={styles.verdict} speed={38} delay={420} />
+        {role ? (
+          <Typewriter
+            text={role}
+            style={styles.verdictRole}
+            speed={28}
+            delay={420 + line.length * 38 + 300}
+          />
+        ) : null}
       </View>
     );
   }
@@ -90,7 +161,12 @@ export default function NetEjectView({ state, myId }: Props) {
             right={
               <View style={styles.dots}>
                 {voters.map((v) => (
-                  <View key={v.id} style={[styles.dot, { backgroundColor: v.color }]} />
+                  <VoteDot
+                    key={v.id}
+                    color={v.color}
+                    index={arrivalOf(v.id)}
+                    stagger={stagger}
+                  />
                 ))}
               </View>
             }
@@ -121,25 +197,34 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.md,
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  ejectedCard: {
-    alignSelf: "stretch",
-    minHeight: 120,
-    borderRadius: radius.lg,
+  floaterWrap: {
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 4,
-    backgroundColor: colors.card,
-    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
-  ejectedName: { fontSize: 36, fontWeight: "900", textAlign: "center" },
+  floaterGlow: {
+    position: "absolute",
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+  },
+  ejectedName: {
+    ...type.display,
+    fontSize: 38,
+    textAlign: "center",
+  },
   verdict: {
-    fontSize: 24,
-    fontWeight: "900",
+    ...type.title,
+    fontSize: 23,
     color: colors.text,
     textAlign: "center",
   },
-  verdictRole: { fontSize: 16, color: colors.textDim, textAlign: "center" },
+  verdictRole: {
+    ...type.body,
+    color: colors.textDim,
+    textAlign: "center",
+  },
 });

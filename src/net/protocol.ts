@@ -11,8 +11,13 @@ export const HEARTBEAT_MS = 3000;
 export const HEARTBEAT_TIMEOUT_MS = 10000;
 export const NET_MAX_PLAYERS = 20;
 // How long the ejection screen holds before the full results.
-export const EJECT_TALLY_MS = 2600;
-export const EJECT_TOTAL_MS = 6200;
+// How long the votes stay on the board before the verdict. Long enough
+// to actually read who pointed at whom — the dots land one by one, and
+// then you want a beat to take the board in.
+export const EJECT_TALLY_MS = 5000;
+// Tally + the verdict (the name types itself out and the ejected player
+// drifts off) before the room moves to the results.
+export const EJECT_TOTAL_MS = 11000;
 
 // Blef is a duel; everything else needs a group.
 export function netMinPlayers(mode: GameMode): number {
@@ -59,8 +64,10 @@ export type NetCard = {
   roleName?: string;
   roleDesc?: string;
   roleColor?: string;
-  // Which label goes above `value`.
-  valueKind?: "word" | "hint" | "oddWord" | "clue";
+  // Which label goes above `value`. The two blef* kinds tell the holder
+  // which half of the duel they got — they still learn nothing about the
+  // other player's card.
+  valueKind?: "word" | "hint" | "oddWord" | "clue" | "blefWord" | "blefHint";
   value?: string;
   // Extra line at the bottom of the card (e.g. "Imposter: Ana").
   extraKind?: "imposter";

@@ -83,7 +83,18 @@ const en = {
   playerHad: "{name} had",
   // blef
   yourClue: "Your clue",
-  blefCardNote: "It might be the real word… or just a hint. Nobody tells you.",
+  blefYouGotWord: "You have the word",
+  blefYouGotHint: "You have a hint",
+  blefCardNote: "The other one may be holding either. That is what you have to call.",
+  blefWhatDidTheyGet: "What did {name} get?",
+  confirmBtn: "Confirm",
+  // app updates (installed Android build only)
+  updateTitle: "A new version is out",
+  updateBody: "Install it now? It takes a few seconds and keeps your players and categories.",
+  updateDownloading: "Downloading…",
+  updateFailed: "That didn't work. Check your connection and try again.",
+  updateNow: "Install",
+  updateLater: "Later",
   blefDiscussionInstr:
     "Taking turns, each player says {n} clues out loud about what they're holding. Listen closely — did they really know the word?",
   blefRevealBtn: "Reveal",
@@ -361,7 +372,18 @@ const sr: typeof en = {
   playerHad: "{name} je imao/la",
   // blef
   yourClue: "Tvoj trag",
-  blefCardNote: "Možda je prava reč… a možda samo trag. Niko ti ne kaže.",
+  blefYouGotWord: "Imaš reč",
+  blefYouGotHint: "Imaš trag",
+  blefCardNote: "Onaj drugi može imati bilo šta od toga. To je ono što treba da pogodiš.",
+  blefWhatDidTheyGet: "Šta je dobio {name}?",
+  confirmBtn: "Potvrdi",
+  // app updates (installed Android build only)
+  updateTitle: "Izašla je nova verzija",
+  updateBody: "Da je instaliramo? Traje par sekundi, igrači i kategorije ti ostaju.",
+  updateDownloading: "Preuzimam…",
+  updateFailed: "Nije uspelo. Proveri internet pa probaj ponovo.",
+  updateNow: "Instaliraj",
+  updateLater: "Kasnije",
   blefDiscussionInstr:
     "Naizmenično, svaki igrač naglas kaže {n} traga o onome što drži. Slušaj pažljivo — da li je stvarno znao reč?",
   blefRevealBtn: "Otkrij",

@@ -31,6 +31,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Sapun", hints: ["klizavo", "miris", "kupatilo", "pena", "kraj"] },
       { word: "Baklja", hints: ["noć", "pećina", "slabo", "nosi se", "vatra"] },
       { word: "Merdevine", hints: ["garaža", "klimavo", "pozajmljeno", "visoko", "komšija"] },
+      { word: "Novčanik", hints: ["zadnji džep", "prazan", "kožni", "izgubljen", "slika"] },
+      { word: "Peškir", hints: ["vlažan", "plaža", "kupatilo", "tuđi", "kačiti"] },
+      { word: "Daljinski", hints: ["izgubljen", "baterije", "kauč", "svađa", "dugmad"] },
     ],
   },
   {
@@ -54,6 +57,8 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Orao", hints: ["visina", "grb", "oko", "stena", "krila"] },
       { word: "Kornjača", hints: ["sporo", "oklop", "staro", "plaža", "strpljivo"] },
       { word: "Leptir", hints: ["leto", "livada", "kratko", "šaren", "lagan"] },
+      { word: "Golub", hints: ["trg", "mrve", "gužva", "krov", "gradski"] },
+      { word: "Jež", hints: ["bodlje", "sklupčan", "noć", "bašta", "spor"] },
     ],
   },
   {
@@ -76,6 +81,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Sok", hints: ["deca", "hladno", "flaša", "slatko", "letnji"] },
       { word: "Čaj", hints: ["prehlada", "šolja", "med", "para", "veče"] },
       { word: "Supa", hints: ["kašika", "bolestan dan", "para", "tanjir", "baka"] },
+      { word: "Turska kafa", hints: ["džezva", "talog", "komšinica", "gorka", "fildžan"] },
+      { word: "Turšija", hints: ["tegla", "zima", "kiselo", "podrum", "hrskavo"] },
+      { word: "Kiselo mleko", hints: ["hladno", "burek", "flaša", "kiselo", "doručak"] },
     ],
   },
   {
@@ -98,6 +106,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Manastir", hints: ["tišina", "brdo", "freske", "poseta", "staro"] },
       { word: "Bazen", hints: ["hlor", "buka", "staze", "deca", "mokro"] },
       { word: "Pekara", hints: ["jutro", "red", "miris", "toplo", "kesa"] },
+      { word: "Buvljak", hints: ["cenkanje", "nedelja", "gomila", "polovno", "gužva"] },
+      { word: "Kafić", hints: ["kafa", "sat vremena", "terasa", "prijatelji", "buka"] },
+      { word: "Autobuska stanica", hints: ["čekanje", "peron", "kasni", "torbe", "buka"] },
     ],
   },
   {
@@ -120,6 +131,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Glumac", hints: ["bina", "tekst", "proba", "kamera", "publika"] },
       { word: "Ribar", hints: ["strpljenje", "rano", "tiho", "čamac", "čekanje"] },
       { word: "Baštovan", hints: ["proleće", "zemlja", "rukavice", "strpljenje", "jutro"] },
+      { word: "Konobar", hints: ["poslužavnik", "bakšiš", "gužva", "narudžbina", "brz"] },
+      { word: "Taksista", hints: ["priča", "noć", "taksimetar", "radio", "put"] },
+      { word: "Poštar", hints: ["sanduče", "bicikl", "paket", "pas", "jutro"] },
     ],
   },
   {
@@ -142,6 +156,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Pikado", hints: ["kafana", "tabla", "nišan", "kreda", "pivo"] },
       { word: "Karate", hints: ["pojas", "poklon", "deca", "disciplina", "strunjača"] },
       { word: "Streljaštvo", hints: ["mirno", "dah", "meta", "tišina", "koncentracija"] },
+      { word: "Stoni tenis", hints: ["reket", "podrum", "brzo", "loptica", "mreža"] },
+      { word: "Atletika", hints: ["staza", "start", "stadion", "trening", "medalja"] },
+      { word: "Hokej", hints: ["led", "pak", "štap", "brzo", "grubo"] },
     ],
   },
   {
@@ -164,6 +181,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Cvet", hints: ["poklon", "vaza", "proleće", "miris", "vene"] },
       { word: "Drvo", hints: ["senka", "staro", "penjanje", "krošnja", "jesen"] },
       { word: "Jezero", hints: ["mirno", "leto", "čamac", "obala", "tiho"] },
+      { word: "Magla", hints: ["jutro", "sporo", "gusta", "farovi", "jesen"] },
+      { word: "Vetar", hints: ["kapa", "kišobran", "hladno", "jak", "prozor"] },
+      { word: "Pustinja", hints: ["pesak", "vruće", "suvo", "kamila", "beskraj"] },
     ],
   },
   {
@@ -186,6 +206,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Konzola", hints: ["kasno", "džojstik", "prijatelji", "ekran", "još jedna"] },
       { word: "Štampač", hints: ["zaglavio", "kancelarija", "mastilo", "psovke", "papir"] },
       { word: "Lift", hints: ["čekanje", "tesno", "tišina", "kvar", "sprat"] },
+      { word: "Lozinka", hints: ["zaboravljena", "opet", "papirić", "slaba", "promena"] },
+      { word: "Selfi", hints: ["ruka", "ugao", "grupa", "briši", "filter"] },
+      { word: "Sat pametni", hints: ["koraci", "vibrira", "ruka", "punjenje", "prsten"] },
     ],
   },
   {
@@ -208,6 +231,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Aždaja", hints: ["bajka", "glave", "junak", "strah", "legenda"] },
       { word: "Utvara", hints: ["magla", "noć", "priča", "seosko", "hladno"] },
       { word: "Kentaur", hints: ["mit", "šuma", "luk", "pola", "legenda"] },
+      { word: "Baba Roga", hints: ["deca", "priča", "mrak", "pretnja", "stara"] },
+      { word: "Kletva", hints: ["porodica", "šapat", "stara", "sreća", "skinuti"] },
+      { word: "Groblje", hints: ["tiho", "sveće", "noć", "kapija", "cveće"] },
     ],
   },
   {
@@ -230,6 +256,9 @@ export const CATEGORIES_SR: BuiltinCategory[] = [
       { word: "Šubara", hints: ["zima", "krzno", "glava", "staro", "seosko"] },
       { word: "Ikona", hints: ["zid", "sveća", "staro", "zlatno", "kuća"] },
       { word: "Đurđevdan", hints: ["proleće", "pesma", "cveće", "maj", "slavlje"] },
+      { word: "Komšiluk", hints: ["sve zna", "kafa", "buka", "pozajmi", "prozor"] },
+      { word: "Zimnica", hints: ["tegle", "jesen", "podrum", "ceo dan", "mama"] },
+      { word: "Roštilj", hints: ["dim", "nedelja", "dvorište", "ugalj", "miris"] },
     ],
   },
 ];

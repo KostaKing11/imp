@@ -31,10 +31,18 @@ export default function NetCardView({
   const [peeked, setPeeked] = useState(false);
 
   // Modes where every card must look identical keep one shared colour;
-  // role cards take the role's.
+  // role cards take the role's. Bluff splits: the word is gold, a hint
+  // is teal, so which half you are holding reads before you read a word.
+  const blefHint = card?.valueKind === "blefHint";
   const faceColor =
     card?.roleColor ??
-    (card?.mode === "odd" ? colors.oddYellow : card?.mode === "blef" ? colors.word : myColor);
+    (card?.mode === "odd"
+      ? colors.oddYellow
+      : card?.mode === "blef"
+        ? blefHint
+          ? colors.blefTeal
+          : colors.word
+        : myColor);
 
   const valueLabel =
     card?.valueKind === "word"
@@ -43,9 +51,13 @@ export default function NetCardView({
         ? t("yourOnlyClue")
         : card?.valueKind === "oddWord"
           ? t("yourWordIs")
-          : card?.valueKind === "clue"
-            ? t("yourClue")
-            : null;
+          : card?.valueKind === "blefWord"
+            ? t("blefYouGotWord")
+            : card?.valueKind === "blefHint"
+              ? t("blefYouGotHint")
+              : card?.valueKind === "clue"
+                ? t("yourClue")
+                : null;
   const note =
     card?.mode === "odd" ? t("oddCardNote") : card?.mode === "blef" ? t("blefCardNote") : null;
 

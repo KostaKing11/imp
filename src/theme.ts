@@ -29,8 +29,10 @@ export const colors = {
 
   good: "#2ED573",
   goodSoft: "rgba(46,213,115,0.14)",
-  danger: "#FF4757",
-  dangerSoft: "rgba(255,71,87,0.14)",
+  // Softened to sit next to the green as a pair — the old #FF4757 was a
+  // shade hotter than anything else on screen and pulled the eye.
+  danger: "#FF6B6B",
+  dangerSoft: "rgba(255,107,107,0.14)",
   word: "#FFD166",
   disabled: "#2B3140",
 

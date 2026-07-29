@@ -109,6 +109,59 @@ npm run web:deploy      # build + push dist/ to the gh-pages branch
 `public/.nojekyll` is there because GitHub Pages otherwise drops the
 `_expo/` folder.
 
+### APK size
+
+The release APK ships **arm64-v8a and armeabi-v7a only** — the flag lives in
+`apk:build` and in [scripts/build-apk.ps1](scripts/build-apk.ps1):
+
+```
+-PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+```
+
+x86 and x86_64 are emulator-only and were adding ~45 MB of native libraries
+that no phone ever loads. Add them back to that flag if you ever need to run
+a *release* build on an emulator (debug builds are unaffected).
+
+What is left is mostly unavoidable: the two ARM library sets, and ~5 MB per
+architecture of Google's ML Kit barcode scanner, which comes with
+`expo-camera` and is what reads the room QR code.
+
+The Java/Kotlin side (~33 MB of `.dex`) can be shrunk further with R8 by
+building with `-Pandroid.enableMinifyInReleaseBuilds=true
+-Pandroid.enableShrinkResourcesInReleaseBuilds=true`. That is off by default
+because minification can break things that are only found at runtime — try it
+on a build you are willing to test properly.
+
+## Shipping a new APK (in-app updates)
+
+The web version updates itself — the service worker picks up a new build on
+the next visit. The installed Android app cannot, so it asks: on launch it
+reads the repo's **latest GitHub release**, and if the tag is newer than the
+version it is running, it offers to download the APK and hand it to Android's
+installer. **Later** just closes it, and the next launch asks again.
+
+The order matters — the APK you attach must already carry the new version,
+because the app compares the release tag against its own `versionName`:
+
+1. Bump `expo.version` in [app.json](app.json) (e.g. `1.0.0` → `1.0.1`).
+2. `npx expo prebuild --platform android` — writes the version into the
+   native project.
+3. `npm run apk` — builds `android/app/build/outputs/apk/release/app-release.apk`.
+4. Publish a release whose **tag equals that version** and attach the APK:
+
+```bash
+gh release create v1.0.1 android/app/build/outputs/apk/release/app-release.apk --title "1.0.1" --notes "What changed"
+```
+
+The release body is shown in the prompt, so it is worth a line about what
+changed. Draft and pre-releases are skipped, as is a release with no `.apk`
+attached — so a half-finished release never reaches anyone.
+
+Installing needs the `REQUEST_INSTALL_PACKAGES` permission (already in
+[app.json](app.json)); the first time, Android will also ask the user to allow
+installs from IMP. The repo the app checks is set in
+[src/update/appUpdate.ts](src/update/appUpdate.ts) (`RELEASE_API`).
+
 ## Adding content
 
 Built-in content lives in `data/`, grouped into categories:

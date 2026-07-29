@@ -437,7 +437,9 @@ const styles = StyleSheet.create({
   },
   modes: {
     flexDirection: "row",
-    gap: spacing.sm,
+    // Tight: the unselected cards sit at 0.93, which already adds a few
+    // px of air on each side, so the gap reads wider than it is.
+    gap: 8,
     paddingHorizontal: spacing.md,
     // room for the selected card's glow
     paddingVertical: spacing.xs,
