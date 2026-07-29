@@ -8,14 +8,16 @@ type Props = {
   min: number;
   max: number;
   onChange: (value: number) => void;
+  // How much one tap moves it. Skala counts whole turns around the table.
+  step?: number;
   // Paints the round buttons in a role's colour when there is one.
   tone?: string;
 };
 
 // Big +/- control for picking numbers (players, imposters).
-export default function Stepper({ label, value, min, max, onChange, tone }: Props) {
-  const dec = () => onChange(Math.max(min, value - 1));
-  const inc = () => onChange(Math.min(max, value + 1));
+export default function Stepper({ label, value, min, max, onChange, step = 1, tone }: Props) {
+  const dec = () => onChange(Math.max(min, value - step));
+  const inc = () => onChange(Math.min(max, value + step));
   const accent = tone ?? colors.accent;
 
   const button = (sign: string, onPress: () => void, off: boolean) => (

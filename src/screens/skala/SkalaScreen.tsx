@@ -22,7 +22,7 @@ type Props = {
 // Pass-and-play Skala. One screen owns the whole mode: the clue giver
 // sets the needle's secret, everyone else guesses in turn, then the
 // board opens up and the points land.
-type Phase = "handoff" | "clue" | "guessHandoff" | "guess" | "reveal" | "final";
+type Phase = "handoff" | "clue" | "cards" | "guess" | "reveal" | "final";
 
 export default function SkalaScreen({
   players,
@@ -35,7 +35,7 @@ export default function SkalaScreen({
   const [phase, setPhase] = useState<Phase>("handoff");
   const [clue, setClue] = useState("");
   const [guess, setGuess] = useState(50);
-  const [guessIndex, setGuessIndex] = useState(0);
+  const [active, setActive] = useState<Player | null>(null);
 
   const byId = (id: string) => players.find((p) => p.id === id) ?? null;
 
@@ -60,7 +60,6 @@ export default function SkalaScreen({
 
   const giver = byId(round.clueGiverId);
   const guessers = players.filter((p) => p.id !== round.clueGiverId);
-  const current = guessers[guessIndex] ?? null;
   const tint = giver?.color ?? colors.accent;
 
   const roundLabel = tf("skalaRoundOf", {
@@ -94,7 +93,15 @@ export default function SkalaScreen({
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Text style={styles.eyebrow}>{roundLabel}</Text>
           <Text style={styles.title}>{t("skalaYourTarget")}</Text>
-          <Dial value={round.target} left={round.left} right={round.right} disabled />
+          {/* The caller sees the wedges too, so they know how much room
+              a near miss leaves. */}
+          <Dial
+            value={round.target}
+            left={round.left}
+            right={round.right}
+            target={round.target}
+            disabled
+          />
           <Text style={styles.hint}>{t("skalaClueHint")}</Text>
           <TextField
             label={t("skalaClueLabel")}
@@ -108,9 +115,8 @@ export default function SkalaScreen({
             disabled={clue.trim().length === 0}
             onPress={() => {
               setGame({ ...game, round: { ...round, clue: clue.trim() } });
-              setGuessIndex(0);
               setGuess(50);
-              setPhase("guessHandoff");
+              setPhase("cards");
             }}
           />
         </ScrollView>
@@ -118,33 +124,12 @@ export default function SkalaScreen({
     );
   }
 
-  // ---- the guessers, one at a time ----
-  if (phase === "guessHandoff" && current) {
+  // ---- one guesser's dial ----
+  if (phase === "guess" && active) {
     return (
-      <Screen glow={current.color}>
-        {leaveButton(onLeave)}
-        <View style={styles.center}>
-          <Text style={styles.eyebrow}>{roundLabel}</Text>
-          <Text style={styles.big}>{t("passPhoneTo")}</Text>
-          <Text style={[styles.name, { color: current.color }]}>{current.name}</Text>
-          <BigButton
-            label={tf("skalaImGuesser", { name: current.name })}
-            tone={current.color}
-            onPress={() => {
-              setGuess(50);
-              setPhase("guess");
-            }}
-          />
-        </View>
-      </Screen>
-    );
-  }
-
-  if (phase === "guess" && current) {
-    return (
-      <Screen glow={current.color}>
+      <Screen glow={active.color}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.eyebrow}>{tf("skalaGuessingAs", { name: current.name })}</Text>
+          <Text style={styles.eyebrow}>{tf("skalaGuessingAs", { name: active.name })}</Text>
           <View style={[styles.cluePill, { borderColor: alpha(tint, 0.6) }]}>
             <Text style={styles.clueLabel}>{tf("skalaSaid", { name: giver?.name ?? "" })}</Text>
             <Text style={[styles.clueText, { color: tint }]}>{round.clue}</Text>
@@ -152,19 +137,62 @@ export default function SkalaScreen({
           <Dial value={guess} onChange={setGuess} left={round.left} right={round.right} />
           <BigButton
             label={t("skalaLockGuess")}
-            tone={current.color}
+            tone={active.color}
             onPress={() => {
-              const guesses = { ...round.guesses, [current.id]: guess };
-              setGame({ ...game, round: { ...round, guesses } });
-              if (guessIndex + 1 < guessers.length) {
-                setGuessIndex(guessIndex + 1);
-                setPhase("guessHandoff");
-              } else {
-                setPhase("reveal");
-              }
+              setGame({
+                ...game,
+                round: { ...round, guesses: { ...round.guesses, [active.id]: guess } },
+              });
+              setActive(null);
+              setPhase("cards");
             }}
           />
         </ScrollView>
+      </Screen>
+    );
+  }
+
+  // ---- the guessers' board, same shape as every other mode ----
+  if (phase === "cards") {
+    const allIn = guessers.every((p) => round.guesses[p.id] !== undefined);
+    return (
+      <Screen>
+        {leaveButton(onLeave)}
+        <Text style={styles.heading}>{t("skalaGuessTitle")}</Text>
+        <View style={[styles.cluePill, { borderColor: alpha(tint, 0.6) }]}>
+          <Text style={styles.clueLabel}>{tf("skalaSaid", { name: giver?.name ?? "" })}</Text>
+          <Text style={[styles.clueText, { color: tint }]}>{round.clue}</Text>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.cardList} showsVerticalScrollIndicator={false}>
+          {guessers.map((p) => {
+            const done = round.guesses[p.id] !== undefined;
+            return (
+              <PlayerCard
+                key={p.id}
+                name={p.name}
+                color={p.color}
+                note={done ? null : t("tapToReveal")}
+                dimmed={done}
+                disabled={done}
+                onPress={() => {
+                  setGuess(50);
+                  setActive(p);
+                  setPhase("guess");
+                }}
+                right={done ? <Text style={[styles.check, { color: p.color }]}>✓</Text> : null}
+              />
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.bottom}>
+          <BigButton
+            label={t("everyonesReady")}
+            disabled={!allIn}
+            onPress={() => setPhase("reveal")}
+          />
+        </View>
       </Screen>
     );
   }
@@ -218,7 +246,7 @@ export default function SkalaScreen({
               const next = scoreSkalaRound(game, round);
               setGame(next);
               setClue("");
-              setGuessIndex(0);
+              setActive(null);
               setPhase(skalaIsOver(next) ? "final" : "handoff");
             }}
           />
@@ -327,6 +355,17 @@ const styles = StyleSheet.create({
   scoreList: {
     gap: spacing.xs,
   },
+  cardList: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  heading: {
+    ...type.title,
+    fontSize: 26,
+    color: colors.text,
+    textAlign: "center",
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  check: { fontSize: 22, fontWeight: "900" },
+  bottom: { paddingBottom: spacing.md },
   points: {
     fontSize: 22,
     fontWeight: "900",

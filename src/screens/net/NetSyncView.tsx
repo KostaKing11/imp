@@ -137,7 +137,7 @@ export default function NetSyncView({
                 setClaim((prev) =>
                   prev.includes(playerId)
                     ? prev.filter((x) => x !== playerId)
-                    : [...prev, playerId].slice(-2)
+                    : [...prev, playerId]
                 )
               }
               style={({ pressed }) => [
@@ -158,7 +158,7 @@ export default function NetSyncView({
 
       {isHost ? (
         <>
-          {claim.length === 2 ? (
+          {claim.length >= 2 ? (
             <BigButton
               label={t("syncSameThing")}
               variant="secondary"

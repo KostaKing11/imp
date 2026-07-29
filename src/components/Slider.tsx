@@ -36,6 +36,11 @@ export default function Slider({ min, max, step, value, onChange }: Props) {
     <View
       style={styles.container}
       onLayout={(e) => setWidth(Math.max(1, e.nativeEvent.layout.width))}
+      // Capture the touch before it reaches the ScrollView, otherwise a
+      // finger that drifts a few pixels up or down scrolls the page
+      // instead of moving the knob. Only x matters here.
+      onStartShouldSetResponderCapture={() => true}
+      onMoveShouldSetResponderCapture={() => true}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => true}
       onResponderTerminationRequest={() => false}

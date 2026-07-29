@@ -1,7 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import Chip from "../../components/Chip";
 import SectionTitle from "../../components/SectionTitle";
+import Stepper from "../../components/Stepper";
 import { usePressScale } from "../../components/usePressScale";
 import {
   CategoryState,
@@ -22,6 +32,9 @@ import RoleEditor from "../editors/RoleEditor";
 
 // Each mode's artwork has its own colour; the selected card is outlined
 // and lit in it, so which mode is picked reads from across the table.
+const MODE_CARD_W = 110;
+const MODE_GAP = 8;
+
 const MODE_TINT: Record<GameMode, string> = {
   imp: colors.impRed,
   odd: colors.oddYellow,
@@ -126,10 +139,13 @@ type Props = {
   // Rendered between the mode cards and the categories (the home screen
   // puts its player list there; the lobby has its own).
   middleSlot?: React.ReactNode;
-  // Modes to leave out of the row. The lobby hides the ones that have no
-  // online support yet, so a room can never be put into a mode the host
-  // cannot actually run.
+  // Modes to leave out of the row.
   hiddenModes?: GameMode[];
+  // Skala plays whole turns around the table, so its round count is
+  // always a multiple of however many are playing.
+  playerCount: number;
+  skalaTurns: number;
+  setSkalaTurns: (turns: number) => void;
 };
 
 export default function GameSetup({
@@ -150,6 +166,9 @@ export default function GameSetup({
   maxRoleCount,
   middleSlot,
   hiddenModes = [],
+  playerCount,
+  skalaTurns,
+  setSkalaTurns,
 }: Props) {
   const [editingCategory, setEditingCategory] = useState<CategoryState | null>(null);
   const [categoryIsNew, setCategoryIsNew] = useState(false);
@@ -160,6 +179,23 @@ export default function GameSetup({
   const [editingRole, setEditingRole] = useState<RoleDef | null>(null);
   const [roleIsNew, setRoleIsNew] = useState(false);
   const [countRoleId, setCountRoleId] = useState<string | null>(null);
+  const modeScrollRef = useRef<ScrollView>(null);
+  const { width: screenWidth } = useWindowDimensions();
+
+  // Coming back from another screen used to leave the row parked at the
+  // start with the selected card off to the right, which read as nothing
+  // being selected at all. Centre it instead.
+  const modeOrder: GameMode[] = ["imp", "odd", "mafia", "blef", "faker", "skala", "sync"];
+  const visibleModes = modeOrder.filter((m) => !hiddenModes.includes(m));
+  useEffect(() => {
+    const index = visibleModes.indexOf(gameMode);
+    if (index < 0) return;
+    const step = MODE_CARD_W + MODE_GAP;
+    const x = Math.max(0, index * step + MODE_CARD_W / 2 - screenWidth / 2 + spacing.md);
+    const timer = setTimeout(() => modeScrollRef.current?.scrollTo({ x, animated: false }), 0);
+    return () => clearTimeout(timer);
+    // Only on mount and when the mode itself changes from elsewhere.
+  }, [gameMode, screenWidth]);
 
   const isMafia = gameMode === "mafia";
   const currentRoles = isMafia ? mafiaRoles : roles;
@@ -282,6 +318,7 @@ export default function GameSetup({
           past the screen padding so a card can sit half off the edge and
           say "there is more this way". */}
       <ScrollView
+        ref={modeScrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.modeScroll}
@@ -309,7 +346,7 @@ export default function GameSetup({
       {middleSlot}
 
       {/* categories — words (IMP/Bluff), pairs (Odd One Out), questions (Faker) */}
-      {gameMode !== "mafia" && gameMode !== "sync" ? (
+      {gameMode !== "mafia" ? (
         <>
           <SectionTitle hint={categoryHint}>{t("categories")}</SectionTitle>
           <View style={styles.chipWrap}>
@@ -344,7 +381,7 @@ export default function GameSetup({
                 ))}
                 <Chip label="＋" add onPress={addFakerCategory} />
               </>
-            ) : gameMode === "imp" || gameMode === "blef" ? (
+            ) : gameMode === "imp" || gameMode === "blef" || gameMode === "sync" ? (
               <>
                 {categories.map((c) => (
                   <Chip
@@ -388,6 +425,25 @@ export default function GameSetup({
               </>
             )}
           </View>
+        </>
+      ) : null}
+
+      {/* Skala: how many times round the table. One turn means everybody
+          calls once, so the round count moves in whole tables. */}
+      {gameMode === "skala" ? (
+        <>
+          <SectionTitle hint={`${skalaTurns * Math.max(1, playerCount)}`}>
+            {t("skalaRoundsLabel")}
+          </SectionTitle>
+          <Stepper
+            label={t("skalaRoundsStepper")}
+            value={skalaTurns * Math.max(1, playerCount)}
+            min={Math.max(1, playerCount)}
+            max={Math.max(1, playerCount) * 5}
+            step={Math.max(1, playerCount)}
+            onChange={(v) => setSkalaTurns(Math.max(1, Math.round(v / Math.max(1, playerCount))))}
+            tone="#7BD948"
+          />
         </>
       ) : null}
 
@@ -488,7 +544,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     // Tight: the unselected cards sit at 0.93, which already adds a few
     // px of air on each side, so the gap reads wider than it is.
-    gap: 8,
+    gap: MODE_GAP,
     paddingHorizontal: spacing.md,
     // room for the selected card's glow
     paddingVertical: spacing.xs,
@@ -496,7 +552,7 @@ const styles = StyleSheet.create({
   modeCard: {
     // Fixed width (not flex) so the row can scroll instead of squeezing.
     // Square, because the artwork is.
-    width: 110,
+    width: MODE_CARD_W,
     aspectRatio: 1,
     borderRadius: radius.lg,
     alignItems: "center",

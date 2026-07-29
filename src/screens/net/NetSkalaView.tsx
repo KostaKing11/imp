@@ -79,6 +79,7 @@ export default function NetSkalaView({
           value={card?.target ?? 50}
           left={skala.left}
           right={skala.right}
+          target={card?.target ?? null}
           disabled
         />
         <Text style={styles.hint}>{t("skalaClueHint")}</Text>

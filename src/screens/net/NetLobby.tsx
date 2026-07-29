@@ -1,11 +1,12 @@
-import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import AppModal from "../../components/AppModal";
 import BigButton from "../../components/BigButton";
 import ColorPicker from "../../components/ColorPicker";
 import PlayerCard from "../../components/PlayerCard";
 import { QrIcon, SlidersIcon } from "../../components/icons";
 import SectionTitle from "../../components/SectionTitle";
+import Segmented from "../../components/Segmented";
 import {
   CategoryState,
   FakerCategoryState,
@@ -15,10 +16,17 @@ import {
   SpectrumCategoryState,
 } from "../../game/types";
 import { modeLabel, t, tf } from "../../i18n";
-import { netMaxPlayers, netMinPlayers, NetPlayer, RoomState } from "../../net/protocol";
+import {
+  netMaxPlayers,
+  netMinPlayers,
+  NetPlayer,
+  RoomState,
+  TOUR_MODES,
+} from "../../net/protocol";
 import { colors, radius, spacing, type } from "../../theme";
 import { confirmDialog } from "../../utils";
 import GameSetup from "../setup/GameSetup";
+import TournamentSetup from "./TournamentSetup";
 import QrModal from "./QrModal";
 
 type Props = {
@@ -48,11 +56,21 @@ type Props = {
   setFakerCategories: (categories: FakerCategoryState[]) => void;
   spectrumCategories: SpectrumCategoryState[];
   setSpectrumCategories: (categories: SpectrumCategoryState[]) => void;
+  skalaTurns: number;
+  setSkalaTurns: (turns: number) => void;
+  // tournament setup (host only)
+  tournament: boolean;
+  setTournament: (on: boolean) => void;
+  tourModes: Record<string, boolean>;
+  setTourModes: (next: Record<string, boolean>) => void;
+  tournamentTarget: number;
+  setTournamentTarget: (n: number) => void;
 };
 
 export default function NetLobby(props: Props) {
   const { state, isHost, myId, qrPayload, notice, startProblem, onKick, onStart } = props;
   const [qrOpen, setQrOpen] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [colorOpen, setColorOpen] = useState(false);
 
   const players = state.players.filter((p) => p.connected);
@@ -69,6 +87,9 @@ export default function NetLobby(props: Props) {
           : null;
 
   const me = players.find((p) => p.id === myId) ?? null;
+  // Absent means on, so an untouched setup has every mode in the draw —
+  // checking the object for truthy values would have read empty as none.
+  const noModesOn = TOUR_MODES.every((m) => props.tourModes[m] === false);
 
   // Your own chip opens the colour picker; the host's tap on anyone
   // else's is a kick.
@@ -81,15 +102,52 @@ export default function NetLobby(props: Props) {
     confirmDialog(t("kickQ"), tf("kickText", { name: p.name }), () => onKick(p.id));
   };
 
+  // Scrolled to the top the code gets a panel of its own; once the list
+  // is moving it shrinks into the bar so the room code and the QR are
+  // always within reach without eating the screen.
+  const bigOpacity = scrollY.interpolate({
+    inputRange: [0, 70],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+  const barOpacity = scrollY.interpolate({
+    inputRange: [40, 90],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
   return (
     <>
-      <ScrollView contentContainerStyle={styles.area} showsVerticalScrollIndicator={false}>
+      {/* Settings live here, top right, always — not tucked inside the
+          room-code panel that scrolls away. */}
+      {isHost ? (
+        <Pressable onPress={props.onOpenSettings} hitSlop={8} style={styles.settingsButton}>
+          <SlidersIcon size={22} color={colors.text} />
+        </Pressable>
+      ) : null}
+
+      <Animated.View style={[styles.collapsedBar, { opacity: barOpacity }]} pointerEvents="box-none">
+        <Text style={styles.collapsedCode}>{state.code}</Text>
+        {isHost ? (
+          <Pressable onPress={() => setQrOpen(true)} hitSlop={8} style={styles.collapsedQr}>
+            <QrIcon size={20} color={colors.text} />
+          </Pressable>
+        ) : null}
+      </Animated.View>
+
+      <Animated.ScrollView
+        contentContainerStyle={styles.area}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
+        scrollEventThrottle={16}
+      >
         <Text style={styles.heading}>{t("lobbyTitle")}</Text>
 
         {/* The room code is what everyone else has to type, so it gets a
-            panel of its own — code on the left, the host's hand-out
-            buttons on the right. */}
-        <View style={styles.codeCard}>
+            panel of its own — code on the left, the QR on the right. */}
+        <Animated.View style={[styles.codeCard, { opacity: bigOpacity }]}>
           <View style={styles.codeText}>
             <Text style={styles.codeLabel}>{t("roomCode")}</Text>
             <Text style={styles.code}>{state.code}</Text>
@@ -100,12 +158,9 @@ export default function NetLobby(props: Props) {
               <Pressable onPress={() => setQrOpen(true)} hitSlop={8} style={styles.qrButton}>
                 <QrIcon size={24} color={colors.text} />
               </Pressable>
-              <Pressable onPress={props.onOpenSettings} hitSlop={8} style={styles.qrButton}>
-                <SlidersIcon size={22} color={colors.text} />
-              </Pressable>
             </View>
           ) : null}
-        </View>
+        </Animated.View>
 
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         <View style={styles.modePill}>
@@ -138,6 +193,42 @@ export default function NetLobby(props: Props) {
 
         {/* only the host configures the game */}
         {isHost ? (
+          <>
+            {/* One game, or a run of them with points. Picked the same way
+                as everything else in the app. */}
+            <SectionTitle>{t("playStyle")}</SectionTitle>
+            <Segmented
+              value={props.tournament ? "tour" : "single"}
+              onChange={(v) => props.setTournament(v === "tour")}
+              options={[
+                { value: "single", label: t("tourSingleGame") },
+                { value: "tour", label: t("tourMode") },
+              ]}
+            />
+          </>
+        ) : null}
+
+        {isHost && props.tournament ? (
+          <TournamentSetup
+            enabled={props.tourModes}
+            setEnabled={props.setTourModes}
+            target={props.tournamentTarget}
+            setTarget={props.setTournamentTarget}
+            playerCount={players.length}
+            roles={props.roles}
+            setRoles={props.setRoles}
+            categories={props.categories}
+            setCategories={props.setCategories}
+            pairCategories={props.pairCategories}
+            setPairCategories={props.setPairCategories}
+            fakerCategories={props.fakerCategories}
+            setFakerCategories={props.setFakerCategories}
+            spectrumCategories={props.spectrumCategories}
+            setSpectrumCategories={props.setSpectrumCategories}
+            skalaTurns={props.skalaTurns}
+            setSkalaTurns={props.setSkalaTurns}
+          />
+        ) : isHost ? (
           <GameSetup
             gameMode={props.gameMode}
             setGameMode={props.setGameMode}
@@ -153,6 +244,9 @@ export default function NetLobby(props: Props) {
             setFakerCategories={props.setFakerCategories}
             spectrumCategories={props.spectrumCategories}
             setSpectrumCategories={props.setSpectrumCategories}
+            playerCount={players.length}
+            skalaTurns={props.skalaTurns}
+            setSkalaTurns={props.setSkalaTurns}
             maxRoleCount={Math.max(
               1,
               props.gameMode === "mafia" ? players.length : players.length - 1
@@ -161,24 +255,26 @@ export default function NetLobby(props: Props) {
         ) : (
           <Text style={styles.notice}>{t("waitingForHost")}</Text>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {isHost ? (
         <View style={styles.bottom}>
-          {problemText ? <Text style={styles.error}>{problemText}</Text> : null}
-          <BigButton
-            label={t("startGameBtn")}
-            disabled={startProblem !== null}
-            onPress={onStart}
-          />
-          {/* A tournament needs no setup of its own — the room votes on
-              what to play, game by game, until somebody hits the target. */}
-          <BigButton
-            label={t("tourStart")}
-            variant="secondary"
-            disabled={players.length < 2}
-            onPress={props.onStartTournament}
-          />
+          {props.tournament
+            ? noModesOn && <Text style={styles.error}>{t("tourNoModes")}</Text>
+            : problemText && <Text style={styles.error}>{problemText}</Text>}
+          {props.tournament ? (
+            <BigButton
+              label={t("tourStart")}
+              disabled={players.length < 2 || noModesOn}
+              onPress={props.onStartTournament}
+            />
+          ) : (
+            <BigButton
+              label={t("startGameBtn")}
+              disabled={startProblem !== null}
+              onPress={onStart}
+            />
+          )}
         </View>
       ) : null}
 
@@ -208,13 +304,56 @@ export default function NetLobby(props: Props) {
 }
 
 const styles = StyleSheet.create({
-  area: { paddingBottom: spacing.md, gap: spacing.xs },
+  area: { paddingBottom: spacing.md, paddingTop: 46, gap: spacing.xs },
   heading: {
     ...type.title,
     fontSize: 26,
     color: colors.text,
     textAlign: "center",
     marginTop: spacing.xs,
+  },
+  settingsButton: {
+    position: "absolute",
+    top: spacing.sm,
+    right: 0,
+    zIndex: 5,
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  collapsedBar: {
+    position: "absolute",
+    top: spacing.sm,
+    left: 52,
+    right: 52,
+    height: 40,
+    zIndex: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  collapsedCode: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: colors.accent,
+    letterSpacing: 4,
+    fontVariant: ["tabular-nums"],
+  },
+  collapsedQr: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
   codeCard: {
     flexDirection: "row",

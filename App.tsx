@@ -157,6 +157,10 @@ export default function App() {
     timerSeconds: 120,
   });
   // Set when the app was opened from a room link (…?join=1234).
+  // Tournament setup lives with the host, not in the app settings —
+  // it only means anything inside a room.
+  const [tournament, setTournament] = useState(false);
+  const [tourModes, setTourModes] = useState<Record<string, boolean>>({});
   const [pendingJoinCode, setPendingJoinCode] = useState<string | null>(null);
   const [usedWords, setUsedWords] = useState<string[]>([]);
   const [usedPairs, setUsedPairs] = useState<string[]>([]);
@@ -377,7 +381,7 @@ export default function App() {
       setScreen("skala");
       return;
     } else if (gameMode === "sync") {
-      const game = createSyncGame(activePlayers, language);
+      const game = createSyncGame(activePlayers, categories);
       if (!game) return;
       setSyncGame(game);
       setScreen("sync");
@@ -416,6 +420,8 @@ export default function App() {
             setFakerCategories={setFakerCategories}
             spectrumCategories={spectrumCategories}
             setSpectrumCategories={setSpectrumCategories}
+            skalaTurns={settings.skalaTurns}
+            setSkalaTurns={(turns) => setSettings({ ...settings, skalaTurns: turns })}
             netName={netName}
             setNetName={setNetName}
             netColor={netColor}
@@ -461,7 +467,13 @@ export default function App() {
             spectrumCategories={spectrumCategories}
             setSpectrumCategories={setSpectrumCategories}
             skalaTurns={settings.skalaTurns}
+            setSkalaTurns={(turns) => setSettings({ ...settings, skalaTurns: turns })}
+            tournament={tournament}
+            setTournament={setTournament}
+            tourModes={tourModes}
+            setTourModes={setTourModes}
             tournamentTarget={settings.tournamentTarget}
+            setTournamentTarget={(n) => setSettings({ ...settings, tournamentTarget: n })}
             onRoomLanguage={setRoomLanguage}
             myName={netName.trim() || "?"}
             myColor={netColor}

@@ -73,7 +73,14 @@ export default function Dial({
     if (!onChange || disabled) return;
     const x = (pageX - offset.current.x) / scale;
     const y = (pageY - offset.current.y) / scale;
+    // atan2 covers the whole circle, but this dial is only the top half.
+    // A finger that strays below the pivot used to wrap the needle right
+    // round; now it just holds at whichever end it is nearest.
     const deg = (Math.atan2(CY - y, x - CX) * 180) / Math.PI;
+    if (deg < 0) {
+      onChange(x < CX ? 0 : 100);
+      return;
+    }
     const next = Math.round((180 - deg) / 1.8);
     onChange(Math.max(0, Math.min(100, next)));
   };
@@ -94,6 +101,9 @@ export default function Dial({
     <View
       style={styles.wrap}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      // Same as the slider: take the touch before the ScrollView sees it.
+      onStartShouldSetResponderCapture={() => !disabled && !!onChange}
+      onMoveShouldSetResponderCapture={() => !disabled && !!onChange}
       onStartShouldSetResponder={() => !disabled && !!onChange}
       onMoveShouldSetResponder={() => !disabled && !!onChange}
       onResponderTerminationRequest={() => false}

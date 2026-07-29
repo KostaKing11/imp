@@ -43,6 +43,7 @@ import {
   NetSettings,
   randomRoomCode,
   RoomState,
+  TOUR_MODES,
 } from "../../net/protocol";
 import { HostConfig, RoomClient, RoomHost } from "../../net/room";
 import {
@@ -51,7 +52,7 @@ import {
   TcpClientTransport,
   TcpHostTransport,
 } from "../../net/TcpTransport";
-import { colors, radius, spacing } from "../../theme";
+import { colors, elevation, radius, spacing } from "../../theme";
 import { confirmDialog, formatTime, textColorFor, uid } from "../../utils";
 import NetCardView from "./NetCardView";
 import NetEjectView from "./NetEjectView";
@@ -93,7 +94,13 @@ type Props = {
   spectrumCategories: SpectrumCategoryState[];
   setSpectrumCategories: (categories: SpectrumCategoryState[]) => void;
   skalaTurns: number;
+  setSkalaTurns: (turns: number) => void;
+  tournament: boolean;
+  setTournament: (on: boolean) => void;
+  tourModes: Record<string, boolean>;
+  setTourModes: (next: Record<string, boolean>) => void;
   tournamentTarget: number;
+  setTournamentTarget: (n: number) => void;
   // What the host starts a room with, and where their changes are kept.
   roomSettings: NetSettings;
   setRoomSettings: (settings: NetSettings) => void;
@@ -164,6 +171,7 @@ export default function NetScreen(props: Props) {
         lang
       ),
       skalaTurns: props.skalaTurns,
+      tournamentModes: TOUR_MODES.filter((m) => props.tourModes[m] !== false),
     };
   };
 
@@ -709,6 +717,14 @@ export default function NetScreen(props: Props) {
           setFakerCategories={props.setFakerCategories}
           spectrumCategories={props.spectrumCategories}
           setSpectrumCategories={props.setSpectrumCategories}
+          skalaTurns={props.skalaTurns}
+          setSkalaTurns={props.setSkalaTurns}
+          tournament={props.tournament}
+          setTournament={props.setTournament}
+          tourModes={props.tourModes}
+          setTourModes={props.setTourModes}
+          tournamentTarget={props.tournamentTarget}
+          setTournamentTarget={props.setTournamentTarget}
         />
         <RoomSettingsSheet
           visible={settingsOpen}
@@ -1084,18 +1100,22 @@ export default function NetScreen(props: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  // Solid, not see-through: it floats over scrolling content and a
+  // transparent disc read as a smudge over whatever passed under it.
   leaveButton: {
     position: "absolute",
     top: spacing.sm,
     left: spacing.md,
-    zIndex: 1,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    zIndex: 5,
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
+    ...elevation.card,
   },
   leaveText: { fontSize: 17, fontWeight: "700", color: colors.textDim },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },

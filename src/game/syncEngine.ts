@@ -1,7 +1,5 @@
-import { CATEGORIES } from "../../data/words";
-import { CATEGORIES_SR } from "../../data/words-sr";
-import { Language } from "../i18n";
-import { normalizeWord, Player, SyncGame, SyncRound } from "./types";
+import { activeWordPool } from "./engine";
+import { CategoryState, normalizeWord, Player, SyncGame, SyncRound } from "./types";
 
 // Uskladi se needs two people to have any chance of matching, and works
 // all the way up — with a big group it becomes a race to be the first
@@ -14,13 +12,15 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// The seed comes from the built-in word lists — only the word itself is
-// used, the imposter hints are irrelevant here. No categories to pick,
-// so this mode needs no setup at all.
-export function createSyncGame(players: Player[], lang: Language = "en"): SyncGame | null {
+// The seed comes from whichever word categories are switched on — the
+// same lists IMP Classic uses. Only the word itself matters here; the
+// imposter hints are irrelevant.
+export function createSyncGame(
+  players: Player[],
+  categories: CategoryState[]
+): SyncGame | null {
   if (players.length < SYNC_MIN_PLAYERS) return null;
-  const source = lang === "sr" ? CATEGORIES_SR : CATEGORIES;
-  const words = source.flatMap((c) => c.words.map((w) => w.word));
+  const words = activeWordPool(categories).map((w) => w.word);
   if (words.length === 0) return null;
 
   const seed = pickRandom(words);

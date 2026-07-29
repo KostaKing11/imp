@@ -71,6 +71,8 @@ export type HostConfig = {
   spectrumCategories: SpectrumCategoryState[];
   // How many clues each player gives in a Skala game.
   skalaTurns: number;
+  // Which modes a tournament may deal. Empty means all of them.
+  tournamentModes: GameMode[];
 };
 
 export type RoomEvents = {
@@ -335,9 +337,9 @@ export class RoomHost {
     // Uskladi se: everybody writes, nothing is shown until the last one.
     if (this.state.phase === "syncWrite") {
       if (!this.syncGame) return;
-      // A word nobody may reuse — including one already typed this round.
+      // Only words from earlier rounds are off limits. Two players landing
+      // on the same word this round is the whole point of the game.
       if (syncWordTaken(this.syncGame, clean)) return;
-      if (Object.values(this.answers).some((w) => w.toLowerCase() === clean.toLowerCase())) return;
       this.answers[playerId] = clean;
       if (!this.state.answeredIds.includes(playerId)) this.state.answeredIds.push(playerId);
       if (this.inRoundPlayers.every((x) => this.answers[x.id])) this.revealSync();
@@ -710,7 +712,7 @@ export class RoomHost {
       if (!g) return;
       this.skalaGame = g;
     } else if (mode === "sync") {
-      const g = createSyncGame(participants, this.state.settings.language);
+      const g = createSyncGame(participants, this.config.categories);
       if (!g) return;
       this.syncGame = g;
     } else if (mode === "blef") {
@@ -967,7 +969,9 @@ export class RoomHost {
   // it only shows up in a two-player room; the group modes need three.
   private tournamentPool(): GameMode[] {
     const n = this.connectedPlayers.length;
+    const allowed = this.config.tournamentModes;
     return TOUR_MODES.filter((m) => {
+      if (allowed.length > 0 && !allowed.includes(m)) return false;
       if (m === "blef") return n === 2;
       if (m === "skala" || m === "sync") return n >= 2;
       return n >= 3;

@@ -68,6 +68,8 @@ type Props = {
   setFakerCategories: (categories: FakerCategoryState[]) => void;
   spectrumCategories: SpectrumCategoryState[];
   setSpectrumCategories: (categories: SpectrumCategoryState[]) => void;
+  skalaTurns: number;
+  setSkalaTurns: (turns: number) => void;
   // local multiplayer identity
   netName: string;
   setNetName: (name: string) => void;
@@ -102,6 +104,8 @@ export default function HomeScreen({
   setFakerCategories,
   spectrumCategories,
   setSpectrumCategories,
+  skalaTurns,
+  setSkalaTurns,
   netName,
   setNetName,
   netColor,
@@ -163,6 +167,7 @@ export default function HomeScreen({
   else if (twoPlayerMode && activePlayers.length < 2) startError = t("errTwoPlayers");
   else if (gameMode === "skala" && activeSpectrumPool(spectrumCategories).length === 0)
     startError = t("errNoSpectrums");
+  else if (gameMode === "sync" && enabledWords.length === 0) startError = t("errNoWords");
   else if (!twoPlayerMode && gameMode !== "blef" && activePlayers.length < MIN_PLAYERS)
     startError = t("errMinPlayers");
   else if (gameMode === "imp" && slots > activePlayers.length - 1)
@@ -314,6 +319,9 @@ export default function HomeScreen({
             setFakerCategories={setFakerCategories}
             spectrumCategories={spectrumCategories}
             setSpectrumCategories={setSpectrumCategories}
+            playerCount={activePlayers.length}
+            skalaTurns={skalaTurns}
+            setSkalaTurns={setSkalaTurns}
             maxRoleCount={
               gameMode === "mafia" ? activePlayers.length : activePlayers.length - 1
             }

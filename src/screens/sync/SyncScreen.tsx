@@ -1,14 +1,24 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import BigButton from "../../components/BigButton";
-import Screen from "../../components/Screen";
-import TextField from "../../components/TextField";
 import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import BigButton from "../../components/BigButton";
+import FlipCard from "../../components/FlipCard";
+import PlayerCard from "../../components/PlayerCard";
+import Screen from "../../components/Screen";
+import {
+  acceptSyncMatch,
   resolveSyncRound,
+  SYNC_MAX_ROUNDS,
   syncTargets,
   syncWordTaken,
-  SYNC_MAX_ROUNDS,
-  acceptSyncMatch,
 } from "../../game/syncEngine";
 import { Player, SyncGame } from "../../game/types";
 import { t, tf } from "../../i18n";
@@ -22,107 +32,143 @@ type Props = {
   onDone: () => void;
 };
 
-type Phase = "handoff" | "write" | "reveal" | "won";
+type Phase = "cards" | "reveal" | "won";
 
-// Pass-and-play Uskladi se. Everyone secretly writes a word, they all
-// turn over at once, and the first two people to land on the same word
-// take it.
+// Pass-and-play Uskladi se, laid out like every other mode: the whole
+// roster is on screen, you tap your own card, hold it to read what you
+// are reacting to, and type your word.
 export default function SyncScreen({ players, game, setGame, onLeave, onDone }: Props) {
-  const [phase, setPhase] = useState<Phase>(game.winners ? "won" : "handoff");
-  const [index, setIndex] = useState(0);
-  const [word, setWord] = useState("");
+  const [phase, setPhase] = useState<Phase>(game.winners ? "won" : "cards");
   const [pending, setPending] = useState<Record<string, string>>({});
+  const [active, setActive] = useState<Player | null>(null);
+  const [peeked, setPeeked] = useState(false);
+  const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  // Two words the players decided mean the same thing.
-  const [claim, setClaim] = useState<[string, string] | null>(null);
+  // Players the group decided all wrote the same thing.
+  const [claim, setClaim] = useState<string[]>([]);
 
   const byId = (id: string) => players.find((p) => p.id === id) ?? null;
-  const current = players[index] ?? null;
   const targets = syncTargets(game);
   const roundNo = game.history.length + 1;
+  const allIn = players.every((p) => pending[p.id] !== undefined);
 
-  const submit = () => {
-    if (!current) return;
-    const trimmed = word.trim();
-    if (!trimmed) return;
-    if (syncWordTaken(game, trimmed) || Object.values(pending).some((w) => w === trimmed)) {
+  const open = (player: Player) => {
+    setPeeked(false);
+    setText("");
+    setError(null);
+    setActive(player);
+  };
+
+  const lockIn = () => {
+    if (!active) return;
+    const word = text.trim();
+    if (!word) return;
+    // Only words from earlier rounds are blocked — matching somebody else
+    // this round is exactly how the game is won.
+    if (syncWordTaken(game, word)) {
       setError(t("syncTakenWord"));
       return;
     }
-    const next = { ...pending, [current.id]: trimmed };
-    setPending(next);
-    setWord("");
-    setError(null);
-    if (index + 1 < players.length) {
-      setIndex(index + 1);
-      setPhase("handoff");
-    } else {
-      const resolved = resolveSyncRound(game, next);
-      setGame(resolved);
-      setPhase(resolved.winners ? "won" : "reveal");
-    }
+    setPending({ ...pending, [active.id]: word });
+    setActive(null);
   };
 
-  // ---- pass the phone ----
-  if (phase === "handoff" && current) {
+  const finishRound = () => {
+    const resolved = resolveSyncRound(game, pending);
+    setGame(resolved);
+    setPending({});
+    setPhase(resolved.winners ? "won" : "reveal");
+  };
+
+  // ---- one player's card, open ----
+  if (active) {
     return (
-      <Screen glow={current.color}>
-        {leaveButton(onLeave)}
-        <View style={styles.center}>
-          <Text style={styles.eyebrow}>{tf("syncRoundN", { n: roundNo })}</Text>
-          <Text style={styles.body}>{t("passPhoneTo")}</Text>
-          <Text style={[styles.name, { color: current.color }]}>{current.name}</Text>
-          <BigButton
-            label={tf("syncImPlayer", { name: current.name })}
-            tone={current.color}
-            onPress={() => {
-              setWord("");
-              setError(null);
-              setPhase("write");
-            }}
-          />
-        </View>
+      <Screen glow={active.color}>
+        <KeyboardAvoidingView
+          style={styles.cardScreen}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <FlipCard
+            name={active.name}
+            color={active.color}
+            faceColor={active.color}
+            onPeeked={() => setPeeked(true)}
+          >
+            <Text style={styles.faceLabel}>
+              {game.history.length === 0 ? t("syncSeedLabel") : t("syncBetweenLabel")}
+            </Text>
+            <View style={styles.targetWrap}>
+              {targets.map((w, i) => (
+                <Text key={`${w}-${i}`} style={[styles.targetText, { color: active.color }]}>
+                  {w}
+                </Text>
+              ))}
+            </View>
+          </FlipCard>
+
+          <View style={styles.cardBottom}>
+            {peeked ? (
+              <>
+                <TextInput
+                  style={styles.input}
+                  value={text}
+                  onChangeText={(v) => {
+                    setText(v);
+                    setError(null);
+                  }}
+                  placeholder={t("syncPlaceholder")}
+                  placeholderTextColor={colors.textFaint}
+                  autoCapitalize="none"
+                  selectionColor={colors.accent}
+                />
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <BigButton
+                  label={t("syncLockWord")}
+                  tone={active.color}
+                  disabled={text.trim().length === 0}
+                  onPress={lockIn}
+                />
+              </>
+            ) : (
+              <Text style={styles.privacy}>{t("nobodyLooking")}</Text>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </Screen>
     );
   }
 
-  // ---- write your word ----
-  if (phase === "write" && current) {
+  // ---- the roster ----
+  if (phase === "cards") {
     return (
-      <Screen glow={current.color}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.eyebrow}>{tf("syncRoundN", { n: roundNo })}</Text>
-          <Text style={styles.label}>
-            {game.history.length === 0 ? t("syncSeedLabel") : t("syncBetweenLabel")}
-          </Text>
-          <View style={styles.targetWrap}>
-            {targets.map((w, i) => (
-              <View key={`${w}-${i}`} style={styles.targetPill}>
-                <Text style={styles.targetText}>{w}</Text>
-              </View>
-            ))}
-          </View>
+      <Screen>
+        {leaveButton(onLeave)}
+        <Text style={styles.heading}>{tf("syncRoundN", { n: roundNo })}</Text>
+        <Text style={styles.subheading}>
+          {game.history.length === 0 ? t("syncSeedInstr") : t("syncBetweenInstr")}
+        </Text>
 
-          <TextField
-            label={t("syncYourWord")}
-            value={word}
-            onChangeText={(v) => {
-              setWord(v);
-              setError(null);
-            }}
-            placeholder={t("syncPlaceholder")}
-            autoCapitalize="none"
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Text style={styles.hint}>{t("nobodyLooking")}</Text>
-
-          <BigButton
-            label={t("syncLockWord")}
-            tone={current.color}
-            disabled={word.trim().length === 0}
-            onPress={submit}
-          />
+        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+          {players.map((p) => {
+            const done = pending[p.id] !== undefined;
+            return (
+              <PlayerCard
+                key={p.id}
+                name={p.name}
+                color={p.color}
+                note={done ? null : t("tapToReveal")}
+                dimmed={done}
+                disabled={done}
+                onPress={() => open(p)}
+                right={done ? <Text style={[styles.check, { color: p.color }]}>✓</Text> : null}
+              />
+            );
+          })}
         </ScrollView>
+
+        <View style={styles.bottom}>
+          <BigButton label={t("everyonesReady")} onPress={finishRound} disabled={!allIn} />
+        </View>
       </Screen>
     );
   }
@@ -139,19 +185,21 @@ export default function SyncScreen({ players, game, setGame, onLeave, onDone }: 
           <Text style={styles.eyebrow}>{tf("syncRoundN", { n: game.history.length })}</Text>
           <Text style={styles.title}>{t("syncNoMatch")}</Text>
 
-          <View style={styles.wordGrid}>
+          <View style={styles.list}>
             {entries.map(([playerId, w]) => {
               const p = byId(playerId);
-              const picked = claim?.includes(playerId);
+              const picked = claim.includes(playerId);
               return (
                 <Pressable
                   key={playerId}
-                  onPress={() => {
-                    // Tap two words that mean the same thing to end it.
-                    if (!claim) return setClaim([playerId, playerId]);
-                    if (claim[0] === playerId) return setClaim(null);
-                    setClaim([claim[0], playerId]);
-                  }}
+                  onPress={() =>
+                    // Tap every word that means the same thing — two or ten.
+                    setClaim((prev) =>
+                      prev.includes(playerId)
+                        ? prev.filter((x) => x !== playerId)
+                        : [...prev, playerId]
+                    )
+                  }
                   style={({ pressed }) => [
                     styles.wordCard,
                     {
@@ -168,14 +216,13 @@ export default function SyncScreen({ players, game, setGame, onLeave, onDone }: 
             })}
           </View>
 
-          {claim && claim[0] !== claim[1] ? (
+          {claim.length >= 2 ? (
             <BigButton
               label={t("syncSameThing")}
               variant="secondary"
               onPress={() => {
-                const w = last?.words[claim[0]] ?? "";
-                setGame(acceptSyncMatch(game, [claim[0], claim[1]], w));
-                setClaim(null);
+                setGame(acceptSyncMatch(game, claim, last?.words[claim[0]] ?? ""));
+                setClaim([]);
                 setPhase("won");
               }}
             />
@@ -186,9 +233,8 @@ export default function SyncScreen({ players, game, setGame, onLeave, onDone }: 
           <BigButton
             label={t("continueBtn")}
             onPress={() => {
-              setPending({});
-              setIndex(0);
-              setPhase("handoff");
+              setClaim([]);
+              setPhase("cards");
             }}
           />
           {outOfRounds ? (
@@ -218,9 +264,7 @@ export default function SyncScreen({ players, game, setGame, onLeave, onDone }: 
           ))}
         </View>
 
-        <Text style={styles.hint}>
-          {tf("syncTookRounds", { n: game.history.length })}
-        </Text>
+        <Text style={styles.hint}>{tf("syncTookRounds", { n: game.history.length })}</Text>
 
         <BigButton label={t("newRoundBtn")} tone={tint} onPress={onDone} />
         <BigButton label={t("backToMenu")} variant="secondary" onPress={onLeave} />
@@ -238,22 +282,34 @@ function leaveButton(onLeave: () => void) {
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: "center",
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  scroll: { gap: spacing.sm, paddingTop: spacing.lg, paddingBottom: spacing.md },
+  cardScreen: { flex: 1, alignItems: "center", justifyContent: "center" },
+  cardBottom: {
+    marginTop: spacing.lg,
+    minHeight: 70,
+    alignSelf: "stretch",
     justifyContent: "center",
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  scroll: {
-    gap: spacing.sm,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+  heading: {
+    ...type.title,
+    fontSize: 28,
+    color: colors.text,
+    textAlign: "center",
+    marginTop: spacing.sm,
+  },
+  subheading: {
+    ...type.caption,
+    fontSize: 14,
+    color: colors.textDim,
+    textAlign: "center",
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   eyebrow: { ...type.eyebrow, color: colors.textFaint, textAlign: "center" },
-  label: { ...type.eyebrow, color: colors.textDim, textAlign: "center" },
   title: { ...type.title, fontSize: 26, color: colors.text, textAlign: "center" },
   body: { ...type.body, color: colors.textDim, textAlign: "center" },
-  name: { ...type.display, fontSize: 36, textAlign: "center" },
   hint: {
     ...type.caption,
     fontSize: 13,
@@ -262,22 +318,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   error: { ...type.caption, fontSize: 13, color: colors.danger, textAlign: "center" },
-  targetWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-    justifyContent: "center",
-  },
-  targetPill: {
-    borderRadius: radius.pill,
+  privacy: { ...type.caption, fontSize: 14, color: colors.textDim, textAlign: "center" },
+  faceLabel: { ...type.eyebrow, fontSize: 12, color: colors.textFaint },
+  targetWrap: { alignItems: "center", gap: 2 },
+  targetText: { fontSize: 30, fontWeight: "900", textAlign: "center" },
+  input: {
+    alignSelf: "stretch",
+    backgroundColor: colors.chip,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    paddingVertical: 10,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.md,
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "700",
     paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 14,
   },
-  targetText: { fontSize: 20, fontWeight: "900", color: colors.text },
-  wordGrid: { gap: spacing.xs },
+  list: { gap: spacing.xs, paddingBottom: spacing.md },
+  check: { fontSize: 22, fontWeight: "900" },
+  bottom: { paddingBottom: spacing.md },
   wordCard: {
     borderRadius: radius.lg,
     borderWidth: 1.5,
