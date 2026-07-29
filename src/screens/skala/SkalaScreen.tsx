@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
 import Dial from "../../components/Dial";
@@ -16,13 +16,15 @@ type Props = {
   game: SkalaGame;
   setGame: (game: SkalaGame) => void;
   onLeave: () => void;
+  // Leaving a finished game asks nothing — there is no round to lose.
+  onQuit: () => void;
   onDone: () => void;
 };
 
 // Pass-and-play Skala. One screen owns the whole mode: the clue giver
 // sets the needle's secret, everyone else guesses in turn, then the
 // board opens up and the points land.
-type Phase = "handoff" | "clue" | "cards" | "guess" | "reveal" | "final";
+type Phase = "handoff" | "clue" | "cards" | "guess" | "reveal";
 
 export default function SkalaScreen({
   players,
@@ -30,22 +32,64 @@ export default function SkalaScreen({
   game,
   setGame,
   onLeave,
+  onQuit,
   onDone,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("handoff");
   const [clue, setClue] = useState("");
   const [guess, setGuess] = useState(50);
   const [active, setActive] = useState<Player | null>(null);
+  const clueScroll = useRef<ScrollView>(null);
 
   const byId = (id: string) => players.find((p) => p.id === id) ?? null;
+  const over = skalaIsOver(game);
 
-  // Deal a round the first time we need one.
+  // Deal a round the first time we need one. Never once the game is over:
+  // there is no caller left, createSkalaRound would return null, and the
+  // null branch would wrongly blame the categories.
   const round: SkalaRound | null = useMemo(() => {
+    if (over) return null;
     if (game.round) return game.round;
     const next = createSkalaRound(game, categories);
     if (next) setGame({ ...game, round: next });
     return next;
-  }, [game, categories, setGame]);
+  }, [over, game, categories, setGame]);
+
+  // ---- the table, once every turn has been taken ----
+  if (over) {
+    const table = [...players].sort(
+      (a, b) => (game.scores[b.id] ?? 0) - (game.scores[a.id] ?? 0)
+    );
+    const winners = skalaWinners(game);
+    return (
+      <Screen>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Text style={styles.title}>{t("skalaFinalTitle")}</Text>
+          <Text style={styles.hint}>
+            {tf("skalaPlayedRounds", { n: game.order.length })}
+          </Text>
+          <View style={styles.scoreList}>
+            {table.map((p) => (
+              <PlayerCard
+                key={p.id}
+                name={p.name}
+                color={p.color}
+                selected={winners.includes(p.id)}
+                badge={winners.includes(p.id) ? t("skalaWinnerTag") : null}
+                right={
+                  <Text style={[styles.points, { color: p.color }]}>
+                    {game.scores[p.id] ?? 0}
+                  </Text>
+                }
+              />
+            ))}
+          </View>
+          <BigButton label={t("newRoundBtn")} onPress={onDone} />
+          <BigButton label={t("backToMenu")} variant="secondary" onPress={onQuit} />
+        </ScrollView>
+      </Screen>
+    );
+  }
 
   if (!round) {
     return (
@@ -90,7 +134,11 @@ export default function SkalaScreen({
   if (phase === "clue") {
     return (
       <Screen glow={tint}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={clueScroll}
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={styles.eyebrow}>{roundLabel}</Text>
           <Text style={styles.title}>{t("skalaYourTarget")}</Text>
           {/* The caller sees the wedges too, so they know how much room
@@ -108,6 +156,9 @@ export default function SkalaScreen({
             value={clue}
             onChangeText={setClue}
             placeholder={t("skalaCluePlaceholder")}
+            // The dial is tall, so the box would otherwise sit under the
+            // keyboard with no way to see what is being typed.
+            onFocus={() => setTimeout(() => clueScroll.current?.scrollToEnd({ animated: true }), 120)}
           />
           <BigButton
             label={t("skalaLockClue")}
@@ -247,7 +298,7 @@ export default function SkalaScreen({
               setGame(next);
               setClue("");
               setActive(null);
-              setPhase(skalaIsOver(next) ? "final" : "handoff");
+              setPhase("handoff");
             }}
           />
         </ScrollView>
@@ -255,33 +306,7 @@ export default function SkalaScreen({
     );
   }
 
-  // ---- the table ----
-  const table = [...players].sort(
-    (a, b) => (game.scores[b.id] ?? 0) - (game.scores[a.id] ?? 0)
-  );
-  const winners = skalaWinners(game);
-
-  return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>{t("skalaFinalTitle")}</Text>
-        <View style={styles.scoreList}>
-          {table.map((p) => (
-            <PlayerCard
-              key={p.id}
-              name={p.name}
-              color={p.color}
-              selected={winners.includes(p.id)}
-              badge={winners.includes(p.id) ? t("skalaWinnerTag") : null}
-              right={<Text style={[styles.points, { color: p.color }]}>{game.scores[p.id] ?? 0}</Text>}
-            />
-          ))}
-        </View>
-        <BigButton label={t("newRoundBtn")} onPress={onDone} />
-        <BigButton label={t("backToMenu")} variant="secondary" onPress={onLeave} />
-      </ScrollView>
-    </Screen>
-  );
+  return null;
 }
 
 function leaveButton(onLeave: () => void) {

@@ -141,6 +141,10 @@ export default function App() {
   const [fakerAnswers, setFakerAnswers] = useState<FakerAnswers>({});
   const [skalaGame, setSkalaGame] = useState<SkalaGame | null>(null);
   const [syncGame, setSyncGame] = useState<SyncGame | null>(null);
+  // Bumped on every new game so Skala and Uskladi se remount. Without
+  // it a second game reused the finished screen's own state and read
+  // as "over in 0 rounds".
+  const [gameNonce, setGameNonce] = useState(0);
   const [spectrumCategories, setSpectrumCategories] = useState<SpectrumCategoryState[]>(() =>
     buildSpectrumCategories()
   );
@@ -378,12 +382,14 @@ export default function App() {
       const game = createSkalaGame(activePlayers, settings.skalaTurns);
       if (!game) return;
       setSkalaGame(game);
+      setGameNonce((n) => n + 1);
       setScreen("skala");
       return;
     } else if (gameMode === "sync") {
       const game = createSyncGame(activePlayers, categories);
       if (!game) return;
       setSyncGame(game);
+      setGameNonce((n) => n + 1);
       setScreen("sync");
       return;
     } else {
@@ -521,21 +527,25 @@ export default function App() {
       case "skala":
         return skalaGame ? (
           <SkalaScreen
+            key={`skala-${gameNonce}`}
             players={activePlayers}
             categories={spectrumCategories}
             game={skalaGame}
             setGame={setSkalaGame}
             onLeave={requestLeave}
+            onQuit={leaveGame}
             onDone={startGame}
           />
         ) : null;
       case "sync":
         return syncGame ? (
           <SyncScreen
+            key={`sync-${gameNonce}`}
             players={activePlayers}
             game={syncGame}
             setGame={setSyncGame}
             onLeave={requestLeave}
+            onQuit={leaveGame}
             onDone={startGame}
           />
         ) : null;

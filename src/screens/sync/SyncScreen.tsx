@@ -29,6 +29,8 @@ type Props = {
   game: SyncGame;
   setGame: (game: SyncGame) => void;
   onLeave: () => void;
+  // Leaving a finished game asks nothing — there is no round to lose.
+  onQuit: () => void;
   onDone: () => void;
 };
 
@@ -37,7 +39,7 @@ type Phase = "cards" | "reveal" | "won";
 // Pass-and-play Uskladi se, laid out like every other mode: the whole
 // roster is on screen, you tap your own card, hold it to read what you
 // are reacting to, and type your word.
-export default function SyncScreen({ players, game, setGame, onLeave, onDone }: Props) {
+export default function SyncScreen({ players, game, setGame, onLeave, onQuit, onDone }: Props) {
   const [phase, setPhase] = useState<Phase>(game.winners ? "won" : "cards");
   const [pending, setPending] = useState<Record<string, string>>({});
   const [active, setActive] = useState<Player | null>(null);
@@ -238,7 +240,7 @@ export default function SyncScreen({ players, game, setGame, onLeave, onDone }: 
             }}
           />
           {outOfRounds ? (
-            <BigButton label={t("syncGiveUp")} variant="secondary" onPress={onLeave} />
+            <BigButton label={t("syncGiveUp")} variant="secondary" onPress={onQuit} />
           ) : null}
         </ScrollView>
       </Screen>
@@ -246,29 +248,51 @@ export default function SyncScreen({ players, game, setGame, onLeave, onDone }: 
   }
 
   // ---- somebody matched ----
-  const winners = (game.winners ?? []).map(byId).filter((p): p is Player => !!p);
+  const winnerIds = game.winners ?? [];
+  const winners = winnerIds.map(byId).filter((p): p is Player => !!p);
   const tint = winners[0]?.color ?? colors.accent;
+  const lastRound = game.history[game.history.length - 1];
+  const finalWords = Object.entries(lastRound?.words ?? {});
 
   return (
     <Screen glow={tint}>
-      <View style={styles.center}>
+      <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>{t("syncMatchedTitle")}</Text>
         <Text style={styles.body}>{t("syncMatchedOn")}</Text>
         <Text style={[styles.matched, { color: tint }]}>{game.matchedWord}</Text>
-
-        <View style={styles.winnerRow}>
-          {winners.map((p) => (
-            <View key={p.id} style={[styles.winnerPill, { borderColor: p.color }]}>
-              <Text style={[styles.winnerText, { color: p.color }]}>{p.name}</Text>
-            </View>
-          ))}
-        </View>
-
         <Text style={styles.hint}>{tf("syncTookRounds", { n: game.history.length })}</Text>
 
+        {/* Everything that was written this round, so the group can see
+            whether anybody else was on the same word too. */}
+        <Text style={styles.eyebrow}>{t("syncEveryoneSaid")}</Text>
+        <View style={styles.list}>
+          {finalWords.map(([playerId, w]) => {
+            const p = byId(playerId);
+            const won = winnerIds.includes(playerId);
+            return (
+              <View
+                key={playerId}
+                style={[
+                  styles.wordCard,
+                  {
+                    borderColor: won ? (p?.color ?? colors.border) : colors.borderSoft,
+                    backgroundColor: alpha(p?.color ?? colors.card, won ? 0.18 : 0.06),
+                  },
+                ]}
+              >
+                <Text style={[styles.wordOwner, { color: p?.color }]}>
+                  {p?.name}
+                  {won ? `  ${t("syncWinnersTag")}` : ""}
+                </Text>
+                <Text style={styles.wordText}>{w}</Text>
+              </View>
+            );
+          })}
+        </View>
+
         <BigButton label={t("newRoundBtn")} tone={tint} onPress={onDone} />
-        <BigButton label={t("backToMenu")} variant="secondary" onPress={onLeave} />
-      </View>
+        <BigButton label={t("backToMenu")} variant="secondary" onPress={onQuit} />
+      </ScrollView>
     </Screen>
   );
 }

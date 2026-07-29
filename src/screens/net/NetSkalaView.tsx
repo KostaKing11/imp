@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
 import Dial from "../../components/Dial";
@@ -32,6 +32,7 @@ export default function NetSkalaView({
 }: Props) {
   const [clue, setClue] = useState("");
   const [guess, setGuess] = useState(50);
+  const clueScroll = useRef<ScrollView>(null);
   const skala = state.skala;
 
   // A fresh round wants a fresh box.
@@ -72,7 +73,11 @@ export default function NetSkalaView({
       );
     }
     return (
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={clueScroll}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
         {header}
         <Text style={styles.title}>{t("skalaYourTarget")}</Text>
         <Dial
@@ -88,6 +93,8 @@ export default function NetSkalaView({
           value={clue}
           onChangeText={setClue}
           placeholder={t("skalaCluePlaceholder")}
+          // The dial above is tall enough to push the box under the keyboard.
+          onFocus={() => setTimeout(() => clueScroll.current?.scrollToEnd({ animated: true }), 120)}
         />
         <BigButton
           label={t("skalaLockClue")}

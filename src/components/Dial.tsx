@@ -32,6 +32,42 @@ function wedgePath(from: number, to: number, rIn = R_IN, rOut = R_OUT): string {
   return `M${x1},${y1} A${rOut},${rOut} 0 0 1 ${x2},${y2} L${x3},${y3} A${rIn},${rIn} 0 0 0 ${x4},${y4} Z`;
 }
 
+type BandLabel = { key: string; at: number; points: number };
+
+// Where each score number sits: the bullseye number at the target, the
+// rest centred in their own band on either side, and a 0 in whatever is
+// left over at each end.
+function bandLabels(target: number): BandLabel[] {
+  const out: BandLabel[] = [];
+  const sorted = [...SKALA_BANDS].sort((a, b) => a.within - b.within);
+
+  // The innermost band straddles the target, so its number goes on it.
+  out.push({ key: "mid", at: target, points: sorted[0].points });
+
+  for (let i = 1; i < sorted.length; i++) {
+    const inner = sorted[i - 1].within;
+    const outer = sorted[i].within;
+    const offset = (inner + outer) / 2;
+    for (const side of [-1, 1]) {
+      const at = target + side * offset;
+      if (at >= 1 && at <= 99) {
+        out.push({ key: `b${sorted[i].points}${side}`, at, points: sorted[i].points });
+      }
+    }
+  }
+
+  // Everything past the widest band is worth nothing — label it if there
+  // is enough room to read the digit.
+  const widest = sorted[sorted.length - 1].within;
+  const leftRoom = target - widest;
+  const rightRoom = 100 - (target + widest);
+  if (leftRoom > 8) out.push({ key: "z-1", at: (target - widest) / 2, points: 0 });
+  if (rightRoom > 8) {
+    out.push({ key: "z1", at: target + widest + rightRoom / 2, points: 0 });
+  }
+  return out;
+}
+
 type Marker = { value: number; color: string; key: string };
 
 type Props = {
@@ -131,27 +167,24 @@ export default function Dial({
               d={wedgePath(target! - 0.6, target! + 0.6, R_IN - 6, R_OUT + 6)}
               fill={colors.text}
             />
-            {[...SKALA_BANDS]
-              .sort((a, b) => b.within - a.within)
-              .map((band, i, arr) => {
-                const inner = arr[i + 1]?.within ?? 0;
-                const mid = target! + (band.within + inner) / 2;
-                if (mid < 2 || mid > 98) return null;
-                const [tx, ty] = pointAt(mid, (R_IN + R_OUT) / 2);
-                return (
-                  <SvgText
-                    key={`n${band.points}`}
-                    x={tx}
-                    y={ty + 5}
-                    fill="#08160C"
-                    fontSize={15}
-                    fontWeight="bold"
-                    textAnchor="middle"
-                  >
-                    {band.points}
-                  </SvgText>
-                );
-              })}
+            {/* A number in the middle of every band, on both sides of the
+                target, plus the two zero zones out at the ends. */}
+            {bandLabels(target!).map((lab) => {
+              const [tx, ty] = pointAt(lab.at, (R_IN + R_OUT) / 2);
+              return (
+                <SvgText
+                  key={lab.key}
+                  x={tx}
+                  y={ty + 6}
+                  fill={lab.points === 0 ? colors.textDim : "#08160C"}
+                  fontSize={16}
+                  fontWeight="bold"
+                  textAnchor="middle"
+                >
+                  {lab.points}
+                </SvgText>
+              );
+            })}
           </G>
         ) : null}
 

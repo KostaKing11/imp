@@ -12,6 +12,8 @@ type Props = {
   // Tapping in highlights what's there, so a default name can just be
   // typed over.
   selectOnFocus?: boolean;
+  // Lets a screen scroll the box into view when the keyboard opens.
+  onFocus?: () => void;
 };
 
 export default function TextField({
@@ -22,6 +24,7 @@ export default function TextField({
   multiline = false,
   autoCapitalize = "sentences",
   selectOnFocus = false,
+  onFocus,
 }: Props) {
   const [focused, setFocused] = useState(false);
 
@@ -32,7 +35,10 @@ export default function TextField({
         style={[styles.input, multiline && styles.multiline, focused && styles.inputFocused]}
         value={value}
         onChangeText={onChangeText}
-        onFocus={() => setFocused(true)}
+        onFocus={() => {
+          setFocused(true);
+          onFocus?.();
+        }}
         onBlur={() => setFocused(false)}
         placeholder={placeholder}
         placeholderTextColor={colors.textFaint}

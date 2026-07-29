@@ -15,7 +15,7 @@ import {
   RoleDef,
   SpectrumCategoryState,
 } from "../../game/types";
-import { modeLabel, t, tf } from "../../i18n";
+import { t, tf } from "../../i18n";
 import {
   netMaxPlayers,
   netMinPlayers,
@@ -105,19 +105,20 @@ export default function NetLobby(props: Props) {
   // Scrolled to the top the code gets a panel of its own; once the list
   // is moving it shrinks into the bar so the room code and the QR are
   // always within reach without eating the screen.
-  const bigOpacity = scrollY.interpolate({
-    inputRange: [0, 70],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
+  // The bar only takes over once the title and the panel have actually
+  // scrolled behind it — before that it would sit on top of them.
   const barOpacity = scrollY.interpolate({
-    inputRange: [40, 90],
+    inputRange: [70, 120],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
   return (
     <>
+      {/* An opaque strip across the top: everything scrolls away behind
+          it, and the code plus the QR slide in once they have. */}
+      <View style={styles.headerBar} pointerEvents="none" />
+
       {/* Settings live here, top right, always — not tucked inside the
           room-code panel that scrolls away. */}
       {isHost ? (
@@ -147,7 +148,7 @@ export default function NetLobby(props: Props) {
 
         {/* The room code is what everyone else has to type, so it gets a
             panel of its own — code on the left, the QR on the right. */}
-        <Animated.View style={[styles.codeCard, { opacity: bigOpacity }]}>
+        <View style={styles.codeCard}>
           <View style={styles.codeText}>
             <Text style={styles.codeLabel}>{t("roomCode")}</Text>
             <Text style={styles.code}>{state.code}</Text>
@@ -160,12 +161,9 @@ export default function NetLobby(props: Props) {
               </Pressable>
             </View>
           ) : null}
-        </Animated.View>
+        </View>
 
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-        <View style={styles.modePill}>
-          <Text style={styles.modeLine}>{modeLabel(state.mode)}</Text>
-        </View>
 
         <SectionTitle hint={`${players.length}/${max}`}>
           {tf("playersCount", { n: players.length })}
@@ -312,6 +310,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: spacing.xs,
   },
+  headerBar: {
+    position: "absolute",
+    top: -spacing.xs,
+    left: -spacing.md,
+    right: -spacing.md,
+    height: 58,
+    backgroundColor: colors.bg,
+    zIndex: 3,
+  },
   settingsButton: {
     position: "absolute",
     top: spacing.sm,
@@ -391,22 +398,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   notice: { ...type.caption, fontSize: 14, color: colors.textDim, textAlign: "center" },
-  modePill: {
-    alignSelf: "center",
-    marginTop: spacing.xs,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.chip,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
-  },
-  modeLine: {
-    ...type.caption,
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.text,
-  },
   hint: { ...type.caption, fontSize: 12, color: colors.textFaint, textAlign: "center" },
   error: { ...type.caption, fontSize: 14, color: colors.danger, textAlign: "center" },
   playerList: { gap: spacing.xs, alignSelf: "stretch" },

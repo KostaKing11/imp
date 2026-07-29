@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
 import TextField from "../../components/TextField";
@@ -27,6 +27,7 @@ export default function NetSyncView({
 }: Props) {
   const [word, setWord] = useState("");
   const [claim, setClaim] = useState<string[]>([]);
+  const wordScroll = useRef<ScrollView>(null);
   const sync = state.sync;
 
   useEffect(() => {
@@ -59,7 +60,11 @@ export default function NetSyncView({
     }
 
     return (
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={wordScroll}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.eyebrow}>{tf("syncRoundN", { n: sync.roundNo })}</Text>
         <Text style={styles.label}>
           {sync.roundNo === 1 ? t("syncSeedLabel") : t("syncBetweenLabel")}
@@ -78,6 +83,7 @@ export default function NetSyncView({
           onChangeText={setWord}
           placeholder={t("syncPlaceholder")}
           autoCapitalize="none"
+          onFocus={() => setTimeout(() => wordScroll.current?.scrollToEnd({ animated: true }), 120)}
         />
         <Text style={styles.hint}>{t("syncNoRepeatHint")}</Text>
         <BigButton

@@ -31,7 +31,9 @@ export default function SettingsScreen({ language, onLanguageChange, onBack }: P
           <Text style={styles.backArrow}>‹</Text>
         </Pressable>
         <Text style={styles.title}>{t("settings")}</Text>
-        <View style={styles.backButton} />
+        {/* Balances the back button so the title sits centred — no
+            border or fill, since it is not a button. */}
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -61,6 +63,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
+  },
+  headerSpacer: {
+    width: 42,
+    height: 42,
   },
   backArrow: {
     fontSize: 32,

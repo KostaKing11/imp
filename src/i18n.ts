@@ -55,6 +55,7 @@ const en = {
   skalaSaid: "{name} said",
   skalaLockGuess: "Lock in my guess",
   skalaFinalTitle: "Final scores",
+  skalaPlayedRounds: "{n} rounds played",
   skalaWinnerTag: "WINS",
   skalaTurnsLabel: "Clues each",
   skalaRoundsLabel: "Rounds",
@@ -94,6 +95,7 @@ const en = {
   syncSameThing: "Same thing",
   syncGiveUp: "Give up",
   syncWinnersTag: "SYNCED",
+  syncEveryoneSaid: "Everyone wrote",
   syncSameThingHint: "Two words mean the same thing? Tap both, then confirm.",
   syncTookRounds: "It took {n} rounds.",
   // settings
@@ -405,6 +407,7 @@ const sr: typeof en = {
   skalaSaid: "{name} je rekao",
   skalaLockGuess: "Potvrdi pogađanje",
   skalaFinalTitle: "Konačan rezultat",
+  skalaPlayedRounds: "Odigrano {n} rundi",
   skalaWinnerTag: "POBEDA",
   skalaTurnsLabel: "Tragova po igraču",
   skalaRoundsLabel: "Runde",
@@ -444,6 +447,7 @@ const sr: typeof en = {
   syncSameThing: "Isto je",
   syncGiveUp: "Odustani",
   syncWinnersTag: "USKLAĐEN",
+  syncEveryoneSaid: "Svi su napisali",
   syncSameThingHint: "Dve reči znače isto? Pritisni obe pa potvrdi.",
   syncTookRounds: "Trebalo vam je {n} rundi.",
   // settings

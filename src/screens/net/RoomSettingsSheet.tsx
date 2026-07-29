@@ -1,11 +1,10 @@
 import React from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
 import AppModal from "../../components/AppModal";
 import SectionTitle from "../../components/SectionTitle";
 import Segmented from "../../components/Segmented";
 import { Language, t } from "../../i18n";
 import { NetSettings } from "../../net/protocol";
-import { colors, type } from "../../theme";
 
 type Props = {
   visible: boolean;
@@ -25,8 +24,6 @@ const LANGUAGES: { code: Language; label: string }[] = [
 export default function RoomSettingsSheet({ visible, settings, onChange, onClose }: Props) {
   return (
     <AppModal visible={visible} title={t("roomSettings")} onClose={onClose}>
-      <Text style={styles.note}>{t("hostDecidesLanguage")}</Text>
-
       <SectionTitle first>{t("language")}</SectionTitle>
       <Segmented
         value={settings.language}
@@ -37,6 +34,4 @@ export default function RoomSettingsSheet({ visible, settings, onChange, onClose
   );
 }
 
-const styles = StyleSheet.create({
-  note: { ...type.caption, fontSize: 13, color: colors.textDim, textAlign: "center" },
-});
+const styles = StyleSheet.create({});

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Chip from "../../components/Chip";
+import Stepper from "../../components/Stepper";
 import Toggle from "../../components/Toggle";
 import {
   CategoryState,
@@ -67,12 +68,15 @@ function Row({
     <Pressable
       onPress={onPress}
       disabled={!onPress}
+      hitSlop={10}
       style={({ pressed }) => [styles.row, pressed && onPress ? styles.pressed : null]}
     >
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.rule} />
       <Text style={[styles.rowValue, tint ? { color: tint } : null]}>{value}</Text>
-      {onPress ? <Text style={styles.chevron}>{open ? "▾" : "▸"}</Text> : null}
+      {onPress ? (
+        <Text style={styles.chevron}>{open ? "▾" : "▸"}</Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -81,7 +85,7 @@ function Row({
 // content underneath, and a switch to drop it out of the draw entirely.
 export default function TournamentSetup(props: Props) {
   const [openMode, setOpenMode] = useState<GameMode | null>(null);
-  const [openPart, setOpenPart] = useState<"cats" | "roles" | null>(null);
+  const [openPart, setOpenPart] = useState<"cats" | "roles" | "rounds" | null>(null);
   const [countRoleId, setCountRoleId] = useState<string | null>(null);
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetText, setTargetText] = useState(String(props.target));
@@ -145,6 +149,7 @@ export default function TournamentSetup(props: Props) {
             onSubmitEditing={commitTarget}
             keyboardType="number-pad"
             autoFocus
+            returnKeyType="done"
             selectionColor={colors.accent}
           />
         ) : (
@@ -238,16 +243,37 @@ export default function TournamentSetup(props: Props) {
                   </>
                 ) : null}
 
-                {/* Skala runs whole turns around the table. */}
+                {/* Skala runs whole turns around the table, set the same way
+                    as it is on one phone. */}
                 {mode === "skala" ? (
-                  <Row
-                    label={t("skalaRoundsLabel")}
-                    value={String(props.skalaTurns * Math.max(1, props.playerCount))}
-                    tint={tint}
-                    onPress={() =>
-                      props.setSkalaTurns(props.skalaTurns >= 5 ? 1 : props.skalaTurns + 1)
-                    }
-                  />
+                  <>
+                    <Row
+                      label={t("skalaRoundsLabel")}
+                      value={String(props.skalaTurns * Math.max(1, props.playerCount))}
+                      tint={tint}
+                      open={isOpen && openPart === "rounds"}
+                      onPress={() => {
+                        const same = isOpen && openPart === "rounds";
+                        setOpenMode(same ? null : mode);
+                        setOpenPart(same ? null : "rounds");
+                      }}
+                    />
+                    {isOpen && openPart === "rounds" ? (
+                      <Stepper
+                        label={t("skalaRoundsStepper")}
+                        value={props.skalaTurns * Math.max(1, props.playerCount)}
+                        min={Math.max(1, props.playerCount)}
+                        max={Math.max(1, props.playerCount) * 5}
+                        step={Math.max(1, props.playerCount)}
+                        onChange={(v) =>
+                          props.setSkalaTurns(
+                            Math.max(1, Math.round(v / Math.max(1, props.playerCount)))
+                          )
+                        }
+                        tone={tint}
+                      />
+                    ) : null}
+                  </>
                 ) : null}
               </>
             ) : null}
@@ -274,13 +300,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: 10,
   },
   pressed: { opacity: 0.6 },
   rowLabel: { ...type.eyebrow, color: colors.textDim },
   rule: { flex: 1, height: 1, backgroundColor: colors.borderSoft },
   rowValue: { ...type.caption, fontSize: 13, color: colors.textDim },
-  chevron: { fontSize: 12, color: colors.textFaint },
+  // Big enough to be a target in its own right, not just decoration.
+  chevron: {
+    fontSize: 20,
+    lineHeight: 22,
+    color: colors.textDim,
+    width: 22,
+    textAlign: "center",
+  },
 
   targetCard: {
     alignItems: "center",
