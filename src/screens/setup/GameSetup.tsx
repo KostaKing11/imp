@@ -9,9 +9,10 @@ import {
   GameMode,
   PairCategoryState,
   RoleDef,
+  SpectrumCategoryState,
 } from "../../game/types";
 import { getLanguage, modeLabel, roleName, t } from "../../i18n";
-import { colors, elevation, radius, spacing } from "../../theme";
+import { alpha, colors, elevation, radius, spacing } from "../../theme";
 import { uid } from "../../utils";
 import CategoryEditor from "../editors/CategoryEditor";
 import FakerCategoryEditor from "../editors/FakerCategoryEditor";
@@ -27,6 +28,8 @@ const MODE_TINT: Record<GameMode, string> = {
   mafia: "#E8EAF0",
   blef: colors.blefTeal,
   faker: "#B79BFF",
+  skala: "#7BD948",
+  sync: "#4A9EFF",
 };
 
 // One mode's artwork. The picked card grows out of the row and lights
@@ -36,12 +39,16 @@ function ModeCard({
   selected,
   tint,
   source,
+  label,
   badge,
   onPress,
 }: {
   selected: boolean;
   tint: string;
-  source: number;
+  // Missing for modes that have no artwork yet — those draw their name
+  // instead, lit in the mode's own colour so the row still reads.
+  source?: number;
+  label?: string;
   badge?: string;
   onPress: () => void;
 }) {
@@ -73,7 +80,15 @@ function ModeCard({
           selected && [styles.modeSelected, elevation.glow(tint)],
         ]}
       >
-        <Image source={source} style={styles.modeImage} resizeMode="cover" />
+        {source ? (
+          <Image source={source} style={styles.modeImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.modeArtless, { backgroundColor: alpha(tint, 0.14) }]}>
+            <Text style={[styles.modeArtlessText, { color: tint }]} numberOfLines={3}>
+              {label ?? ""}
+            </Text>
+          </View>
+        )}
         {badge ? (
           <View style={styles.playerBadge} pointerEvents="none">
             <Text style={styles.playerBadgeText}>{badge}</Text>
@@ -104,11 +119,17 @@ type Props = {
   setPairCategories: (categories: PairCategoryState[]) => void;
   fakerCategories: FakerCategoryState[];
   setFakerCategories: (categories: FakerCategoryState[]) => void;
+  spectrumCategories: SpectrumCategoryState[];
+  setSpectrumCategories: (categories: SpectrumCategoryState[]) => void;
   // How many players a single role may be given (depends on the roster).
   maxRoleCount: number;
   // Rendered between the mode cards and the categories (the home screen
   // puts its player list there; the lobby has its own).
   middleSlot?: React.ReactNode;
+  // Modes to leave out of the row. The lobby hides the ones that have no
+  // online support yet, so a room can never be put into a mode the host
+  // cannot actually run.
+  hiddenModes?: GameMode[];
 };
 
 export default function GameSetup({
@@ -124,8 +145,11 @@ export default function GameSetup({
   setPairCategories,
   fakerCategories,
   setFakerCategories,
+  spectrumCategories,
+  setSpectrumCategories,
   maxRoleCount,
   middleSlot,
+  hiddenModes = [],
 }: Props) {
   const [editingCategory, setEditingCategory] = useState<CategoryState | null>(null);
   const [categoryIsNew, setCategoryIsNew] = useState(false);
@@ -194,6 +218,12 @@ export default function GameSetup({
     setEditingFakerCategory(null);
   };
 
+  // ---- spectrum categories (Skala) ----
+  const toggleSpectrumCategory = (id: string) =>
+    setSpectrumCategories(
+      spectrumCategories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c))
+    );
+
   // ---- roles (IMP Classic & Mafia) ----
   const addRole = () => {
     setEditingRole({
@@ -221,20 +251,28 @@ export default function GameSetup({
   // "3/8" next to the section heading — how many of the lists are in play
   // without having to count the lit pills.
   const activeCategories =
-    gameMode === "faker" ? fakerCategories : gameMode === "odd" ? pairCategories : categories;
+    gameMode === "faker"
+      ? fakerCategories
+      : gameMode === "odd"
+        ? pairCategories
+        : gameMode === "skala"
+          ? spectrumCategories
+          : categories;
   const categoryHint = `${activeCategories.filter((c) => c.enabled).length}/${activeCategories.length}`;
   const roleHint = `${currentRoles.reduce((n, r) => n + r.count, 0)}`;
 
-  const modeCard = (mode: GameMode, source: number, badge?: string) => (
-    <ModeCard
-      key={mode}
-      selected={gameMode === mode}
-      tint={MODE_TINT[mode] ?? colors.accent}
-      source={source}
-      badge={badge}
-      onPress={() => setGameMode(mode)}
-    />
-  );
+  const modeCard = (mode: GameMode, source?: number, badge?: string) =>
+    hiddenModes.includes(mode) ? null : (
+      <ModeCard
+        key={mode}
+        selected={gameMode === mode}
+        tint={MODE_TINT[mode] ?? colors.accent}
+        source={source}
+        label={modeLabel(mode)}
+        badge={badge}
+        onPress={() => setGameMode(mode)}
+      />
+    );
 
   return (
     <>
@@ -256,8 +294,7 @@ export default function GameSetup({
           "blef",
           getLanguage() === "sr"
             ? require("../../../assets/modes/blef.png")
-            : require("../../../assets/modes/bluff.png"),
-          "2"
+            : require("../../../assets/modes/bluff.png")
         )}
         {modeCard(
           "faker",
@@ -265,16 +302,28 @@ export default function GameSetup({
             ? require("../../../assets/modes/folirant.png")
             : require("../../../assets/modes/faker.png")
         )}
+        {modeCard("skala")}
+        {modeCard("sync")}
       </ScrollView>
 
       {middleSlot}
 
       {/* categories — words (IMP/Bluff), pairs (Odd One Out), questions (Faker) */}
-      {gameMode !== "mafia" ? (
+      {gameMode !== "mafia" && gameMode !== "sync" ? (
         <>
           <SectionTitle hint={categoryHint}>{t("categories")}</SectionTitle>
           <View style={styles.chipWrap}>
-            {gameMode === "faker" ? (
+            {gameMode === "skala" ? (
+              spectrumCategories.map((c) => (
+                <Chip
+                  key={c.id}
+                  label={c.name}
+                  badge={c.spectrums.length}
+                  active={c.enabled}
+                  onPress={() => toggleSpectrumCategory(c.id)}
+                />
+              ))
+            ) : gameMode === "faker" ? (
               <>
                 {fakerCategories.map((c) => (
                   <Chip
@@ -467,6 +516,22 @@ const styles = StyleSheet.create({
   },
   modeSelected: {
     borderWidth: 2.5,
+  },
+  modeArtless: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xs,
+  },
+  modeArtlessText: {
+    fontSize: 19,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: -0.4,
   },
   modeDim: {
     position: "absolute",

@@ -21,11 +21,16 @@ import { buildCategories, serializeCategories } from "../../game/categories";
 import { buildFakerCategories, serializeFakerCategories } from "../../game/fakerEngine";
 import { buildPairCategories, serializePairCategories } from "../../game/oddEngine";
 import {
+  buildSpectrumCategories,
+  serializeSpectrumCategories,
+} from "../../game/skalaEngine";
+import {
   CategoryState,
   FakerCategoryState,
   GameMode,
   PairCategoryState,
   RoleDef,
+  SpectrumCategoryState,
 } from "../../game/types";
 import { getLanguage, setLanguage, t, tf } from "../../i18n";
 import { codeFromLink, roomLink } from "../../net/config";
@@ -53,6 +58,9 @@ import NetEjectView from "./NetEjectView";
 import NetLobby from "./NetLobby";
 import NetResultsView from "./NetResultsView";
 import RoomSettingsSheet from "./RoomSettingsSheet";
+import NetSkalaView from "./NetSkalaView";
+import NetTournamentView from "./NetTournamentView";
+import NetSyncView from "./NetSyncView";
 import NetVoteView from "./NetVoteView";
 
 const ANSWER_MAX = 50;
@@ -82,6 +90,10 @@ type Props = {
   setPairCategories: (categories: PairCategoryState[]) => void;
   fakerCategories: FakerCategoryState[];
   setFakerCategories: (categories: FakerCategoryState[]) => void;
+  spectrumCategories: SpectrumCategoryState[];
+  setSpectrumCategories: (categories: SpectrumCategoryState[]) => void;
+  skalaTurns: number;
+  tournamentTarget: number;
   // What the host starts a room with, and where their changes are kept.
   roomSettings: NetSettings;
   setRoomSettings: (settings: NetSettings) => void;
@@ -147,6 +159,11 @@ export default function NetScreen(props: Props) {
         serializeFakerCategories(props.fakerCategories),
         lang
       ),
+      spectrumCategories: buildSpectrumCategories(
+        serializeSpectrumCategories(props.spectrumCategories),
+        lang
+      ),
+      skalaTurns: props.skalaTurns,
     };
   };
 
@@ -527,10 +544,28 @@ export default function NetScreen(props: Props) {
     setAnswered(true);
   };
   const sendVote = (choice: string) => {
+    if (room?.phase === "tourVote") {
+      if (isHost && hostRef.current) hostRef.current.submitVote(hostRef.current.myId, choice);
+      else clientRef.current?.vote(choice);
+      return;
+    }
     if (votedFor) return;
     if (isHost && hostRef.current) hostRef.current.submitVote(hostRef.current.myId, choice);
     else clientRef.current?.vote(choice);
     setVotedFor(choice);
+  };
+
+  // Skala's clue and Uskladi se's word both travel as plain answers —
+  // the host reads them by phase.
+  const sendText = (text: string) => {
+    const clean = text.trim().slice(0, ANSWER_MAX);
+    if (!clean) return;
+    if (isHost && hostRef.current) hostRef.current.submitAnswer(hostRef.current.myId, clean);
+    else clientRef.current?.answer(clean);
+  };
+  const sendGuess = (value: number) => {
+    if (isHost && hostRef.current) hostRef.current.submitGuess(hostRef.current.myId, value);
+    else clientRef.current?.guess(value);
   };
 
   const leaveX = (
@@ -657,6 +692,7 @@ export default function NetScreen(props: Props) {
           startProblem={isHost ? (host?.startProblem() ?? null) : null}
           onKick={(id) => host?.kick(id)}
           onStart={() => host?.startRound()}
+          onStartTournament={() => host?.startTournament(props.tournamentTarget)}
           onOpenSettings={() => setSettingsOpen(true)}
           onChangeColor={changeMyColor}
           gameMode={props.gameMode}
@@ -671,6 +707,8 @@ export default function NetScreen(props: Props) {
           setPairCategories={props.setPairCategories}
           fakerCategories={props.fakerCategories}
           setFakerCategories={props.setFakerCategories}
+          spectrumCategories={props.spectrumCategories}
+          setSpectrumCategories={props.setSpectrumCategories}
         />
         <RoomSettingsSheet
           visible={settingsOpen}
@@ -898,6 +936,98 @@ export default function NetScreen(props: Props) {
     );
   }
 
+  // ---- tournament: the vote for the next game, and the standings ----
+  if (room.phase === "tourVote" || room.phase === "tourTable") {
+    return (
+      <Screen>
+        {leaveX}
+        <NetTournamentView
+          state={room}
+          myId={myId}
+          isHost={isHost}
+          onVoteMode={(mode) => sendVote(mode)}
+          onNext={() => host?.tournamentNext()}
+        />
+      </Screen>
+    );
+  }
+
+  // ---- skala ----
+  if (
+    room.phase === "skalaClue" ||
+    room.phase === "skalaGuess" ||
+    room.phase === "skalaReveal" ||
+    (room.phase === "results" && room.mode === "skala")
+  ) {
+    return (
+      <Screen>
+        {leaveX}
+        <NetSkalaView
+          state={room}
+          myId={myId}
+          card={card}
+          isHost={isHost}
+          onClue={sendText}
+          onGuess={sendGuess}
+          onContinue={() => host?.nextSkalaRound()}
+        />
+        {room.phase === "results" && isHost ? (
+          <View style={styles.bottom}>
+            {room.tournament ? (
+              <BigButton label={t("continueBtn")} onPress={() => host?.tournamentContinue()} />
+            ) : (
+              <>
+                <BigButton label={t("newRoundBtn")} onPress={() => host?.startRound()} />
+                <BigButton
+                  label={t("backToLobbyBtn")}
+                  variant="secondary"
+                  onPress={() => host?.backToLobby()}
+                />
+              </>
+            )}
+          </View>
+        ) : null}
+      </Screen>
+    );
+  }
+
+  // ---- uskladi se ----
+  if (
+    room.phase === "syncWrite" ||
+    room.phase === "syncReveal" ||
+    (room.phase === "results" && room.mode === "sync")
+  ) {
+    return (
+      <Screen>
+        {leaveX}
+        <NetSyncView
+          state={room}
+          myId={myId}
+          isHost={isHost}
+          onWord={sendText}
+          onContinue={() => host?.nextSyncRound()}
+          onAcceptMatch={(ids, word) => host?.acceptSyncMatch(ids, word)}
+        />
+        {room.phase === "results" && isHost ? (
+          <View style={styles.bottom}>
+            {room.tournament ? (
+              <BigButton label={t("continueBtn")} onPress={() => host?.tournamentContinue()} />
+            ) : (
+              <>
+                <BigButton label={t("newRoundBtn")} onPress={() => host?.startRound()} />
+                <BigButton
+                  label={t("backToLobbyBtn")}
+                  variant="secondary"
+                  onPress={() => host?.backToLobby()}
+                />
+              </>
+            )}
+          </View>
+        ) : null}
+      </Screen>
+    );
+  }
+
   // ---- voting ----
   if (room.phase === "vote") {
     return (
@@ -935,7 +1065,11 @@ export default function NetScreen(props: Props) {
           state={room}
           results={room.results}
           isHost={isHost}
-          onNewRound={() => host?.startRound()}
+          // Inside a tournament the round does not restart — the points
+          // land and the standings come up instead.
+          onNewRound={() =>
+            room.tournament ? host?.tournamentContinue() : host?.startRound()
+          }
           onBackToLobby={() => host?.backToLobby()}
           onLeave={requestExit}
         />

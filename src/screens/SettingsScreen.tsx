@@ -4,6 +4,7 @@ import Screen from "../components/Screen";
 import SectionTitle from "../components/SectionTitle";
 import Segmented from "../components/Segmented";
 import Slider from "../components/Slider";
+import Stepper from "../components/Stepper";
 import Toggle from "../components/Toggle";
 import { ModeTimer, Settings } from "../game/types";
 import { Language, t } from "../i18n";
@@ -121,6 +122,32 @@ export default function SettingsScreen({
           timer={settings.blefTimer}
           onChange={(timer) => onChange({ ...settings, blefTimer: timer })}
         />
+
+        <SectionTitle>{t("modeSkala")}</SectionTitle>
+        <Stepper
+          label={t("skalaTurnsLabel")}
+          value={settings.skalaTurns}
+          min={1}
+          max={5}
+          onChange={(v) => onChange({ ...settings, skalaTurns: v })}
+          tone="#7BD948"
+        />
+        <Text style={styles.note}>{t("skalaTurnsNote")}</Text>
+
+        <SectionTitle>{t("tournament")}</SectionTitle>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>{t("tournamentTargetLabel")}</Text>
+            <Text style={styles.timeValue}>{settings.tournamentTarget}</Text>
+          </View>
+          <Slider
+            min={5}
+            max={30}
+            step={1}
+            value={settings.tournamentTarget}
+            onChange={(v) => onChange({ ...settings, tournamentTarget: v })}
+          />
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -193,6 +220,13 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: colors.accent,
     fontVariant: ["tabular-nums"],
+  },
+  note: {
+    ...type.caption,
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textFaint,
+    textAlign: "center",
   },
   timeInput: {
     width: 92,

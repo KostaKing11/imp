@@ -7,6 +7,13 @@ import { createBlefRound } from "../game/blefEngine";
 import { createRound } from "../game/engine";
 import { createFakerRound } from "../game/fakerEngine";
 import { createMafiaRound } from "../game/mafiaEngine";
+import {
+  createSkalaGame,
+  createSkalaRound,
+  scoreSkalaRound,
+  skalaIsOver,
+} from "../game/skalaEngine";
+import { createSyncGame, resolveSyncRound, syncTargets, syncWordTaken } from "../game/syncEngine";
 import { createOddRound } from "../game/oddEngine";
 import { CIVILIAN, MAFIA_CIVILIAN } from "../game/roles";
 import {
@@ -21,6 +28,11 @@ import {
   Player,
   RoleDef,
   Round,
+  SkalaGame,
+  SkalaRound,
+  SpectrumCategoryState,
+  SyncGame,
+  skalaPoints,
 } from "../game/types";
 import { roleDesc, roleName } from "../i18n";
 import { freeColor } from "../theme";
@@ -40,6 +52,8 @@ import {
   NetSettings,
   RoomState,
   EJECT_TOTAL_MS,
+  TOUR_MODES,
+  TOUR_VOTE_MS,
 } from "./protocol";
 import { Transport } from "./transport";
 
@@ -54,6 +68,9 @@ export type HostConfig = {
   categories: CategoryState[];
   pairCategories: PairCategoryState[];
   fakerCategories: FakerCategoryState[];
+  spectrumCategories: SpectrumCategoryState[];
+  // How many clues each player gives in a Skala game.
+  skalaTurns: number;
 };
 
 export type RoomEvents = {
@@ -76,6 +93,9 @@ export class RoomHost {
   private mafiaRound: MafiaRound | null = null;
   private blefRound: BlefRound | null = null;
   private fakerRound: FakerRound | null = null;
+  private skalaGame: SkalaGame | null = null;
+  private skalaRound: SkalaRound | null = null;
+  private syncGame: SyncGame | null = null;
 
   private answers: Record<string, string> = {};
   private votes: Record<string, string> = {};
@@ -89,6 +109,7 @@ export class RoomHost {
   private lastSeen = new Map<string, number>();
   private hbTimer: ReturnType<typeof setInterval> | null = null;
   private ejectTimer: ReturnType<typeof setTimeout> | null = null;
+  private tourTimer: ReturnType<typeof setTimeout> | null = null;
   private nextJoin = 1;
 
   constructor(
@@ -131,6 +152,9 @@ export class RoomHost {
       answers: null,
       mainQuestion: null,
       answersShown: false,
+      skala: null,
+      sync: null,
+      tournament: null,
       results: null,
     };
 
@@ -233,6 +257,9 @@ export class RoomHost {
       case "ANSWER":
         this.submitAnswer(playerId, msg.text);
         break;
+      case "GUESS":
+        this.submitGuess(playerId, msg.value);
+        break;
       case "VOTE":
         this.submitVote(playerId, msg.choice);
         break;
@@ -290,13 +317,187 @@ export class RoomHost {
 
   submitAnswer(playerId: string, text: string): void {
     const p = this.player(playerId);
-    if (this.state.phase !== "question" || !p?.inRound) return;
-    this.answers[playerId] = text.trim().slice(0, ANSWER_MAX);
+    if (!p?.inRound) return;
+    const clean = text.trim().slice(0, ANSWER_MAX);
+    if (!clean) return;
+
+    // Skala: only the caller may set the clue, and it moves the room on.
+    if (this.state.phase === "skalaClue") {
+      if (!this.skalaRound || playerId !== this.skalaRound.clueGiverId) return;
+      this.skalaRound = { ...this.skalaRound, clue: clean };
+      if (this.state.skala) this.state.skala.clue = clean;
+      this.setPhase("skalaGuess");
+      this.state.answeredIds = [];
+      this.emit();
+      return;
+    }
+
+    // Uskladi se: everybody writes, nothing is shown until the last one.
+    if (this.state.phase === "syncWrite") {
+      if (!this.syncGame) return;
+      // A word nobody may reuse — including one already typed this round.
+      if (syncWordTaken(this.syncGame, clean)) return;
+      if (Object.values(this.answers).some((w) => w.toLowerCase() === clean.toLowerCase())) return;
+      this.answers[playerId] = clean;
+      if (!this.state.answeredIds.includes(playerId)) this.state.answeredIds.push(playerId);
+      if (this.inRoundPlayers.every((x) => this.answers[x.id])) this.revealSync();
+      else this.emit();
+      return;
+    }
+
+    if (this.state.phase !== "question") return;
+    this.answers[playerId] = clean;
     if (!this.state.answeredIds.includes(playerId)) this.state.answeredIds.push(playerId);
     this.emit();
   }
 
+  // Skala: everyone but the caller turns a dial.
+  submitGuess(playerId: string, value: number): void {
+    const p = this.player(playerId);
+    if (this.state.phase !== "skalaGuess" || !p?.inRound) return;
+    if (!this.skalaRound || playerId === this.skalaRound.clueGiverId) return;
+
+    const v = Math.max(0, Math.min(100, Math.round(value)));
+    this.skalaRound = { ...this.skalaRound, guesses: { ...this.skalaRound.guesses, [playerId]: v } };
+    if (this.state.skala) this.state.skala.guesses = { ...this.skalaRound.guesses };
+    if (!this.state.answeredIds.includes(playerId)) this.state.answeredIds.push(playerId);
+
+    const guessers = this.inRoundPlayers.filter((x) => x.id !== this.skalaRound!.clueGiverId);
+    if (guessers.every((x) => this.skalaRound!.guesses[x.id] !== undefined)) this.revealSkala();
+    else this.emit();
+  }
+
+  // The board opens: the target and everyone's markers go into the state
+  // that every phone can see, along with what the round was worth.
+  private revealSkala(): void {
+    if (!this.skalaGame || !this.skalaRound || !this.state.skala) return;
+    const round = this.skalaRound;
+    const points: Record<string, number> = {};
+    for (const [id, g] of Object.entries(round.guesses)) points[id] = skalaPoints(g, round.target);
+
+    const scored = scoreSkalaRound(this.skalaGame, round);
+    this.skalaGame = scored;
+    this.state.skala = {
+      ...this.state.skala,
+      target: round.target,
+      guesses: { ...round.guesses },
+      roundPoints: points,
+      scores: { ...scored.scores },
+    };
+    this.setPhase("skalaReveal");
+    this.emit();
+  }
+
+  // Host taps on: next caller, or the final table.
+  nextSkalaRound(): void {
+    if (this.state.phase !== "skalaReveal" || !this.skalaGame) return;
+    if (skalaIsOver(this.skalaGame)) {
+      this.setPhase("results");
+      this.emit();
+      return;
+    }
+    this.dealSkalaRound();
+  }
+
+  private dealSkalaRound(): void {
+    if (!this.skalaGame) return;
+    const round = createSkalaRound(this.skalaGame, this.config.spectrumCategories);
+    if (!round) {
+      this.setPhase("results");
+      this.emit();
+      return;
+    }
+    this.skalaRound = round;
+    this.answers = {};
+    this.state.answeredIds = [];
+    this.state.skala = {
+      left: round.left,
+      right: round.right,
+      clueGiverId: round.clueGiverId,
+      clue: null,
+      target: null,
+      guesses: {},
+      scores: { ...this.skalaGame.scores },
+      roundPoints: null,
+      roundIndex: this.skalaGame.roundIndex,
+      totalRounds: this.skalaGame.order.length,
+    };
+    // Only the caller is dealt the secret point.
+    this.cards = {};
+    this.cards[round.clueGiverId] = {
+      mode: "skala",
+      target: round.target,
+      left: round.left,
+      right: round.right,
+    };
+    this.setPhase("skalaClue");
+    this.emit();
+    const peer = this.playerToPeer.get(round.clueGiverId);
+    if (peer) {
+      this.transport.send(peer, {
+        type: "CARD",
+        card: this.cards[round.clueGiverId],
+      } satisfies HostMsg);
+    } else if (round.clueGiverId === this.myId) {
+      this.events.onCard(this.cards[this.myId]);
+    }
+  }
+
+  // Uskladi se: the words turn over together.
+  private revealSync(): void {
+    if (!this.syncGame) return;
+    const resolved = resolveSyncRound(this.syncGame, { ...this.answers });
+    this.syncGame = resolved;
+    this.state.sync = {
+      seed: resolved.seed,
+      targets: syncTargets(resolved),
+      roundNo: resolved.history.length,
+      words: { ...this.answers },
+      winners: resolved.winners,
+      matchedWord: resolved.matchedWord,
+    };
+    this.setPhase("syncReveal");
+    this.emit();
+  }
+
+  // Nobody matched — go round again. If they did, this ends the game.
+  nextSyncRound(): void {
+    if (this.state.phase !== "syncReveal" || !this.syncGame) return;
+    if (this.syncGame.winners) {
+      this.setPhase("results");
+      this.emit();
+      return;
+    }
+    this.answers = {};
+    this.state.answeredIds = [];
+    this.state.sync = {
+      seed: this.syncGame.seed,
+      targets: syncTargets(this.syncGame),
+      roundNo: this.syncGame.history.length + 1,
+      words: null,
+      winners: null,
+      matchedWord: null,
+    };
+    this.setPhase("syncWrite");
+    this.emit();
+  }
+
+  // The players agreed two different-looking words meant the same thing.
+  acceptSyncMatch(playerIds: string[], word: string): void {
+    if (this.state.phase !== "syncReveal" || !this.syncGame) return;
+    this.syncGame = { ...this.syncGame, winners: playerIds, matchedWord: word };
+    if (this.state.sync) {
+      this.state.sync = { ...this.state.sync, winners: playerIds, matchedWord: word };
+    }
+    this.emit();
+  }
+
   submitVote(playerId: string, choice: string): void {
+    // During a tournament vote the choice is a gamemode, not a player.
+    if (this.state.phase === "tourVote") {
+      this.submitModeVote(playerId, choice as GameMode);
+      return;
+    }
     const p = this.player(playerId);
     if (this.state.phase !== "vote" || !p?.inRound) return;
     // Blef votes "word"/"hint"; every other mode votes for a player.
@@ -356,6 +557,12 @@ export class RoomHost {
     if (mode === "faker") {
       if (fakerCategories.filter((c) => c.enabled).flatMap((c) => c.questions).length === 0)
         return "content";
+    }
+    if (mode === "skala") {
+      const pool = this.config.spectrumCategories
+        .filter((c) => c.enabled)
+        .flatMap((c) => c.spectrums);
+      if (pool.length === 0) return "content";
     }
     if (mode === "imp" && roles.reduce((s, r) => s + r.count, 0) > n - 1) return "content";
     if (mode === "mafia" && mafiaRoles.reduce((s, r) => s + r.count, 0) > n) return "content";
@@ -478,6 +685,11 @@ export class RoomHost {
     this.mafiaRound = null;
     this.blefRound = null;
     this.fakerRound = null;
+    this.skalaGame = null;
+    this.skalaRound = null;
+    this.syncGame = null;
+    this.state.skala = null;
+    this.state.sync = null;
 
     if (mode === "imp") {
       const r = createRound(participants, this.config.roles, this.config.categories, this.usedWords);
@@ -493,6 +705,14 @@ export class RoomHost {
       const r = createMafiaRound(participants, this.config.mafiaRoles);
       if (!r) return;
       this.mafiaRound = r;
+    } else if (mode === "skala") {
+      const g = createSkalaGame(participants, this.config.skalaTurns);
+      if (!g) return;
+      this.skalaGame = g;
+    } else if (mode === "sync") {
+      const g = createSyncGame(participants, this.state.settings.language);
+      if (!g) return;
+      this.syncGame = g;
     } else if (mode === "blef") {
       const r = createBlefRound(participants, this.config.categories, this.usedWords);
       if (!r) return;
@@ -511,8 +731,17 @@ export class RoomHost {
     this.votes = {};
     this.cards = {};
     this.state.mode = mode;
-    // Faker starts straight at its question; the others deal cards first.
-    this.setPhase(mode === "faker" ? "question" : "cards");
+    // Faker starts straight at its question; Skala and Uskladi se open
+    // with their own first beat; the others deal cards first.
+    this.setPhase(
+      mode === "faker"
+        ? "question"
+        : mode === "skala"
+          ? "skalaClue"
+          : mode === "sync"
+            ? "syncWrite"
+            : "cards"
+    );
     this.state.readyIds = [];
     this.state.answeredIds = [];
     this.state.votedIds = [];
@@ -522,6 +751,27 @@ export class RoomHost {
     this.state.answersShown = false;
     this.state.results = null;
     this.state.voteMap = null;
+
+    // Skala and Uskladi se do not deal a card to everybody — Skala hands
+    // the secret point to the caller alone, and Uskladi se has no secret
+    // at all — so they set their own board up and stop here.
+    if (mode === "skala") {
+      this.dealSkalaRound();
+      return;
+    }
+    if (mode === "sync" && this.syncGame) {
+      this.state.sync = {
+        seed: this.syncGame.seed,
+        targets: syncTargets(this.syncGame),
+        roundNo: 1,
+        words: null,
+        winners: null,
+        matchedWord: null,
+      };
+      this.emit();
+      return;
+    }
+
     this.emit();
 
     // Private cards — each phone only ever receives its own.
@@ -711,6 +961,202 @@ export class RoomHost {
 
   // ---- plumbing ----
 
+  // ---- tournament ----
+
+  // Which modes this room can actually deal right now. Blef is a duel, so
+  // it only shows up in a two-player room; the group modes need three.
+  private tournamentPool(): GameMode[] {
+    const n = this.connectedPlayers.length;
+    return TOUR_MODES.filter((m) => {
+      if (m === "blef") return n === 2;
+      if (m === "skala" || m === "sync") return n >= 2;
+      return n >= 3;
+    });
+  }
+
+  startTournament(target: number): void {
+    if (this.state.phase !== "lobby") return;
+    const pool = this.tournamentPool();
+    if (pool.length === 0) return;
+    for (const p of this.state.players) if (p.connected) p.inRound = true;
+    this.state.tournament = {
+      target,
+      scores: Object.fromEntries(this.inRoundPlayers.map((p) => [p.id, 0])),
+      options: [],
+      votes: {},
+      closesAt: 0,
+      gameNo: 0,
+      lastAward: null,
+      lastMode: null,
+      winners: null,
+    };
+    this.openModeVote();
+  }
+
+  // Three modes on the table and five seconds on the clock. Everybody
+  // votes at once and the room watches the dots pile up.
+  private openModeVote(): void {
+    const tour = this.state.tournament;
+    if (!tour) return;
+    const shuffled = [...this.tournamentPool()].sort(() => Math.random() - 0.5);
+    this.state.tournament = {
+      ...tour,
+      options: shuffled.slice(0, Math.min(3, shuffled.length)),
+      votes: {},
+      closesAt: Date.now() + TOUR_VOTE_MS,
+      lastAward: null,
+    };
+    this.setPhase("tourVote");
+    this.emit();
+
+    if (this.tourTimer) clearTimeout(this.tourTimer);
+    this.tourTimer = setTimeout(() => {
+      this.tourTimer = null;
+      this.closeModeVote();
+    }, TOUR_VOTE_MS + 250);
+  }
+
+  private closeModeVote(): void {
+    const tour = this.state.tournament;
+    if (!tour || this.state.phase !== "tourVote") return;
+
+    const counts = new Map<GameMode, number>();
+    for (const mode of Object.values(tour.votes)) {
+      counts.set(mode, (counts.get(mode) ?? 0) + 1);
+    }
+    let best = tour.options[0];
+    let bestN = -1;
+    // Ties break at random so a draw does not always go the same way.
+    for (const mode of [...tour.options].sort(() => Math.random() - 0.5)) {
+      const n = counts.get(mode) ?? 0;
+      if (n > bestN) {
+        best = mode;
+        bestN = n;
+      }
+    }
+
+    this.state.tournament = { ...tour, gameNo: tour.gameNo + 1 };
+    this.config = { ...this.config, mode: best };
+    this.state.mode = best;
+    this.beginRound();
+  }
+
+  submitModeVote(playerId: string, mode: GameMode): void {
+    const tour = this.state.tournament;
+    if (!tour || this.state.phase !== "tourVote") return;
+    if (!tour.options.includes(mode)) return;
+    if (!this.player(playerId)?.inRound) return;
+    this.state.tournament = { ...tour, votes: { ...tour.votes, [playerId]: mode } };
+    this.emit();
+    // Everybody in early? Get on with it.
+    if (Object.keys(this.state.tournament.votes).length >= this.inRoundPlayers.length) {
+      if (this.tourTimer) clearTimeout(this.tourTimer);
+      this.tourTimer = null;
+      this.closeModeVote();
+    }
+  }
+
+  // What the game that just finished was worth. The losing side scores
+  // nothing; a hidden player who got away with it scores double.
+  private awardPoints(): Record<string, number> {
+    const award: Record<string, number> = {};
+    const add = (id: string, n: number) => {
+      award[id] = (award[id] ?? 0) + n;
+    };
+    const mode = this.state.mode;
+    const results = this.state.results;
+
+    if (mode === "skala" && this.state.skala) {
+      const scores = this.state.skala.scores;
+      const best = Math.max(0, ...Object.values(scores));
+      for (const [id, v] of Object.entries(scores)) if (v === best && best > 0) add(id, 2);
+      return award;
+    }
+    if (mode === "sync" && this.state.sync?.winners) {
+      for (const id of this.state.sync.winners) add(id, 2);
+      return award;
+    }
+    if (!results) return award;
+
+    if (mode === "blef") {
+      // Each duellist scores for calling the other one right.
+      for (const p of this.inRoundPlayers) {
+        const other = this.inRoundPlayers.find((x) => x.id !== p.id);
+        const clue = results.clues?.find((c) => c.playerId === other?.id);
+        const guess = results.guesses?.[p.id];
+        if (clue && guess && (guess === "word") === clue.isWord) add(p.id, 2);
+      }
+      return award;
+    }
+
+    const caught = results.outcome === "caught";
+    if (mode === "imp") {
+      if (results.outcome === "jester") {
+        if (results.votedOutId) add(results.votedOutId, 2);
+        return award;
+      }
+      const roles = results.roles ?? [];
+      const imposters = roles.filter((r) => r.kind === "imposter").map((r) => r.playerId);
+      if (caught) {
+        for (const p of this.inRoundPlayers) if (!imposters.includes(p.id)) add(p.id, 1);
+      } else {
+        for (const id of imposters) add(id, 2);
+      }
+      return award;
+    }
+
+    // Odd One Out and Faker share a shape: one hidden player against the room.
+    const hidden = results.targetId;
+    if (caught) {
+      for (const p of this.inRoundPlayers) if (p.id !== hidden) add(p.id, 1);
+    } else if (hidden) {
+      add(hidden, 2);
+    }
+    return award;
+  }
+
+  // The host presses on from a finished game: points land, standings show.
+  tournamentContinue(): void {
+    const tour = this.state.tournament;
+    if (!tour || this.state.phase !== "results") return;
+
+    const award = this.awardPoints();
+    const scores = { ...tour.scores };
+    for (const [id, n] of Object.entries(award)) scores[id] = (scores[id] ?? 0) + n;
+
+    const best = Math.max(0, ...Object.values(scores));
+    const winners =
+      best >= tour.target
+        ? Object.entries(scores)
+            .filter(([, v]) => v === best)
+            .map(([id]) => id)
+        : null;
+
+    this.state.tournament = {
+      ...tour,
+      scores,
+      lastAward: award,
+      lastMode: this.state.mode,
+      winners,
+    };
+    this.setPhase("tourTable");
+    this.emit();
+  }
+
+  // From the standings: the next vote, or back to the lobby once it is won.
+  tournamentNext(): void {
+    const tour = this.state.tournament;
+    if (!tour || this.state.phase !== "tourTable") return;
+    if (tour.winners) {
+      this.state.tournament = null;
+      this.setPhase("lobby");
+      this.emit();
+      return;
+    }
+    for (const p of this.state.players) if (p.connected) p.inRound = true;
+    this.openModeVote();
+  }
+
   private setPhase(phase: RoomState["phase"]): void {
     this.state.phase = phase;
     this.state.phaseAt = Date.now();
@@ -726,6 +1172,7 @@ export class RoomHost {
   }
 
   close(): void {
+    if (this.tourTimer) clearTimeout(this.tourTimer);
     if (this.hbTimer) clearInterval(this.hbTimer);
     if (this.ejectTimer) clearTimeout(this.ejectTimer);
     this.transport.close();
@@ -803,6 +1250,10 @@ export class RoomClient {
   }
   vote(choice: string): void {
     this.transport.send("host", { type: "VOTE", choice } satisfies ClientMsg);
+  }
+
+  guess(value: number): void {
+    this.transport.send("host", { type: "GUESS", value } satisfies ClientMsg);
   }
   leave(): void {
     this.transport.send("host", { type: "LEAVE" } satisfies ClientMsg);

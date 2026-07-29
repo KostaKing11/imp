@@ -32,9 +32,16 @@ import {
   RoleDef,
   Round,
   Settings,
+  SkalaGame,
+  SpectrumCategoryState,
+  SyncGame,
 } from "./src/game/types";
 import { getLanguage, Language, setLanguage, t, tf } from "./src/i18n";
 import ConfirmHost from "./src/components/ConfirmHost";
+import { buildSpectrumCategories, createSkalaGame } from "./src/game/skalaEngine";
+import { createSyncGame } from "./src/game/syncEngine";
+import SkalaScreen from "./src/screens/skala/SkalaScreen";
+import SyncScreen from "./src/screens/sync/SyncScreen";
 import UpdatePrompt from "./src/components/UpdatePrompt";
 import BlefResultScreen from "./src/screens/BlefResultScreen";
 import BlefRevealScreen from "./src/screens/BlefRevealScreen";
@@ -69,12 +76,17 @@ type ScreenName =
   | "result"
   | "fakerAnswer"
   | "fakerReveal"
+  | "skala"
+  | "sync"
   | "net";
 
 const DEFAULT_SETTINGS: Settings = {
   impTimer: { enabled: false, seconds: 120 },
   oddTimer: { enabled: false, seconds: 120 },
   blefTimer: { enabled: false, seconds: 120 },
+  // One clue from everybody.
+  skalaTurns: 1,
+  tournamentTarget: 10,
 };
 
 function defaultPlayers(): Player[] {
@@ -127,6 +139,11 @@ export default function App() {
   const [blefRound, setBlefRound] = useState<BlefRound | null>(null);
   const [fakerRound, setFakerRound] = useState<FakerRound | null>(null);
   const [fakerAnswers, setFakerAnswers] = useState<FakerAnswers>({});
+  const [skalaGame, setSkalaGame] = useState<SkalaGame | null>(null);
+  const [syncGame, setSyncGame] = useState<SyncGame | null>(null);
+  const [spectrumCategories, setSpectrumCategories] = useState<SpectrumCategoryState[]>(() =>
+    buildSpectrumCategories()
+  );
   const [playStyle, setPlayStyle] = useState<PlayStyle>("single");
   const [netIntent, setNetIntent] = useState<"host" | "join">("host");
   const [netName, setNetName] = useState("");
@@ -197,6 +214,7 @@ export default function App() {
       setMafiaRoles(mergeRoles(DEFAULT_MAFIA_ROLES, storedMafiaRoles, "mafia"));
       setCategories(buildCategories(storedCategories, lang));
       setPairCategories(buildPairCategories(storedPairCategories, lang));
+      setSpectrumCategories(buildSpectrumCategories(null, lang));
       setFakerCategories(buildFakerCategories(storedFakerCategories, lang));
       if (storedSettings) {
         // Older saves had a single timer — apply it to both modes.
@@ -207,6 +225,7 @@ export default function App() {
         } else if (typeof legacy.timerEnabled === "boolean") {
           const migrated = { enabled: legacy.timerEnabled, seconds: legacy.timerSeconds ?? 120 };
           setSettings({
+            ...DEFAULT_SETTINGS,
             impTimer: migrated,
             oddTimer: { ...migrated },
             blefTimer: { ...migrated },
@@ -289,6 +308,8 @@ export default function App() {
     setBlefRound(null);
     setFakerRound(null);
     setFakerAnswers({});
+    setSkalaGame(null);
+    setSyncGame(null);
     setScreen("home");
   };
 
@@ -349,6 +370,18 @@ export default function App() {
       const newRound = createMafiaRound(activePlayers, mafiaRoles);
       if (!newRound) return;
       setMafiaRound(newRound);
+    } else if (gameMode === "skala") {
+      const game = createSkalaGame(activePlayers, settings.skalaTurns);
+      if (!game) return;
+      setSkalaGame(game);
+      setScreen("skala");
+      return;
+    } else if (gameMode === "sync") {
+      const game = createSyncGame(activePlayers, language);
+      if (!game) return;
+      setSyncGame(game);
+      setScreen("sync");
+      return;
     } else {
       const newRound = createBlefRound(activePlayers, categories, usedWords);
       if (!newRound) return;
@@ -381,6 +414,8 @@ export default function App() {
             setPairCategories={setPairCategories}
             fakerCategories={fakerCategories}
             setFakerCategories={setFakerCategories}
+            spectrumCategories={spectrumCategories}
+            setSpectrumCategories={setSpectrumCategories}
             netName={netName}
             setNetName={setNetName}
             netColor={netColor}
@@ -423,6 +458,10 @@ export default function App() {
             initialCode={netIntent === "join" ? pendingJoinCode : null}
             roomSettings={roomSettings}
             setRoomSettings={setRoomSettings}
+            spectrumCategories={spectrumCategories}
+            setSpectrumCategories={setSpectrumCategories}
+            skalaTurns={settings.skalaTurns}
+            tournamentTarget={settings.tournamentTarget}
             onRoomLanguage={setRoomLanguage}
             myName={netName.trim() || "?"}
             myColor={netColor}
@@ -465,6 +504,27 @@ export default function App() {
             question={fakerRound.mainQuestion}
             onReveal={() => setScreen("result")}
             onLeave={requestLeave}
+          />
+        ) : null;
+      case "skala":
+        return skalaGame ? (
+          <SkalaScreen
+            players={activePlayers}
+            categories={spectrumCategories}
+            game={skalaGame}
+            setGame={setSkalaGame}
+            onLeave={requestLeave}
+            onDone={startGame}
+          />
+        ) : null;
+      case "sync":
+        return syncGame ? (
+          <SyncScreen
+            players={activePlayers}
+            game={syncGame}
+            setGame={setSyncGame}
+            onLeave={requestLeave}
+            onDone={startGame}
           />
         ) : null;
       case "reveal":

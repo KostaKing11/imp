@@ -24,6 +24,7 @@ import { BLEF_PLAYER_COUNT } from "../game/blefEngine";
 import { roleSlotCount } from "../game/engine";
 import { activeQuestionPool, FAKER_MIN_PLAYERS } from "../game/fakerEngine";
 import { activePairPool } from "../game/oddEngine";
+import { activeSpectrumPool } from "../game/skalaEngine";
 import {
   CategoryState,
   FakerCategoryState,
@@ -31,6 +32,7 @@ import {
   PairCategoryState,
   Player,
   RoleDef,
+  SpectrumCategoryState,
 } from "../game/types";
 import { getLanguage, t, tf } from "../i18n";
 import { warmUpConnection } from "../net/firebase";
@@ -64,6 +66,8 @@ type Props = {
   setPairCategories: (categories: PairCategoryState[]) => void;
   fakerCategories: FakerCategoryState[];
   setFakerCategories: (categories: FakerCategoryState[]) => void;
+  spectrumCategories: SpectrumCategoryState[];
+  setSpectrumCategories: (categories: SpectrumCategoryState[]) => void;
   // local multiplayer identity
   netName: string;
   setNetName: (name: string) => void;
@@ -96,6 +100,8 @@ export default function HomeScreen({
   setPairCategories,
   fakerCategories,
   setFakerCategories,
+  spectrumCategories,
+  setSpectrumCategories,
   netName,
   setNetName,
   netColor,
@@ -143,6 +149,9 @@ export default function HomeScreen({
   const slots = roleSlotCount(roles);
   const mafiaSlots = roleSlotCount(mafiaRoles);
   const enabledWords = categories.filter((c) => c.enabled).flatMap((c) => c.words);
+  // Skala and Uskladi se are the only modes that work with two people
+  // and scale all the way up, so they get their own floor.
+  const twoPlayerMode = gameMode === "skala" || gameMode === "sync";
   let startError: string | null = null;
   if (gameMode === "blef" && activePlayers.length !== BLEF_PLAYER_COUNT)
     startError = t("errBlefPlayers");
@@ -151,7 +160,10 @@ export default function HomeScreen({
     startError = t("errMinPlayers");
   else if (gameMode === "faker" && activeQuestionPool(fakerCategories).length === 0)
     startError = t("errNoQuestions");
-  else if (gameMode !== "blef" && activePlayers.length < MIN_PLAYERS)
+  else if (twoPlayerMode && activePlayers.length < 2) startError = t("errTwoPlayers");
+  else if (gameMode === "skala" && activeSpectrumPool(spectrumCategories).length === 0)
+    startError = t("errNoSpectrums");
+  else if (!twoPlayerMode && gameMode !== "blef" && activePlayers.length < MIN_PLAYERS)
     startError = t("errMinPlayers");
   else if (gameMode === "imp" && slots > activePlayers.length - 1)
     startError = tf("errTooManyRoles", { n: activePlayers.length });
@@ -300,6 +312,8 @@ export default function HomeScreen({
             setPairCategories={setPairCategories}
             fakerCategories={fakerCategories}
             setFakerCategories={setFakerCategories}
+            spectrumCategories={spectrumCategories}
+            setSpectrumCategories={setSpectrumCategories}
             maxRoleCount={
               gameMode === "mafia" ? activePlayers.length : activePlayers.length - 1
             }

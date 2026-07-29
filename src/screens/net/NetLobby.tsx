@@ -12,6 +12,7 @@ import {
   GameMode,
   PairCategoryState,
   RoleDef,
+  SpectrumCategoryState,
 } from "../../game/types";
 import { modeLabel, t, tf } from "../../i18n";
 import { netMaxPlayers, netMinPlayers, NetPlayer, RoomState } from "../../net/protocol";
@@ -29,6 +30,7 @@ type Props = {
   startProblem: "few" | "many" | "content" | null;
   onKick: (playerId: string) => void;
   onStart: () => void;
+  onStartTournament: () => void;
   onOpenSettings: () => void;
   onChangeColor: (color: string) => void;
   // host game setup (the same lists the one-phone setup edits)
@@ -44,6 +46,8 @@ type Props = {
   setPairCategories: (categories: PairCategoryState[]) => void;
   fakerCategories: FakerCategoryState[];
   setFakerCategories: (categories: FakerCategoryState[]) => void;
+  spectrumCategories: SpectrumCategoryState[];
+  setSpectrumCategories: (categories: SpectrumCategoryState[]) => void;
 };
 
 export default function NetLobby(props: Props) {
@@ -147,6 +151,8 @@ export default function NetLobby(props: Props) {
             setPairCategories={props.setPairCategories}
             fakerCategories={props.fakerCategories}
             setFakerCategories={props.setFakerCategories}
+            spectrumCategories={props.spectrumCategories}
+            setSpectrumCategories={props.setSpectrumCategories}
             maxRoleCount={Math.max(
               1,
               props.gameMode === "mafia" ? players.length : players.length - 1
@@ -164,6 +170,14 @@ export default function NetLobby(props: Props) {
             label={t("startGameBtn")}
             disabled={startProblem !== null}
             onPress={onStart}
+          />
+          {/* A tournament needs no setup of its own — the room votes on
+              what to play, game by game, until somebody hits the target. */}
+          <BigButton
+            label={t("tourStart")}
+            variant="secondary"
+            disabled={players.length < 2}
+            onPress={props.onStartTournament}
           />
         </View>
       ) : null}

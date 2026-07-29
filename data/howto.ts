@@ -60,6 +60,30 @@ export const HOW_TO_PLAY = {
 4. Discuss, then on three, everyone points at who they think the Odd One Out is — and reveal!
 
 Tip: keep your clues a bit vague. Say too much and the Odd One Out figures out the group's word and blends right in.`,
+    skala: `Scale — one player knows where the needle is. Everyone else has to read their mind.
+
+1. Pick how many turns you want (everyone gives the same number of clues), then press START.
+
+2. Each round one player is the Caller. Only they see a point on the dial between two opposites — say "Useless ↔ Essential" — and they type ONE thing that sits exactly there. Not the ends: something in between.
+
+3. Everyone else turns the needle to where they think the Caller meant.
+
+4. The target appears and every guess drops onto the dial. The closer the wedge, the more points: 4 in the middle, then 3, 2, 1, and nothing outside.
+
+5. The Caller scores the average of their guessers — a clue nobody can read costs them too. Highest total after the last turn wins.`,
+
+    sync: `Same Page — write the same word as somebody else. You are all on the same side.
+
+1. Two players or ten, it works either way. Press START.
+
+2. Everyone sees the same starting word and secretly writes ONE association.
+
+3. The words are revealed together. Any two people who wrote the same word win it on the spot — if three land on it, all three win.
+
+4. Nobody matched? Next round everyone writes a word that sits BETWEEN the words just revealed. Keep narrowing until two of you collide.
+
+5. One rule holds the game up: no word may ever be said twice. And if two words mean the same thing without being spelled the same, tap "Same thing" — you are on the same team, there is nobody to cheat.`,
+
   },
   sr: {
     imp: `IMP Classic je igra blefiranja za jedan telefon koji se dodaje ukrug.
@@ -119,5 +143,29 @@ Tip: keep your clues a bit vague. Say too much and the Odd One Out figures out t
 4. Raspravite, pa na tri svi upiru prstom u onoga za koga misle da je uljez — i otkrijte!
 
 Savet: neka tragovi budu malo nejasni. Ako kažeš previše, uljez će provaliti reč grupe i savršeno se uklopiti.`,
+    skala: `Skala — jedan igrač zna gde je strelica. Ostali treba da mu pročitaju misli.
+
+1. Izaberi koliko krugova želiš (svako kazuje isti broj puta) i pritisni POČNI.
+
+2. Svake runde jedan igrač je Kazivač. Samo on vidi tačku na skali između dve suprotnosti — recimo "Beskorisno ↔ Neophodno" — i upiše JEDNU stvar koja tačno tu stoji. Ne krajeve: nešto između.
+
+3. Svi ostali okrenu strelicu tamo gde misle da je Kazivač mislio.
+
+4. Otkriva se prava tačka i sva pogađanja padnu na brojčanik. Što bliže isečku, to više poena: 4 u sredini, pa 3, 2, 1, i ništa izvan.
+
+5. Kazivač dobija prosek svojih pogađača — trag koji niko ne može da pročita košta i njega. Pobeđuje najviše poena na kraju.`,
+
+    sync: `Uskladi se — napiši istu reč kao neko drugi. Svi ste na istoj strani.
+
+1. Radi i za dvoje i za desetoro. Pritisni POČNI.
+
+2. Svi vide istu polaznu reč i tajno napišu JEDNU asocijaciju.
+
+3. Reči se otkrivaju zajedno. Bilo koje dvoje koji su napisali istu reč pobeđuju odmah — ako se troje poklopi, pobeđuju sva trojica.
+
+4. Niko se nije poklopio? Sledeće runde svi pišu reč koja stoji IZMEĐU upravo otkrivenih reči. Sužavaš dok se dvoje ne sudare.
+
+5. Jedno pravilo drži igru: nijedna reč ne sme dvaput. A ako dve reči znače isto a nisu iste, pritisnite "Isto je" — na istoj ste strani, nema koga da varate.`,
+
   },
 };

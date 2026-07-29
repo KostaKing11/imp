@@ -1,7 +1,8 @@
-﻿import { RoleDef } from "./game/types";
-
+﻿
 // Simple app-wide translations. The language is set once by App and
 // every screen reads strings through t()/tf() at render time.
+
+import { GameMode, RoleDef } from "./game/types";
 
 export type Language = "en" | "sr";
 
@@ -35,6 +36,56 @@ const en = {
   modeMafia: "Mafia",
   modeBlef: "Bluff",
   modeFaker: "Faker",
+  modeSkala: "Scale",
+  modeSync: "Same Page",
+  // skala
+  errNoSpectrums: "Turn on at least one category with spectrums.",
+  errTwoPlayers: "You need at least 2 active players.",
+  skalaRoundOf: "Round {n} of {total}",
+  skalaGiverHint: "Only you may look at this one — everyone else looks away.",
+  skalaImGiver: "I'm {name} — show the dial",
+  skalaYourTarget: "Your secret point",
+  skalaClueHint: "Name ONE thing that sits exactly there. Not the ends — something in between.",
+  skalaClueLabel: "Your clue",
+  skalaCluePlaceholder: "One word or a short phrase…",
+  skalaLockClue: "Lock in my clue",
+  skalaImGuesser: "I'm {name} — let me guess",
+  skalaGuessingAs: "Guessing as {name}",
+  skalaSaid: "{name} said",
+  skalaLockGuess: "Lock in my guess",
+  skalaFinalTitle: "Final scores",
+  skalaWinnerTag: "WINS",
+  skalaTurnsLabel: "Clues each",
+  skalaWaitingClue: "{name} is thinking of a clue…",
+  skalaGuessedCount: "{done} of {total} in",
+  syncNoRepeatHint: "No word may be said twice in a game.",
+  skalaTurnsNote: "One clue each means the game is as many rounds as there are players.",
+  tournament: "Tournament",
+  tournamentTargetLabel: "Points to win",
+  tourStart: "Start tournament",
+  tourPickNext: "What are we playing?",
+  tourGameNo: "Game {n}",
+  tourStandings: "Standings",
+  tourToWin: "First to {n} points takes it.",
+  tourWinnerTitle: "Tournament over",
+  tourNeedPlayers: "A tournament needs at least 2 players.",
+  // sync
+  syncSeedLabel: "Starting word",
+  syncBetweenLabel: "Find the word between",
+  syncYourWord: "Your word",
+  syncPlaceholder: "One word…",
+  syncLockWord: "Lock in my word",
+  syncImPlayer: "I'm {name} — my turn",
+  syncTakenWord: "That word has already been said.",
+  syncRoundN: "Round {n}",
+  syncNoMatch: "No match. Now find the word between these.",
+  syncMatchedTitle: "Same page!",
+  syncMatchedOn: "You both landed on",
+  syncSameThing: "Same thing",
+  syncGiveUp: "Give up",
+  syncWinnersTag: "SYNCED",
+  syncSameThingHint: "Two words mean the same thing? Tap both, then confirm.",
+  syncTookRounds: "It took {n} rounds.",
   // settings
   settings: "Settings",
   discussionTimers: "Discussion timers",
@@ -324,6 +375,56 @@ const sr: typeof en = {
   modeMafia: "Mafija",
   modeBlef: "Blef",
   modeFaker: "Folirant",
+  modeSkala: "Skala",
+  modeSync: "Uskladi se",
+  // skala
+  errNoSpectrums: "Uključi bar jednu kategoriju sa skalama.",
+  errTwoPlayers: "Treba ti bar 2 aktivna igrača.",
+  skalaRoundOf: "Runda {n} od {total}",
+  skalaGiverHint: "Samo ti smeš da gledaš — ostali okreću glavu.",
+  skalaImGiver: "Ja sam {name} — prikaži brojčanik",
+  skalaYourTarget: "Tvoja tajna tačka",
+  skalaClueHint: "Reci JEDNU stvar koja tačno tu stoji. Ne krajeve — nešto između.",
+  skalaClueLabel: "Tvoj trag",
+  skalaCluePlaceholder: "Jedna reč ili kratak pojam…",
+  skalaLockClue: "Potvrdi trag",
+  skalaImGuesser: "Ja sam {name} — da pogađam",
+  skalaGuessingAs: "Pogađa {name}",
+  skalaSaid: "{name} je rekao",
+  skalaLockGuess: "Potvrdi pogađanje",
+  skalaFinalTitle: "Konačan rezultat",
+  skalaWinnerTag: "POBEDA",
+  skalaTurnsLabel: "Tragova po igraču",
+  skalaWaitingClue: "{name} smišlja trag…",
+  skalaGuessedCount: "{done} od {total}",
+  syncNoRepeatHint: "Nijedna reč ne sme dvaput u istoj partiji.",
+  skalaTurnsNote: "Jedan trag po igraču znači onoliko rundi koliko ima igrača.",
+  tournament: "Turnir",
+  tournamentTargetLabel: "Poena za pobedu",
+  tourStart: "Pokreni turnir",
+  tourPickNext: "Šta igramo?",
+  tourGameNo: "Partija {n}",
+  tourStandings: "Tabela",
+  tourToWin: "Prvi do {n} poena nosi turnir.",
+  tourWinnerTitle: "Kraj turnira",
+  tourNeedPlayers: "Za turnir treba bar 2 igrača.",
+  // sync
+  syncSeedLabel: "Polazna reč",
+  syncBetweenLabel: "Nađi reč između",
+  syncYourWord: "Tvoja reč",
+  syncPlaceholder: "Jedna reč…",
+  syncLockWord: "Potvrdi reč",
+  syncImPlayer: "Ja sam {name} — ja sam na redu",
+  syncTakenWord: "Ta reč je već bila.",
+  syncRoundN: "Runda {n}",
+  syncNoMatch: "Nema poklapanja. Sad nađite reč između ovih.",
+  syncMatchedTitle: "Uskladili ste se!",
+  syncMatchedOn: "Poklopili ste se na",
+  syncSameThing: "Isto je",
+  syncGiveUp: "Odustani",
+  syncWinnersTag: "USKLAĐEN",
+  syncSameThingHint: "Dve reči znače isto? Pritisni obe pa potvrdi.",
+  syncTookRounds: "Trebalo vam je {n} rundi.",
   // settings
   settings: "Podešavanja",
   discussionTimers: "Tajmeri za diskusiju",
@@ -611,18 +712,18 @@ export function tf(key: StringKey, vars: Record<string, string | number>): strin
 }
 
 // Display name of a gamemode ("imp" -> "IMP Classic").
-export function modeLabel(mode: "imp" | "odd" | "mafia" | "blef" | "faker"): string {
-  const key: StringKey =
-    mode === "imp"
-      ? "modeImp"
-      : mode === "odd"
-        ? "modeOdd"
-        : mode === "mafia"
-          ? "modeMafia"
-          : mode === "blef"
-            ? "modeBlef"
-            : "modeFaker";
-  return t(key);
+const MODE_KEYS: Record<GameMode, StringKey> = {
+  imp: "modeImp",
+  odd: "modeOdd",
+  mafia: "modeMafia",
+  blef: "modeBlef",
+  faker: "modeFaker",
+  skala: "modeSkala",
+  sync: "modeSync",
+};
+
+export function modeLabel(mode: GameMode): string {
+  return t(MODE_KEYS[mode]);
 }
 
 // ---- built-in role localization ----

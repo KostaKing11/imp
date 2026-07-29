@@ -19,9 +19,12 @@ export const EJECT_TALLY_MS = 5000;
 // drifts off) before the room moves to the results.
 export const EJECT_TOTAL_MS = 11000;
 
-// Blef is a duel; everything else needs a group.
+// Blef is a duel; Skala and Uskladi se work from two players all the way
+// up; everything else needs a group.
 export function netMinPlayers(mode: GameMode): number {
-  return mode === "blef" ? 2 : 3;
+  if (mode === "blef") return 2;
+  if (mode === "skala" || mode === "sync") return 2;
+  return 3;
 }
 export function netMaxPlayers(mode: GameMode): number {
   return mode === "blef" ? 2 : NET_MAX_PLAYERS;
@@ -36,6 +39,13 @@ export type NetPhase =
   | "playing" // mafia: played out loud, host reveals at the end
   | "vote"
   | "eject" // the votes appear, then who was voted out and what they were
+  | "skalaClue" // skala: the caller sets a clue, everyone else waits
+  | "skalaGuess" // skala: everyone else turns the dial
+  | "skalaReveal" // skala: the target and every guess land on the dial
+  | "syncWrite" // uskladi se: everyone secretly writes a word
+  | "syncReveal" // uskladi se: the words turn over together
+  | "tourVote" // tournament: five seconds to pick the next game
+  | "tourTable" // tournament: the standings between games
   | "results";
 
 export type NetPlayer = {
@@ -74,6 +84,10 @@ export type NetCard = {
   extraNames?: string[];
   // Faker only.
   question?: string;
+  // Skala: the caller's secret point, and the two ends to draw.
+  target?: number;
+  left?: string;
+  right?: string;
 };
 
 export type NetAnswer = { playerId: string; name: string; answer: string };
@@ -108,6 +122,56 @@ export type NetResults = {
   guesses?: Record<string, "word" | "hint">;
 };
 
+// Skala's shared board. `target` stays null for everybody until the
+// reveal — until then it lives only on the caller's private card.
+export type NetSkala = {
+  left: string;
+  right: string;
+  clueGiverId: string;
+  clue: string | null;
+  target: number | null;
+  guesses: Record<string, number>;
+  scores: Record<string, number>;
+  roundPoints: Record<string, number> | null;
+  roundIndex: number;
+  totalRounds: number;
+};
+
+// Uskladi se. `words` is null while people are still typing, so nobody
+// can read the room before committing.
+export type NetSync = {
+  seed: string;
+  targets: string[];
+  roundNo: number;
+  words: Record<string, string> | null;
+  winners: string[] | null;
+  matchedWord: string | null;
+};
+
+// How long the room has to pick the next tournament game.
+export const TOUR_VOTE_MS = 5000;
+
+// Every mode a tournament may deal. Mafia is left out — it is played out
+// loud with a narrator and has no winner the app can score.
+export const TOUR_MODES: GameMode[] = ["imp", "odd", "faker", "blef", "skala", "sync"];
+
+export type NetTournament = {
+  target: number;
+  scores: Record<string, number>;
+  // The three modes on offer this round.
+  options: GameMode[];
+  // playerId -> the mode they tapped
+  votes: Record<string, GameMode>;
+  // Wall-clock moment the vote closes, so every phone counts down together.
+  closesAt: number;
+  gameNo: number;
+  // What the game just played was worth.
+  lastAward: Record<string, number> | null;
+  lastMode: GameMode | null;
+  // Set once somebody reaches the target.
+  winners: string[] | null;
+};
+
 export type RoomState = {
   roomId: string;
   code: string;
@@ -130,6 +194,9 @@ export type RoomState = {
   // Faker: the shared question is revealed before the answers are.
   mainQuestion: string | null;
   answersShown: boolean;
+  skala: NetSkala | null;
+  sync: NetSync | null;
+  tournament: NetTournament | null;
   results: NetResults | null;
 };
 
@@ -140,6 +207,7 @@ export type ClientMsg =
   | { type: "COLOR"; color: string } // I'd like a different colour
   | { type: "ANSWER"; text: string }
   | { type: "VOTE"; choice: string } // playerId, or "word" / "hint" in Blef
+  | { type: "GUESS"; value: number } // skala: where I turned the dial
   | { type: "LEAVE" }
   | { type: "HB" };
 
