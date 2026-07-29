@@ -1,7 +1,7 @@
 // Service worker: keeps IMP playable with no connection at all once the
 // site has been opened once. The build script stamps CACHE_VERSION on
 // every export, which throws away the previous cache.
-const CACHE_VERSION = "20260728-230831";
+const CACHE_VERSION = "20260729-113425";
 const CACHE_NAME = `imp-${CACHE_VERSION}`;
 const SHELL = ["./", "./index.html", "./manifest.json", "./icons/icon.png"];
 
