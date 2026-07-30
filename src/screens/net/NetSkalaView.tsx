@@ -4,6 +4,7 @@ import BigButton from "../../components/BigButton";
 import Dial from "../../components/Dial";
 import PlayerCard from "../../components/PlayerCard";
 import TextField from "../../components/TextField";
+import { useScrollToInputOnKeyboard } from "../../components/useScrollToInput";
 import { t, tf } from "../../i18n";
 import { NetCard, RoomState } from "../../net/protocol";
 import { alpha, colors, radius, spacing, type } from "../../theme";
@@ -32,7 +33,9 @@ export default function NetSkalaView({
 }: Props) {
   const [clue, setClue] = useState("");
   const [guess, setGuess] = useState(50);
+  // The dial is tall; this keeps the clue box above the keyboard.
   const clueScroll = useRef<ScrollView>(null);
+  useScrollToInputOnKeyboard(clueScroll);
   const skala = state.skala;
 
   // A fresh round wants a fresh box.
@@ -88,7 +91,6 @@ export default function NetSkalaView({
           target={card?.target ?? null}
           disabled
           hideNeedle
-          hideExact
         />
         <Text style={styles.hint}>{t("skalaClueHint")}</Text>
         <TextField
@@ -97,7 +99,6 @@ export default function NetSkalaView({
           onChangeText={setClue}
           placeholder={t("skalaCluePlaceholder")}
           // The dial above is tall enough to push the box under the keyboard.
-          onFocus={() => setTimeout(() => clueScroll.current?.scrollToEnd({ animated: true }), 120)}
         />
         <BigButton
           label={t("skalaLockClue")}

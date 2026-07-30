@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Appear from "../../components/Appear";
 import AppModal from "../../components/AppModal";
 import BigButton from "../../components/BigButton";
@@ -70,8 +71,12 @@ type Props = {
   setTournamentTarget: (n: number) => void;
 };
 
+// How far down the opaque header reaches, below the safe area.
+const HEADER_H = 52;
+
 export default function NetLobby(props: Props) {
   const { state, isHost, myId, qrPayload, notice, startProblem, onKick, onStart } = props;
+  const insets = useSafeAreaInsets();
   const [qrOpen, setQrOpen] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [colorOpen, setColorOpen] = useState(false);
@@ -110,8 +115,17 @@ export default function NetLobby(props: Props) {
   // always within reach without eating the screen.
   // The bar only takes over once the title and the panel have actually
   // scrolled behind it — before that it would sit on top of them.
+  // The header holds one thing at a time: the room's name at rest, the
+  // room's code once the panel carrying it has scrolled away. They swap
+  // by fading through each other over the same stretch of scroll, so the
+  // bar is never empty and never shows both.
+  const titleOpacity = scrollY.interpolate({
+    inputRange: [40, 110],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
   const barOpacity = scrollY.interpolate({
-    inputRange: [70, 120],
+    inputRange: [70, 130],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
@@ -119,10 +133,17 @@ export default function NetLobby(props: Props) {
   return (
     <>
       {/* An opaque strip across the top: everything scrolls away behind
-          it, and the code plus the QR slide in once they have. It fades
-          out along its bottom edge rather than ending in a straight line
-          across the light behind the screen. */}
-      <View style={styles.headerBar} pointerEvents="none" />
+          it. It reaches up over the status bar as well — stopping at the
+          safe area left a lit sliver of the background above it, and that
+          sliver was the line across the top of the screen. Its bottom
+          edge fades out instead of ending in a straight rule. */}
+      <View
+        style={[
+          styles.headerBar,
+          { top: -(insets.top + spacing.xs), height: insets.top + spacing.xs + HEADER_H },
+        ]}
+        pointerEvents="none"
+      />
       <View style={styles.headerFade} pointerEvents="none">
         <Gradient from={colors.bg} to={alpha(colors.bg, 0)} angle={1} />
       </View>
@@ -135,7 +156,18 @@ export default function NetLobby(props: Props) {
         </Pressable>
       ) : null}
 
-      <Animated.View style={[styles.collapsedBar, { opacity: barOpacity }]} pointerEvents="box-none">
+      {/* at rest: the room's name */}
+      <Animated.View
+        style={[styles.headerSlot, { opacity: titleOpacity }]}
+        pointerEvents="none"
+      >
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {t("lobbyTitle")}
+        </Text>
+      </Animated.View>
+
+      {/* scrolled: the code, and the QR that opens the big one */}
+      <Animated.View style={[styles.headerSlot, { opacity: barOpacity }]} pointerEvents="box-none">
         <Text style={styles.collapsedCode}>{state.code}</Text>
         {isHost ? (
           <Pressable onPress={() => setQrOpen(true)} hitSlop={8} style={styles.collapsedQr}>
@@ -152,8 +184,6 @@ export default function NetLobby(props: Props) {
         })}
         scrollEventThrottle={16}
       >
-        <Text style={styles.heading}>{t("lobbyTitle")}</Text>
-
         {/* The room code is what everyone else has to type, so it gets a
             panel of its own — code on the left, the QR on the right. */}
         <View style={styles.codeCard}>
@@ -318,20 +348,15 @@ export default function NetLobby(props: Props) {
 }
 
 const styles = StyleSheet.create({
-  area: { paddingBottom: spacing.md, paddingTop: 46, gap: spacing.xs },
-  heading: {
-    ...type.title,
-    fontSize: 26,
-    color: colors.text,
-    textAlign: "center",
-    marginTop: spacing.xs,
-  },
+  // The header owns the top of the screen now, so the list starts below
+  // it rather than sliding its own title underneath.
+  area: { paddingBottom: spacing.md, paddingTop: 62, gap: spacing.xs },
+  // `top` and `height` come from the safe-area inset at render time, so
+  // the strip always reaches the very top of the screen.
   headerBar: {
     position: "absolute",
-    top: -spacing.xs,
     left: -spacing.md,
     right: -spacing.md,
-    height: 58,
     backgroundColor: colors.bg,
     zIndex: 3,
   },
@@ -339,7 +364,7 @@ const styles = StyleSheet.create({
   // in a straight dark edge across it.
   headerFade: {
     position: "absolute",
-    top: 58 - spacing.xs,
+    top: HEADER_H - spacing.xs,
     left: -spacing.md,
     right: -spacing.md,
     height: 34,
@@ -359,7 +384,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  collapsedBar: {
+  // Both header contents sit in exactly the same box, so one can fade
+  // into the other without either moving.
+  headerSlot: {
     position: "absolute",
     top: spacing.sm,
     left: 52,
@@ -370,6 +397,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
+  },
+  headerTitle: {
+    ...type.title,
+    fontSize: 24,
+    color: colors.text,
+    textAlign: "center",
   },
   collapsedCode: {
     fontSize: 24,

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
 import TextField from "../../components/TextField";
+import { useScrollToInputOnKeyboard } from "../../components/useScrollToInput";
 import { roundsWord, t, tf } from "../../i18n";
 import { RoomState } from "../../net/protocol";
 import { alpha, colors, radius, spacing, type } from "../../theme";
@@ -27,7 +28,9 @@ export default function NetSyncView({
 }: Props) {
   const [word, setWord] = useState("");
   const [claim, setClaim] = useState<string[]>([]);
+  // Keeps the box above the keyboard once it is actually up.
   const wordScroll = useRef<ScrollView>(null);
+  useScrollToInputOnKeyboard(wordScroll);
   const sync = state.sync;
 
   useEffect(() => {
@@ -83,7 +86,6 @@ export default function NetSyncView({
           onChangeText={setWord}
           placeholder={t("syncPlaceholder")}
           autoCapitalize="none"
-          onFocus={() => setTimeout(() => wordScroll.current?.scrollToEnd({ animated: true }), 120)}
         />
         <Text style={styles.hint}>{t("syncNoRepeatHint")}</Text>
         <BigButton

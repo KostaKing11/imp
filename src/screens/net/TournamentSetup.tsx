@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import AppModal from "../../components/AppModal";
+import BigButton from "../../components/BigButton";
 import Chip from "../../components/Chip";
 import Stepper from "../../components/Stepper";
 import Toggle from "../../components/Toggle";
@@ -130,31 +132,40 @@ export default function TournamentSetup(props: Props) {
       {/* how many points it takes */}
       <Row label={t("tournamentTargetLabel")} value="" />
       <View style={styles.targetCard}>
-        {editingTarget ? (
-          <TextInput
-            style={styles.targetInput}
-            value={targetText}
-            onChangeText={setTargetText}
-            onBlur={commitTarget}
-            onSubmitEditing={commitTarget}
-            keyboardType="number-pad"
-            autoFocus
-            returnKeyType="done"
-            selectionColor={colors.accent}
-          />
-        ) : (
-          <Pressable
-            onPress={() => {
-              setTargetText(String(props.target));
-              setEditingTarget(true);
-            }}
-            hitSlop={10}
-          >
-            <Text style={styles.targetValue}>{props.target}</Text>
-          </Pressable>
-        )}
+        <Pressable
+          onPress={() => {
+            setTargetText(String(props.target));
+            setEditingTarget(true);
+          }}
+          hitSlop={10}
+        >
+          <Text style={styles.targetValue}>{props.target}</Text>
+        </Pressable>
         <Text style={styles.targetHint}>{t("tourTargetHint")}</Text>
       </View>
+
+      {/* Typing happens in a sheet, not in the middle of a long scrolling
+          page. A sheet lifts itself above the keyboard, so the number you
+          are typing is always the thing you can see. */}
+      <AppModal
+        visible={editingTarget}
+        title={t("tournamentTargetLabel")}
+        onClose={commitTarget}
+      >
+        <TextInput
+          style={styles.targetInput}
+          value={targetText}
+          onChangeText={setTargetText}
+          onSubmitEditing={commitTarget}
+          keyboardType="number-pad"
+          autoFocus
+          returnKeyType="done"
+          selectionColor={colors.accent}
+          maxLength={2}
+        />
+        <Text style={styles.targetSheetHint}>{t("tourTargetRange")}</Text>
+        <BigButton label={t("save")} compact onPress={commitTarget} />
+      </AppModal>
 
       {TOUR_MODES.map((mode) => {
         const on = props.enabled[mode] !== false;
@@ -321,18 +332,25 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   targetInput: {
-    minWidth: 110,
+    alignSelf: "center",
+    minWidth: 150,
     textAlign: "center",
     ...type.display,
-    fontSize: 44,
+    fontSize: 52,
     color: colors.accent,
-    backgroundColor: colors.chip,
+    backgroundColor: alpha(colors.bg, 0.55),
     borderRadius: radius.md,
     borderWidth: 1.5,
     borderColor: colors.accent,
-    paddingVertical: 2,
+    paddingVertical: spacing.xs,
   },
   targetHint: { ...type.caption, fontSize: 12, color: colors.textFaint },
+  targetSheetHint: {
+    ...type.caption,
+    fontSize: 13,
+    color: colors.textFaint,
+    textAlign: "center",
+  },
 
   modeCard: {
     backgroundColor: colors.card,

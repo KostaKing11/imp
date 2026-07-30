@@ -12,7 +12,6 @@ import {
 import Appear from "../../components/Appear";
 import Confetti from "../../components/Confetti";
 import BigButton from "../../components/BigButton";
-import FlipCard from "../../components/FlipCard";
 import PlayerCard from "../../components/PlayerCard";
 import Screen from "../../components/Screen";
 import {
@@ -45,7 +44,6 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
   const [phase, setPhase] = useState<Phase>(game.winners ? "won" : "cards");
   const [pending, setPending] = useState<Record<string, string>>({});
   const [active, setActive] = useState<Player | null>(null);
-  const [peeked, setPeeked] = useState(false);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   // Players the group decided all wrote the same thing.
@@ -57,7 +55,6 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
   const allIn = players.every((p) => pending[p.id] !== undefined);
 
   const open = (player: Player) => {
-    setPeeked(false);
     setText("");
     setError(null);
     setActive(player);
@@ -84,20 +81,30 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
     setPhase(resolved.winners ? "won" : "reveal");
   };
 
-  // ---- one player's card, open ----
+  // ---- one player's turn ----
+  // No card to hold: everyone is working from the same words, so there is
+  // nothing here to hide from the person you are passing the phone to.
+  // The only secret is what you type, and that is secret because you are
+  // the one holding the phone. The prompt just reads as a prompt.
   if (active) {
     return (
       <Screen glow={active.color}>
         <KeyboardAvoidingView
-          style={styles.cardScreen}
+          style={styles.turn}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <FlipCard
-            name={active.name}
-            color={active.color}
-            faceColor={active.color}
-            onPeeked={() => setPeeked(true)}
+          {/* The prompt takes whatever room is left and gives it up first
+              when the keyboard arrives — so the box you are typing in
+              never ends up underneath it. */}
+          <ScrollView
+            style={styles.promptScroll}
+            contentContainerStyle={styles.promptArea}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
+            <Text style={[styles.turnOwner, { color: active.color }]} numberOfLines={1}>
+              {active.name}
+            </Text>
             <Text style={styles.faceLabel}>
               {game.history.length === 0 ? t("syncSeedLabel") : t("syncBetweenLabel")}
             </Text>
@@ -108,34 +115,31 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
                 </Text>
               ))}
             </View>
-          </FlipCard>
+          </ScrollView>
 
           <View style={styles.cardBottom}>
-            {peeked ? (
-              <>
-                <TextInput
-                  style={styles.input}
-                  value={text}
-                  onChangeText={(v) => {
-                    setText(v);
-                    setError(null);
-                  }}
-                  placeholder={t("syncPlaceholder")}
-                  placeholderTextColor={colors.textFaint}
-                  autoCapitalize="none"
-                  selectionColor={colors.accent}
-                />
-                {error ? <Text style={styles.error}>{error}</Text> : null}
-                <BigButton
-                  label={t("syncLockWord")}
-                  tone={active.color}
-                  disabled={text.trim().length === 0}
-                  onPress={lockIn}
-                />
-              </>
-            ) : (
-              <Text style={styles.privacy}>{t("nobodyLooking")}</Text>
-            )}
+            <TextInput
+              style={[styles.input, { borderColor: alpha(active.color, 0.6) }]}
+              value={text}
+              onChangeText={(v) => {
+                setText(v);
+                setError(null);
+              }}
+              placeholder={t("syncPlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              autoCapitalize="none"
+              autoFocus
+              selectionColor={active.color}
+              returnKeyType="done"
+              onSubmitEditing={lockIn}
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <BigButton
+              label={t("syncLockWord")}
+              tone={active.color}
+              disabled={text.trim().length === 0}
+              onPress={lockIn}
+            />
           </View>
         </KeyboardAvoidingView>
       </Screen>
@@ -160,7 +164,7 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
                 <PlayerCard
                   name={p.name}
                   color={p.color}
-                  note={done ? null : t("tapToReveal")}
+                  note={done ? null : t("syncTapToWrite")}
                   dimmed={done}
                   disabled={done}
                   onPress={() => open(p)}
@@ -314,10 +318,19 @@ function leaveButton(onLeave: () => void) {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm },
   scroll: { gap: spacing.sm, paddingTop: spacing.lg, paddingBottom: spacing.md },
-  cardScreen: { flex: 1, alignItems: "center", justifyContent: "center" },
+  turn: { flex: 1 },
+  promptScroll: { flex: 1 },
+  promptArea: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+  },
+  turnOwner: { fontSize: 26, fontWeight: "900", marginBottom: spacing.sm },
   cardBottom: {
-    marginTop: spacing.lg,
-    minHeight: 70,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
     alignSelf: "stretch",
     justifyContent: "center",
     gap: spacing.xs,
@@ -350,19 +363,19 @@ const styles = StyleSheet.create({
   error: { ...type.caption, fontSize: 13, color: colors.danger, textAlign: "center" },
   privacy: { ...type.caption, fontSize: 14, color: colors.textDim, textAlign: "center" },
   faceLabel: { ...type.eyebrow, fontSize: 12, color: colors.textFaint },
-  targetWrap: { alignItems: "center", gap: 2 },
-  targetText: { fontSize: 30, fontWeight: "900", textAlign: "center" },
+  targetWrap: { alignItems: "center", gap: spacing.xs },
+  targetText: { fontSize: 38, fontWeight: "900", textAlign: "center", letterSpacing: -0.5 },
   input: {
     alignSelf: "stretch",
-    backgroundColor: colors.chip,
+    backgroundColor: alpha(colors.bg, 0.55),
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
     borderRadius: radius.md,
     color: colors.text,
     fontSize: 18,
     fontWeight: "700",
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: 14,
+    ...Platform.select({ web: { outlineStyle: "none" } as object, default: {} }),
   },
   list: { gap: spacing.xs, paddingBottom: spacing.md },
   check: { fontSize: 22, fontWeight: "900" },

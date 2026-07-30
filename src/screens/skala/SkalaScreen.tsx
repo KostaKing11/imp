@@ -7,6 +7,7 @@ import Dial from "../../components/Dial";
 import PlayerCard from "../../components/PlayerCard";
 import Screen from "../../components/Screen";
 import TextField from "../../components/TextField";
+import { useScrollToInputOnKeyboard } from "../../components/useScrollToInput";
 import { createSkalaRound, scoreSkalaRound, skalaIsOver, skalaWinners } from "../../game/skalaEngine";
 import { Player, SkalaGame, SkalaRound, skalaPoints, SpectrumCategoryState } from "../../game/types";
 import { roundsWord, t, tf } from "../../i18n";
@@ -41,7 +42,10 @@ export default function SkalaScreen({
   const [clue, setClue] = useState("");
   const [guess, setGuess] = useState(50);
   const [active, setActive] = useState<Player | null>(null);
+  // The dial is tall, so the clue box would otherwise sit under the
+  // keyboard with no way to see what is being typed.
   const clueScroll = useRef<ScrollView>(null);
+  useScrollToInputOnKeyboard(clueScroll);
 
   const byId = (id: string) => players.find((p) => p.id === id) ?? null;
   const over = skalaIsOver(game);
@@ -164,7 +168,6 @@ export default function SkalaScreen({
             target={round.target}
             disabled
             hideNeedle
-            hideExact
           />
           <Text style={styles.hint}>{t("skalaClueHint")}</Text>
           <TextField
@@ -172,9 +175,6 @@ export default function SkalaScreen({
             value={clue}
             onChangeText={setClue}
             placeholder={t("skalaCluePlaceholder")}
-            // The dial is tall, so the box would otherwise sit under the
-            // keyboard with no way to see what is being typed.
-            onFocus={() => setTimeout(() => clueScroll.current?.scrollToEnd({ animated: true }), 120)}
           />
           <BigButton
             label={t("skalaLockClue")}
