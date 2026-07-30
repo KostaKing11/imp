@@ -1,6 +1,7 @@
 import React from "react";
 import { Animated, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
 import { alpha, colors, elevation, radius, spacing, type } from "../theme";
+import Gradient from "./Gradient";
 import { usePressScale } from "./usePressScale";
 
 type Props = {
@@ -51,6 +52,12 @@ export default function BigButton({
           disabled && styles.disabled,
         ]}
       >
+        {/* A gradient rather than a flat fill — it reads as something to
+            press instead of a form control. Only the untinted primary
+            gets it; a button painted in a player's colour keeps theirs. */}
+        {solid && !disabled && !tone && variant === "primary" ? (
+          <Gradient from={colors.accentHi} to={colors.accent} style={styles.fill} />
+        ) : null}
         {icon}
         <Text
           style={[
@@ -74,8 +81,13 @@ const styles = StyleSheet.create({
   wrap: {
     alignSelf: "stretch",
   },
+  fill: {
+    borderRadius: radius.lg,
+    overflow: "hidden",
+  },
   base: {
     flexDirection: "row",
+    overflow: "hidden",
     gap: spacing.xs,
     minHeight: 62,
     borderRadius: radius.lg,

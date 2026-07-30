@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
 import TextField from "../../components/TextField";
-import { t, tf } from "../../i18n";
+import { roundsWord, t, tf } from "../../i18n";
 import { RoomState } from "../../net/protocol";
 import { alpha, colors, radius, spacing, type } from "../../theme";
 
@@ -114,7 +114,7 @@ export default function NetSyncView({
             </View>
           ))}
         </View>
-        <Text style={styles.hint}>{tf("syncTookRounds", { n: sync.roundNo })}</Text>
+        <Text style={styles.hint}>{tf("syncTookRounds", { n: sync.roundNo, w: roundsWord(sync.roundNo) })}</Text>
         {state.phase !== "results" ? (
           isHost ? (
             <BigButton label={t("continueBtn")} tone={tint} onPress={onContinue} />

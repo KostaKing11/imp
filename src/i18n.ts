@@ -55,7 +55,7 @@ const en = {
   skalaSaid: "{name} said",
   skalaLockGuess: "Lock in my guess",
   skalaFinalTitle: "Final scores",
-  skalaPlayedRounds: "{n} rounds played",
+  skalaPlayedRounds: "{n} {w} played",
   skalaWinnerTag: "WINS",
   skalaTurnsLabel: "Clues each",
   skalaRoundsLabel: "Rounds",
@@ -97,7 +97,7 @@ const en = {
   syncWinnersTag: "SYNCED",
   syncEveryoneSaid: "Everyone wrote",
   syncSameThingHint: "Two words mean the same thing? Tap both, then confirm.",
-  syncTookRounds: "It took {n} rounds.",
+  syncTookRounds: "It took {n} {w}.",
   // settings
   settings: "Settings",
   discussionTimers: "Discussion timers",
@@ -407,7 +407,7 @@ const sr: typeof en = {
   skalaSaid: "{name} je rekao",
   skalaLockGuess: "Potvrdi pogađanje",
   skalaFinalTitle: "Konačan rezultat",
-  skalaPlayedRounds: "Odigrano {n} rundi",
+  skalaPlayedRounds: "Odigrano {n} {w}",
   skalaWinnerTag: "POBEDA",
   skalaTurnsLabel: "Tragova po igraču",
   skalaRoundsLabel: "Runde",
@@ -449,7 +449,7 @@ const sr: typeof en = {
   syncWinnersTag: "USKLAĐEN",
   syncEveryoneSaid: "Svi su napisali",
   syncSameThingHint: "Dve reči znače isto? Pritisni obe pa potvrdi.",
-  syncTookRounds: "Trebalo vam je {n} rundi.",
+  syncTookRounds: "Trebalo vam je {n} {w}.",
   // settings
   settings: "Podešavanja",
   discussionTimers: "Tajmeri za diskusiju",
@@ -747,6 +747,20 @@ const MODE_KEYS: Record<GameMode, StringKey> = {
   skala: "modeSkala",
   sync: "modeSync",
 };
+
+// "1 round" but "3 rounds" — and Serbian wants a third form: 1 runda,
+// 2-4 runde, 5+ rundi (with the teens always taking the last one).
+export function roundsWord(n: number): string {
+  if (current === "sr") {
+    const tens = n % 100;
+    const ones = n % 10;
+    if (tens >= 11 && tens <= 14) return "rundi";
+    if (ones === 1) return "runda";
+    if (ones >= 2 && ones <= 4) return "runde";
+    return "rundi";
+  }
+  return n === 1 ? "round" : "rounds";
+}
 
 export function modeLabel(mode: GameMode): string {
   return t(MODE_KEYS[mode]);

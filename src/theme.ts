@@ -4,37 +4,44 @@ import { Platform, TextStyle, ViewStyle } from "react-native";
 
 export const colors = {
   // Surfaces, darkest to lightest. Anything that sits on top of something
-  // else steps up one level — that's the whole depth model.
-  bg: "#08090C",
-  bgSoft: "#0D0F14",
-  card: "#14171E",
-  cardPressed: "#1C202A",
-  cardAlt: "#1C202A",
-  chip: "#0F1218",
+  // else steps up one level — that's the whole depth model. Everything
+  // carries a little warmth rather than being neutral grey: a party game
+  // played in a dim room should feel lit, not switched off.
+  bg: "#0B0910",
+  bgSoft: "#12101A",
+  card: "#1A1725",
+  cardPressed: "#241F32",
+  cardAlt: "#241F32",
+  chip: "#141220",
 
   // Hairlines. `border` is the default; the other two are for pulling an
   // edge back into the background or pushing it forward.
-  border: "#272D38",
-  borderSoft: "#1C212A",
-  borderStrong: "#3A4252",
+  border: "#332C46",
+  borderSoft: "#241F33",
+  borderStrong: "#4A4166",
 
-  text: "#F5F7FB",
-  textDim: "#98A1B4",
-  textFaint: "#6B7489",
+  text: "#F7F5FF",
+  textDim: "#A79FC0",
+  textFaint: "#7A7295",
 
-  accent: "#FF5A1F", // IMP orange
+  accent: "#FF6B2C", // IMP orange
   accentText: "#FFFFFF",
-  accentSoft: "rgba(255,90,31,0.14)",
-  accentGlow: "rgba(255,90,31,0.30)",
+  accentSoft: "rgba(255,107,44,0.16)",
+  accentGlow: "rgba(255,107,44,0.34)",
+  // The other end of every primary gradient — the orange lifts into gold
+  // instead of sitting flat.
+  accentHi: "#FFA23D",
+  // A second voice for anything that should not be orange: player turns,
+  // celebrations, the odd highlight.
+  party: "#B45CFF",
+  partySoft: "rgba(180,92,255,0.16)",
 
-  good: "#2ED573",
-  goodSoft: "rgba(46,213,115,0.14)",
-  // Softened to sit next to the green as a pair — the old #FF4757 was a
-  // shade hotter than anything else on screen and pulled the eye.
+  good: "#39E08A",
+  goodSoft: "rgba(57,224,138,0.16)",
   danger: "#FF6B6B",
-  dangerSoft: "rgba(255,107,107,0.14)",
+  dangerSoft: "rgba(255,107,107,0.16)",
   word: "#FFD166",
-  disabled: "#2B3140",
+  disabled: "#3A3352",
 
   // Gamemode branding (logo + selected mode card).
   impRed: "#E32636",

@@ -1,5 +1,7 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Appear from "../../components/Appear";
+import Confetti from "../../components/Confetti";
 import BigButton from "../../components/BigButton";
 import Dial from "../../components/Dial";
 import PlayerCard from "../../components/PlayerCard";
@@ -7,7 +9,7 @@ import Screen from "../../components/Screen";
 import TextField from "../../components/TextField";
 import { createSkalaRound, scoreSkalaRound, skalaIsOver, skalaWinners } from "../../game/skalaEngine";
 import { Player, SkalaGame, SkalaRound, skalaPoints, SpectrumCategoryState } from "../../game/types";
-import { t, tf } from "../../i18n";
+import { roundsWord, t, tf } from "../../i18n";
 import { alpha, colors, radius, spacing, type } from "../../theme";
 
 type Props = {
@@ -44,15 +46,19 @@ export default function SkalaScreen({
   const byId = (id: string) => players.find((p) => p.id === id) ?? null;
   const over = skalaIsOver(game);
 
-  // Deal a round the first time we need one. Never once the game is over:
-  // there is no caller left, createSkalaRound would return null, and the
-  // null branch would wrongly blame the categories.
-  const round: SkalaRound | null = useMemo(() => {
-    if (over) return null;
-    if (game.round) return game.round;
+  // Deal a round the first time we need one. This has to happen in an
+  // effect, not while rendering — dealing used to call setGame mid-render,
+  // which React rightly refuses to do and which can drop the update.
+  // Never deal once the game is over: there is no caller left, and the
+  // empty result used to be blamed on the categories.
+  const round: SkalaRound | null = over ? null : game.round;
+  const [noContent, setNoContent] = useState(false);
+
+  useEffect(() => {
+    if (over || game.round) return;
     const next = createSkalaRound(game, categories);
     if (next) setGame({ ...game, round: next });
-    return next;
+    else setNoContent(true);
   }, [over, game, categories, setGame]);
 
   // ---- the table, once every turn has been taken ----
@@ -63,10 +69,13 @@ export default function SkalaScreen({
     const winners = skalaWinners(game);
     return (
       <Screen>
+        <Confetti
+          colors={players.filter((p) => winners.includes(p.id)).map((p) => p.color)}
+        />
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={styles.title}>{t("skalaFinalTitle")}</Text>
           <Text style={styles.hint}>
-            {tf("skalaPlayedRounds", { n: game.order.length })}
+            {tf("skalaPlayedRounds", { n: game.order.length, w: roundsWord(game.order.length) })}
           </Text>
           <View style={styles.scoreList}>
             {table.map((p) => (
@@ -91,16 +100,19 @@ export default function SkalaScreen({
     );
   }
 
-  if (!round) {
+  if (noContent) {
     return (
       <Screen>
         <View style={styles.center}>
           <Text style={styles.big}>{t("errNoSpectrums")}</Text>
-          <BigButton label={t("backToMenu")} variant="secondary" onPress={onLeave} />
+          <BigButton label={t("backToMenu")} variant="secondary" onPress={onQuit} />
         </View>
       </Screen>
     );
   }
+
+  // One frame while the effect deals the round.
+  if (!round) return <Screen>{null}</Screen>;
 
   const giver = byId(round.clueGiverId);
   const guessers = players.filter((p) => p.id !== round.clueGiverId);
@@ -216,11 +228,11 @@ export default function SkalaScreen({
         </View>
 
         <ScrollView contentContainerStyle={styles.cardList} showsVerticalScrollIndicator={false}>
-          {guessers.map((p) => {
+          {guessers.map((p, i) => {
             const done = round.guesses[p.id] !== undefined;
             return (
+              <Appear key={p.id} index={i}>
               <PlayerCard
-                key={p.id}
                 name={p.name}
                 color={p.color}
                 note={done ? null : t("tapToReveal")}
@@ -233,6 +245,7 @@ export default function SkalaScreen({
                 }}
                 right={done ? <Text style={[styles.check, { color: p.color }]}>✓</Text> : null}
               />
+              </Appear>
             );
           })}
         </ScrollView>
@@ -279,14 +292,17 @@ export default function SkalaScreen({
             hideNeedle
           />
           <View style={styles.scoreList}>
-            {scored.map(({ player, points }) =>
+            {scored.map(({ player, points }, i) =>
               player ? (
-                <PlayerCard
-                  key={player.id}
-                  name={player.name}
-                  color={player.color}
-                  right={<Text style={[styles.points, { color: player.color }]}>+{points}</Text>}
-                />
+                <Appear key={player.id} index={i} delay={200}>
+                  <PlayerCard
+                    name={player.name}
+                    color={player.color}
+                    right={
+                      <Text style={[styles.points, { color: player.color }]}>+{points}</Text>
+                    }
+                  />
+                </Appear>
               ) : null
             )}
           </View>

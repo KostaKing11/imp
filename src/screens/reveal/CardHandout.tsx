@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Appear from "../../components/Appear";
 import BigButton from "../../components/BigButton";
 import FlipCard from "../../components/FlipCard";
 import PlayerCard from "../../components/PlayerCard";
@@ -107,19 +108,20 @@ export default function CardHandout({
       </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        {players.map((p) => {
+        {players.map((p, i) => {
           const done = seen.has(p.id);
           return (
-            <PlayerCard
-              key={p.id}
-              name={p.name}
-              color={p.color}
-              note={done ? null : t("tapToReveal")}
-              dimmed={done}
-              disabled={done}
-              onPress={() => open(p)}
-              right={done ? <Text style={[styles.check, { color: p.color }]}>✓</Text> : null}
-            />
+            <Appear key={p.id} index={i}>
+              <PlayerCard
+                name={p.name}
+                color={p.color}
+                note={done ? null : t("tapToReveal")}
+                dimmed={done}
+                disabled={done}
+                onPress={() => open(p)}
+                right={done ? <Text style={[styles.check, { color: p.color }]}>✓</Text> : null}
+              />
+            </Appear>
           );
         })}
       </ScrollView>

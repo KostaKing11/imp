@@ -9,6 +9,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Appear from "../../components/Appear";
+import Confetti from "../../components/Confetti";
 import BigButton from "../../components/BigButton";
 import FlipCard from "../../components/FlipCard";
 import PlayerCard from "../../components/PlayerCard";
@@ -21,7 +23,7 @@ import {
   syncWordTaken,
 } from "../../game/syncEngine";
 import { Player, SyncGame } from "../../game/types";
-import { t, tf } from "../../i18n";
+import { roundsWord, t, tf } from "../../i18n";
 import { alpha, colors, radius, spacing, type } from "../../theme";
 
 type Props = {
@@ -151,19 +153,20 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
         </Text>
 
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {players.map((p) => {
+          {players.map((p, i) => {
             const done = pending[p.id] !== undefined;
             return (
-              <PlayerCard
-                key={p.id}
-                name={p.name}
-                color={p.color}
-                note={done ? null : t("tapToReveal")}
-                dimmed={done}
-                disabled={done}
-                onPress={() => open(p)}
-                right={done ? <Text style={[styles.check, { color: p.color }]}>✓</Text> : null}
-              />
+              <Appear key={p.id} index={i}>
+                <PlayerCard
+                  name={p.name}
+                  color={p.color}
+                  note={done ? null : t("tapToReveal")}
+                  dimmed={done}
+                  disabled={done}
+                  onPress={() => open(p)}
+                  right={done ? <Text style={[styles.check, { color: p.color }]}>✓</Text> : null}
+                />
+              </Appear>
             );
           })}
         </ScrollView>
@@ -188,12 +191,12 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
           <Text style={styles.title}>{t("syncNoMatch")}</Text>
 
           <View style={styles.list}>
-            {entries.map(([playerId, w]) => {
+            {entries.map(([playerId, w], i) => {
               const p = byId(playerId);
               const picked = claim.includes(playerId);
               return (
+                <Appear key={playerId} index={i}>
                 <Pressable
-                  key={playerId}
                   onPress={() =>
                     // Tap every word that means the same thing — two or ten.
                     setClaim((prev) =>
@@ -214,6 +217,7 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
                   <Text style={[styles.wordOwner, { color: p?.color }]}>{p?.name}</Text>
                   <Text style={styles.wordText}>{w}</Text>
                 </Pressable>
+                </Appear>
               );
             })}
           </View>
@@ -256,22 +260,23 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
 
   return (
     <Screen glow={tint}>
+      <Confetti colors={winners.map((p) => p.color)} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>{t("syncMatchedTitle")}</Text>
         <Text style={styles.body}>{t("syncMatchedOn")}</Text>
         <Text style={[styles.matched, { color: tint }]}>{game.matchedWord}</Text>
-        <Text style={styles.hint}>{tf("syncTookRounds", { n: game.history.length })}</Text>
+        <Text style={styles.hint}>{tf("syncTookRounds", { n: game.history.length, w: roundsWord(game.history.length) })}</Text>
 
         {/* Everything that was written this round, so the group can see
             whether anybody else was on the same word too. */}
         <Text style={styles.eyebrow}>{t("syncEveryoneSaid")}</Text>
         <View style={styles.list}>
-          {finalWords.map(([playerId, w]) => {
+          {finalWords.map(([playerId, w], i) => {
             const p = byId(playerId);
             const won = winnerIds.includes(playerId);
             return (
+              <Appear key={playerId} index={i} delay={220}>
               <View
-                key={playerId}
                 style={[
                   styles.wordCard,
                   {
@@ -286,6 +291,7 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
                 </Text>
                 <Text style={styles.wordText}>{w}</Text>
               </View>
+              </Appear>
             );
           })}
         </View>

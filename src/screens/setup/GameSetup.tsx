@@ -187,14 +187,23 @@ export default function GameSetup({
   // being selected at all. Centre it instead.
   const modeOrder: GameMode[] = ["imp", "odd", "mafia", "blef", "faker", "skala", "sync"];
   const visibleModes = modeOrder.filter((m) => !hiddenModes.includes(m));
-  useEffect(() => {
+  const centreSelected = (animated: boolean) => {
     const index = visibleModes.indexOf(gameMode);
     if (index < 0) return;
     const step = MODE_CARD_W + MODE_GAP;
     const x = Math.max(0, index * step + MODE_CARD_W / 2 - screenWidth / 2 + spacing.md);
-    const timer = setTimeout(() => modeScrollRef.current?.scrollTo({ x, animated: false }), 0);
-    return () => clearTimeout(timer);
-    // Only on mount and when the mode itself changes from elsewhere.
+    modeScrollRef.current?.scrollTo({ x, animated });
+  };
+
+  useEffect(() => {
+    // The row has to have measured itself before a scroll sticks, and
+    // neither onLayout nor onContentSizeChange fires reliably under
+    // react-native-web — so try a few times and let the last one win.
+    const timers = [0, 120, 350].map((delay) =>
+      setTimeout(() => centreSelected(delay > 0), delay)
+    );
+    return () => timers.forEach(clearTimeout);
+    // Only when the mode itself changes, or the screen is resized.
   }, [gameMode, screenWidth]);
 
   const isMafia = gameMode === "mafia";
@@ -323,6 +332,9 @@ export default function GameSetup({
         showsHorizontalScrollIndicator={false}
         style={styles.modeScroll}
         contentContainerStyle={styles.modes}
+        // The first jump has to wait until the row has measured itself;
+        // scrolling before that silently clamps to zero.
+        onContentSizeChange={() => centreSelected(false)}
       >
         {modeCard("imp", require("../../../assets/modes/classic.png"))}
         {modeCard("odd", require("../../../assets/modes/odd.png"))}
