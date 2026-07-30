@@ -62,9 +62,7 @@ export default function FlipCard({ name, color, faceColor, children, onPeeked }:
             {/* The back of the deck: every card in the game shares it, so
                 nothing about a face-down card gives anything away. */}
             <View style={[styles.pattern, { backgroundColor: alpha(color, 0.07) }]} />
-            <View style={[styles.crest, { borderColor: alpha(color, 0.5) }]}>
-              <Text style={[styles.logo, { color }]}>IMP</Text>
-            </View>
+            <Text style={[styles.logo, { color }]}>IMP</Text>
             <Text style={styles.holdHint}>{t("holdToReveal")}</Text>
           </Animated.View>
 
@@ -140,13 +138,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  crest: {
-    borderWidth: 2,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  logo: { fontSize: 52, fontWeight: "900", letterSpacing: 4 },
+  logo: { fontSize: 54, fontWeight: "900", letterSpacing: 4 },
   holdHint: {
     fontSize: 13,
     fontWeight: "700",

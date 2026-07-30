@@ -62,7 +62,10 @@ export default function ResultScreen({ players, roles, round, onNewRound, onBack
     // them, so the light is too.
     <Screen glow={imposters[0]?.color ?? colors.accent}>
       <ScrollView contentContainerStyle={styles.revealList} showsVerticalScrollIndicator={false}>
-        <Appear>
+        {/* The wrapper has to stretch too — an Animated.View around a
+            stretched child shrinks to the child's own width, which left
+            the word card as a small box in the middle of the screen. */}
+        <Appear style={styles.wordCardWrap}>
           <View style={styles.wordCard}>
             <Gradient from={alpha(colors.word, 0.16)} to={alpha(colors.word, 0.02)} angle={0.85} />
             <Text style={styles.wordLabel}>{t("theWordWas")}</Text>
@@ -153,6 +156,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     paddingVertical: spacing.md,
+  },
+  wordCardWrap: {
+    alignSelf: "stretch",
   },
   wordCard: {
     alignSelf: "stretch",

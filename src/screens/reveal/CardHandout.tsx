@@ -7,7 +7,7 @@ import PlayerCard from "../../components/PlayerCard";
 import Screen from "../../components/Screen";
 import { Player } from "../../game/types";
 import { t } from "../../i18n";
-import { colors, radius, spacing, type } from "../../theme";
+import { alpha, colors, radius, spacing, type } from "../../theme";
 
 type Props = {
   players: Player[];
@@ -165,10 +165,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
   },
+  // Faint enough to read as an empty track rather than a stray divider
+  // rule under the heading, which is what it looked like at 0 of 5.
   progressTrack: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.chip,
+    backgroundColor: alpha(colors.text, 0.07),
     overflow: "hidden",
     marginBottom: spacing.sm,
   },

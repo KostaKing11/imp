@@ -154,13 +154,16 @@ export default function SkalaScreen({
           <Text style={styles.eyebrow}>{roundLabel}</Text>
           <Text style={styles.title}>{t("skalaYourTarget")}</Text>
           {/* The caller sees the wedges too, so they know how much room
-              a near miss leaves. */}
+              a near miss leaves. No needle: it would point at exactly the
+              spot the white marker already shows, so it read as a second,
+              contradicting thing to look at. */}
           <Dial
             value={round.target}
             left={round.left}
             right={round.right}
             target={round.target}
             disabled
+            hideNeedle
           />
           <Text style={styles.hint}>{t("skalaClueHint")}</Text>
           <TextField

@@ -78,13 +78,17 @@ export default function DiscussionScreen({
       {/* circular timer button with progress ring */}
       <Pressable onPress={toggle} style={styles.ringWrap}>
         <Svg width={SIZE} height={SIZE}>
+          {/* Opacity as its own attribute — Android's react-native-svg
+              paints an rgba() colour string solid. */}
           <Circle
             cx={SIZE / 2}
             cy={SIZE / 2}
             r={R}
-            stroke={alpha(colors.text, 0.07)}
+            stroke={colors.text}
+            strokeOpacity={0.07}
             strokeWidth={STROKE}
-            fill={alpha(colors.card, 0.85)}
+            fill={colors.card}
+            fillOpacity={0.85}
           />
           <Circle
             cx={SIZE / 2}

@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { GestureResponderEvent, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G, Path, Polygon, Text as SvgText } from "react-native-svg";
 import { SKALA_BANDS } from "../game/types";
-import { alpha, colors, type } from "../theme";
+import { alpha, colors, radius, type } from "../theme";
 
 // ---- geometry ----
 // A half dial: 0 points left, 100 points right, 50 straight up. Drawn in
@@ -241,12 +241,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
   },
+  // The ends of the spectrum sit over the dial, so they need a backing to
+  // stay readable — as a rounded chip, not a bare highlight behind the
+  // words, which looked like text somebody had selected.
   label: {
     ...type.caption,
     fontSize: 13,
     color: colors.textDim,
-    maxWidth: "40%",
-    backgroundColor: alpha(colors.bg, 0.6),
+    maxWidth: "44%",
+    backgroundColor: alpha(colors.bg, 0.75),
+    borderRadius: radius.sm,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    overflow: "hidden",
   },
   labelRight: {
     textAlign: "right",

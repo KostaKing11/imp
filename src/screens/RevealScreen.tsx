@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { CIVILIAN } from "../game/roles";
 import { Player, RoleDef, Round } from "../game/types";
 import { roleDesc, roleName, t, tf } from "../i18n";
-import { colors, radius, spacing } from "../theme";
+import { alpha, colors, radius, spacing } from "../theme";
 import { capitalize } from "../utils";
 import CardHandout from "./reveal/CardHandout";
 
@@ -77,6 +77,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: colors.textDim,
   },
+  // The word is printed in the role's own colour, and the card behind it
+  // is washed in that same colour — so the box carries its own dark plate
+  // rather than trusting the wash to stay light enough to read against.
   wordBox: {
     alignItems: "center",
     alignSelf: "stretch",
@@ -85,6 +88,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
+    backgroundColor: alpha(colors.bg, 0.6),
   },
   wordLabel: {
     fontSize: 13,

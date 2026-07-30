@@ -1,6 +1,6 @@
 import React from "react";
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
-import { alpha, colors } from "../theme";
+import { colors } from "../theme";
 import { hsvToHex } from "../utils";
 
 // Thumb up / thumb down. The voting screen leans on these: a thumb up
@@ -102,28 +102,37 @@ export function QrIcon({ size = 24, color = colors.text }: { size?: number; colo
   );
 }
 
-// Scale's mark: the spectrum with a needle parked off-centre. Two modes
-// shipped without artwork and drew their own name across the card, which
-// meant the mode row was five pictures and two paragraphs.
+// Scale's mark: the spectrum, lit from one end to a point along it. Two
+// modes shipped without artwork and drew their own name across the card,
+// which meant the mode row was five pictures and two paragraphs.
+//
+// Opacity goes in strokeOpacity / fillOpacity, never in an rgba() colour:
+// Android's react-native-svg drops the alpha channel of a colour string
+// and paints it solid.
 export function ScaleMark({ size = 64, color }: { size?: number; color: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
+      {/* the whole range, dim */}
       <Path
-        d="M6 40 a26 26 0 0 1 52 0"
-        stroke={alpha(color, 0.28)}
+        d="M8 44 a24 24 0 0 1 48 0"
+        stroke={color}
+        strokeOpacity={0.3}
         strokeWidth="9"
         strokeLinecap="round"
         fill="none"
       />
+      {/* how far along it you are */}
       <Path
-        d="M6 40 a26 26 0 0 1 26 -26"
+        d="M8 44 a24 24 0 0 1 20 -23.4"
         stroke={color}
         strokeWidth="9"
         strokeLinecap="round"
         fill="none"
       />
-      <Line x1="32" y1="40" x2="45" y2="21" stroke={color} strokeWidth="5" strokeLinecap="round" />
-      <Circle cx="32" cy="40" r="6.5" fill={color} />
+      {/* the point itself — a bead on the scale rather than a needle
+          pointing at it, which read as a gauge from a dashboard */}
+      <Circle cx="28" cy="20.6" r="7.5" fill={color} />
+      <Circle cx="28" cy="20.6" r="3" fill="#0A0714" fillOpacity={0.55} />
     </Svg>
   );
 }
@@ -138,7 +147,8 @@ export function SamePageMark({ size = 64, color }: { size?: number; color: strin
         width="30"
         height="38"
         rx="5"
-        fill={alpha(color, 0.3)}
+        fill={color}
+        fillOpacity={0.3}
         stroke={color}
         strokeWidth="3"
         transform="rotate(-9 23 31)"
@@ -149,7 +159,8 @@ export function SamePageMark({ size = 64, color }: { size?: number; color: strin
         width="30"
         height="38"
         rx="5"
-        fill={alpha(color, 0.3)}
+        fill={color}
+        fillOpacity={0.3}
         stroke={color}
         strokeWidth="3"
         transform="rotate(9 41 33)"

@@ -80,12 +80,14 @@ export default function NetSkalaView({
       >
         {header}
         <Text style={styles.title}>{t("skalaYourTarget")}</Text>
+        {/* No needle — the white marker already shows the exact point. */}
         <Dial
           value={card?.target ?? 50}
           left={skala.left}
           right={skala.right}
           target={card?.target ?? null}
           disabled
+          hideNeedle
         />
         <Text style={styles.hint}>{t("skalaClueHint")}</Text>
         <TextField

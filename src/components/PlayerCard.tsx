@@ -81,10 +81,6 @@ export default function PlayerCard({
           pressed && !disabled && styles.pressed,
         ]}
       >
-        {/* A hairline of light along the top edge — the card reads as a
-            physical thing lying on the table rather than a coloured box. */}
-        <View style={styles.cap} pointerEvents="none" />
-
         {/* The avatar is filled, not outlined: at a glance across a table
             a solid disc of someone's colour is far easier to find than a
             ring of it. */}
@@ -144,14 +140,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm + 2,
     gap: spacing.sm,
     overflow: "hidden",
-  },
-  cap: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: alpha(colors.text, 0.14),
   },
   selected: {
     borderWidth: 2.5,
