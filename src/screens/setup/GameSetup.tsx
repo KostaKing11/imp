@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +10,15 @@ import {
 } from "react-native";
 import Chip from "../../components/Chip";
 import Gradient from "../../components/Gradient";
-import { SamePageMark, ScaleMark } from "../../components/icons";
+import {
+  BluffMark,
+  FakerMark,
+  ImpMark,
+  MafiaMark,
+  OddMark,
+  SamePageMark,
+  ScaleMark,
+} from "../../components/icons";
 import SectionTitle from "../../components/SectionTitle";
 import Stepper from "../../components/Stepper";
 import { usePressScale } from "../../components/usePressScale";
@@ -23,7 +30,7 @@ import {
   RoleDef,
   SpectrumCategoryState,
 } from "../../game/types";
-import { getLanguage, modeLabel, roleName, t } from "../../i18n";
+import { modeLabel, roleName, t } from "../../i18n";
 import {
   alpha,
   colors,
@@ -55,7 +62,6 @@ const MODE_GAP = 10;
 function ModeCard({
   selected,
   tint,
-  source,
   mark,
   label,
   badge,
@@ -63,9 +69,8 @@ function ModeCard({
 }: {
   selected: boolean;
   tint: string;
-  // A photo-style card. Modes without one hand over a drawn mark instead.
-  source?: number;
-  mark?: React.ReactNode;
+  // The mode's drawing. Every mode has one, in one shared style.
+  mark: React.ReactNode;
   label?: string;
   badge?: string;
   onPress: () => void;
@@ -97,14 +102,10 @@ function ModeCard({
           selected && [styles.modeSelected, elevation.glowStrong(tint)],
         ]}
       >
-        {source ? (
-          <Image source={source} style={styles.modeImage} resizeMode="cover" />
-        ) : (
-          <View style={styles.modeArtless}>
-            <Gradient from={alpha(tint, 0.34)} to={alpha(tint, 0.06)} angle={0.8} />
-            {mark}
-          </View>
-        )}
+        <View style={styles.modeArt}>
+          <Gradient from={alpha(tint, 0.34)} to={alpha(tint, 0.06)} angle={0.8} />
+          {mark}
+        </View>
 
         {/* The dim overlay stays mounted with constant structure — toggling
             children on Android glitches the rounded clip and makes the
@@ -321,23 +322,33 @@ export default function GameSetup({
   const categoryHint = `${activeCategories.filter((c) => c.enabled).length}/${activeCategories.length}`;
   const roleHint = `${currentRoles.reduce((n, r) => n + r.count, 0)}`;
 
-  const modeCard = (
-    mode: GameMode,
-    art?: { source?: number; mark?: React.ReactNode },
-    badge?: string
-  ) =>
-    hiddenModes.includes(mode) ? null : (
+  // One drawing per mode, all in the same hand — see components/icons.
+  const MODE_MARK: Record<GameMode, React.ComponentType<{ size?: number; color: string }>> = {
+    imp: ImpMark,
+    odd: OddMark,
+    mafia: MafiaMark,
+    blef: BluffMark,
+    faker: FakerMark,
+    skala: ScaleMark,
+    sync: SamePageMark,
+  };
+
+  const modeCard = (mode: GameMode, badge?: string) => {
+    if (hiddenModes.includes(mode)) return null;
+    const Mark = MODE_MARK[mode];
+    const tone = modeTint(mode);
+    return (
       <ModeCard
         key={mode}
         selected={gameMode === mode}
-        tint={modeTint(mode)}
-        source={art?.source}
-        mark={art?.mark}
+        tint={tone}
+        mark={<Mark size={58} color={tone} />}
         label={modeLabel(mode)}
         badge={badge}
         onPress={() => setGameMode(mode)}
       />
     );
+  };
 
   // Everything below the mode row belongs to the mode that is picked, so
   // the section ticks take its colour and the page stops reading as one
@@ -363,23 +374,13 @@ export default function GameSetup({
         // scrolling before that silently clamps to zero.
         onContentSizeChange={() => centreSelected(false)}
       >
-        {modeCard("imp", { source: require("../../../assets/modes/classic.png") })}
-        {modeCard("odd", { source: require("../../../assets/modes/odd.png") })}
-        {modeCard("mafia", { source: require("../../../assets/modes/mafia.png") })}
-        {modeCard("blef", {
-          source:
-            getLanguage() === "sr"
-              ? require("../../../assets/modes/blef.png")
-              : require("../../../assets/modes/bluff.png"),
-        })}
-        {modeCard("faker", {
-          source:
-            getLanguage() === "sr"
-              ? require("../../../assets/modes/folirant.png")
-              : require("../../../assets/modes/faker.png"),
-        })}
-        {modeCard("skala", { mark: <ScaleMark size={62} color={modeTint("skala")} /> })}
-        {modeCard("sync", { mark: <SamePageMark size={58} color={modeTint("sync")} /> })}
+        {modeCard("imp")}
+        {modeCard("odd")}
+        {modeCard("mafia")}
+        {modeCard("blef")}
+        {modeCard("faker")}
+        {modeCard("skala")}
+        {modeCard("sync")}
       </ScrollView>
 
       {middleSlot}
@@ -604,19 +605,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
     borderWidth: 2,
   },
-  modeImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
-  },
   modeSelected: {
     borderWidth: 3,
   },
-  modeArtless: {
+  modeArt: {
     position: "absolute",
     top: 0,
     left: 0,
@@ -625,8 +617,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xs,
-    // The name is printed along the bottom like every other card, so the
-    // mark sits a little high to leave room for it.
+    // The name is printed along the bottom, so the mark sits a little
+    // high to leave room for it.
     paddingBottom: 22,
   },
   modeScrim: {

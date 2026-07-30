@@ -164,6 +164,7 @@ export default function SkalaScreen({
             target={round.target}
             disabled
             hideNeedle
+            hideExact
           />
           <Text style={styles.hint}>{t("skalaClueHint")}</Text>
           <TextField

@@ -335,12 +335,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     zIndex: 3,
   },
+  // A long tail, so the bar dissolves into the screen instead of ending
+  // in a straight dark edge across it.
   headerFade: {
     position: "absolute",
     top: 58 - spacing.xs,
     left: -spacing.md,
     right: -spacing.md,
-    height: 18,
+    height: 34,
     zIndex: 3,
   },
   settingsButton: {

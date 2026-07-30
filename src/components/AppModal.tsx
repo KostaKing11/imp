@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { useKeyboardInset } from "./useKeyboardInset";
-import { alpha, colors, elevation, radius, spacing, type } from "../theme";
+import { alpha, colors, elevation, motion, radius, spacing, type } from "../theme";
 
 type Props = {
   visible: boolean;
@@ -19,16 +19,40 @@ type Props = {
   children: React.ReactNode;
 };
 
+// Far enough to be off the bottom of any phone.
+const TRAVEL = 900;
+// How far down the drag has to get before the backdrop is fully gone.
+const FADE_OVER = 320;
+
 // Bottom sheet used by all pop-ups: tap the empty space above it or
 // pull it down (by the handle/title) to dismiss.
+//
+// Modal's own "slide" slides the *whole* window, backdrop included, so
+// closing a pop-up looked like a dark pane sliding off the screen with
+// the screen behind it dimmed the whole way down. It fades instead —
+// nothing travels, so there is no dark box to watch leave. The sheet
+// still springs up on the way in, and while you are dragging it down the
+// dimming follows it.
+//
+// `visible` is handed straight to Modal, so React does the mounting
+// exactly as it always did — there is no closing state of our own that
+// could get stuck and leave a pop-up that will not go away.
 export default function AppModal({ visible, title, onClose, children }: Props) {
   const keyboardInset = useKeyboardInset();
-  const translateY = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(TRAVEL)).current;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
-    if (visible) translateY.setValue(0);
+    if (!visible) return;
+    translateY.setValue(TRAVEL);
+    const run = Animated.spring(translateY, {
+      toValue: 0,
+      ...motion.soft,
+      useNativeDriver: true,
+    });
+    run.start();
+    return () => run.stop();
   }, [visible, translateY]);
 
   const pan = useRef(
@@ -39,23 +63,30 @@ export default function AppModal({ visible, title, onClose, children }: Props) {
         if (g.dy > 0) translateY.setValue(g.dy);
       },
       onPanResponderRelease: (_e, g) => {
-        if (g.dy > 110 || g.vy > 0.9) {
-          Animated.timing(translateY, { toValue: 700, duration: 150, useNativeDriver: true }).start(
-            () => onCloseRef.current()
-          );
-        } else {
-          Animated.spring(translateY, { toValue: 0, friction: 8, useNativeDriver: true }).start();
-        }
+        // Let the parent turn `visible` off and the effect above play the
+        // exit — one exit path, so a flick and a tap look the same.
+        if (g.dy > 110 || g.vy > 0.9) onCloseRef.current();
+        else Animated.spring(translateY, { toValue: 0, friction: 8, useNativeDriver: true }).start();
       },
     })
   ).current;
 
+  // The dimming is tied to the sheet's own position, so it is always
+  // exactly as dark as the sheet is far up.
+  const backdropOpacity = translateY.interpolate({
+    inputRange: [0, FADE_OVER],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* The sheet rides above the keyboard: this modal is its own
           window on Android and would otherwise sit under it. */}
       <View style={[styles.wrap, { paddingBottom: keyboardInset }]}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        </Animated.View>
         <Animated.View
           style={[
             styles.sheet,
@@ -89,14 +120,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: alpha(colors.bg, 0.82),
   },
+  // No top border: a hairline across the top of the sheet read as a
+  // stray line floating above it.
   sheet: {
     backgroundColor: colors.bgSoft,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     maxHeight: "82%",
     overflow: "hidden",
-    borderTopWidth: 1,
-    borderColor: colors.border,
     ...elevation.sheet,
   },
   // With the keyboard up there is far less room; let the sheet use it.

@@ -88,6 +88,7 @@ export default function NetSkalaView({
           target={card?.target ?? null}
           disabled
           hideNeedle
+          hideExact
         />
         <Text style={styles.hint}>{t("skalaClueHint")}</Text>
         <TextField

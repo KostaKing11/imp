@@ -102,13 +102,126 @@ export function QrIcon({ size = 24, color = colors.text }: { size?: number; colo
   );
 }
 
-// Scale's mark: the spectrum, lit from one end to a point along it. Two
-// modes shipped without artwork and drew their own name across the card,
-// which meant the mode row was five pictures and two paragraphs.
+// ---- gamemode marks ----
 //
-// Opacity goes in strokeOpacity / fillOpacity, never in an rgba() colour:
-// Android's react-native-svg drops the alpha channel of a colour string
-// and paints it solid.
+// One drawing per mode, all to the same recipe: a 64-square, one colour
+// (the mode's own), chunky rounded strokes, and any translucent fill done
+// with fillOpacity. Never an rgba() colour string — Android's
+// react-native-svg drops the alpha channel of one and paints it solid.
+//
+// They replaced the painted cards: seven illustrations in seven different
+// styles never sat together as a row, and two modes had no picture at all
+// and printed their own name across the tile instead.
+
+// IMP Classic: the mask. One of you is not who they say they are.
+export function ImpMark({ size = 64, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 64 64">
+      <Rect
+        x="5"
+        y="21"
+        width="54"
+        height="25"
+        rx="12"
+        fill={color}
+        fillOpacity={0.3}
+        stroke={color}
+        strokeWidth="3"
+      />
+      <Circle cx="21" cy="33.5" r="4.6" fill={color} />
+      <Circle cx="43" cy="33.5" r="4.6" fill={color} />
+    </Svg>
+  );
+}
+
+// Odd One Out: four of a kind, except one.
+export function OddMark({ size = 64, color }: { size?: number; color: string }) {
+  const dim = { fill: color, fillOpacity: 0.28, stroke: color, strokeWidth: 3 };
+  return (
+    <Svg width={size} height={size} viewBox="0 0 64 64">
+      <Circle cx="22" cy="22" r="9.5" {...dim} />
+      <Circle cx="42" cy="22" r="9.5" {...dim} />
+      <Circle cx="22" cy="42" r="9.5" {...dim} />
+      {/* the one that is not like the others */}
+      <Circle cx="42" cy="42" r="11" fill={color} />
+    </Svg>
+  );
+}
+
+// Mafia: the hat. The app deals the roles, the table plays it out.
+export function MafiaMark({ size = 64, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 64 64">
+      <Ellipse
+        cx="32"
+        cy="43"
+        rx="26"
+        ry="6.5"
+        fill={color}
+        fillOpacity={0.28}
+        stroke={color}
+        strokeWidth="3"
+      />
+      <Path
+        d="M19 41 c0 -14 5 -21 13 -21 s13 7 13 21 z"
+        fill={color}
+        fillOpacity={0.28}
+        stroke={color}
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <Rect x="17.5" y="34" width="29" height="6" rx="3" fill={color} />
+    </Svg>
+  );
+}
+
+// Bluff: a hand you are not showing anyone.
+export function BluffMark({ size = 64, color }: { size?: number; color: string }) {
+  const card = {
+    x: 21,
+    y: 13,
+    width: 22,
+    height: 33,
+    rx: 5,
+    fill: color,
+    fillOpacity: 0.28,
+    stroke: color,
+    strokeWidth: 3,
+  };
+  return (
+    <Svg width={size} height={size} viewBox="0 0 64 64">
+      <Rect {...card} transform="rotate(-24 32 44)" />
+      <Rect {...card} transform="rotate(24 32 44)" />
+      <Rect {...card} />
+    </Svg>
+  );
+}
+
+// Faker: the same question, asked of everyone but one.
+export function FakerMark({ size = 64, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 64 64">
+      <Path
+        d="M14 12 h36 a8 8 0 0 1 8 8 v16 a8 8 0 0 1 -8 8 h-18 l-11 9 v-9 h-7 a8 8 0 0 1 -8 -8 v-16 a8 8 0 0 1 8 -8 z"
+        fill={color}
+        fillOpacity={0.28}
+        stroke={color}
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M26.5 24 a6 6 0 1 1 6 6.5 v2"
+        stroke={color}
+        strokeWidth="4"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Circle cx="32.5" cy="37.5" r="2.7" fill={color} />
+    </Svg>
+  );
+}
+
+// Scale: the spectrum, lit from one end to a point along it.
 export function ScaleMark({ size = 64, color }: { size?: number; color: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">

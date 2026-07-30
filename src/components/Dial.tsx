@@ -85,6 +85,11 @@ type Props = {
   disabled?: boolean;
   // Hides the needle entirely (while watching someone else's reveal).
   hideNeedle?: boolean;
+  // Drops the white line through the exact point, leaving only the
+  // scoring bands. The clue giver reads the dial to judge how much room
+  // a near miss leaves — a line marking the precise spot only invites
+  // them to describe that spot instead of the band.
+  hideExact?: boolean;
 };
 
 // The scoring wedges, widest first so the narrow ones paint on top.
@@ -99,6 +104,7 @@ export default function Dial({
   markers = [],
   disabled = false,
   hideNeedle = false,
+  hideExact = false,
 }: Props) {
   const [width, setWidth] = useState(0);
   const offset = useRef({ x: 0, y: 0 });
@@ -163,10 +169,12 @@ export default function Dial({
                 />
               ))}
             {/* the exact point */}
-            <Path
-              d={wedgePath(target! - 0.6, target! + 0.6, R_IN - 6, R_OUT + 6)}
-              fill={colors.text}
-            />
+            {hideExact ? null : (
+              <Path
+                d={wedgePath(target! - 0.6, target! + 0.6, R_IN - 6, R_OUT + 6)}
+                fill={colors.text}
+              />
+            )}
             {/* A number in the middle of every band, on both sides of the
                 target, plus the two zero zones out at the ends. */}
             {bandLabels(target!).map((lab) => {

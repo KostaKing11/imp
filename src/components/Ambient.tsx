@@ -98,10 +98,12 @@ type Props = {
 export default function Ambient({ tint, second, third }: Props) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {/* The main light sits a little below the top edge on purpose:
-          several screens park an opaque bar up there, and a blob centred
-          at y=0 would be sliced off by it in a visible straight line. */}
-      <Blob color={tint} x={0.5} y={0.13} size={1.6} opacity={0.26} travel={26} period={9000} delay={0} />
+      {/* The main light sits well down the screen on purpose. Several
+          screens park an opaque bar across the top, and any glow up there
+          gets sliced off by it in a hard horizontal band — so the bright
+          part starts below where those bars end, and the top of the
+          screen is genuinely dark for them to sit on. */}
+      <Blob color={tint} x={0.5} y={0.28} size={1.6} opacity={0.26} travel={26} period={9000} delay={0} />
       <Blob color={second} x={0.04} y={0.45} size={1.25} opacity={0.22} travel={34} period={11000} delay={700} />
       <Blob color={third} x={0.98} y={0.8} size={1.35} opacity={0.17} travel={30} period={13000} delay={1500} />
     </View>
