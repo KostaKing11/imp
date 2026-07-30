@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, ViewStyle } from "react-native";
+import { motion } from "../theme";
 
 type Props = {
   children: React.ReactNode;
@@ -29,8 +30,7 @@ export default function Appear({
   useEffect(() => {
     const run = Animated.spring(anim, {
       toValue: 1,
-      speed: 14,
-      bounciness: 6,
+      ...motion.pop,
       delay: delay + index * stagger,
       useNativeDriver: true,
     });

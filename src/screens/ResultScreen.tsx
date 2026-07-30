@@ -1,11 +1,14 @@
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import Appear from "../components/Appear";
 import BigButton from "../components/BigButton";
+import Gradient from "../components/Gradient";
+import Pop from "../components/Pop";
 import Screen from "../components/Screen";
 import { CIVILIAN } from "../game/roles";
 import { Player, RoleDef, Round } from "../game/types";
 import { roleName, t } from "../i18n";
-import { colors, radius, spacing } from "../theme";
+import { alpha, colors, elevation, radius, spacing } from "../theme";
 
 type Props = {
   players: Player[];
@@ -35,11 +38,17 @@ export default function ResultScreen({ players, roles, round, onNewRound, onBack
 
   if (!revealed) {
     return (
-      <Screen>
+      <Screen glow={colors.party}>
         <View style={styles.center}>
-          <Text style={styles.heading}>{t("pointFingers")}</Text>
-          <Text style={styles.instructions}>{t("pointInstr")}</Text>
-          <Text style={styles.instructions}>{t("guessInstr")}</Text>
+          <Pop from={0.7}>
+            <Text style={styles.heading}>{t("pointFingers")}</Text>
+          </Pop>
+          <Appear index={1}>
+            <Text style={styles.instructions}>{t("pointInstr")}</Text>
+          </Appear>
+          <Appear index={2}>
+            <Text style={styles.instructions}>{t("guessInstr")}</Text>
+          </Appear>
         </View>
         <View style={styles.bottom}>
           <BigButton label={t("revealTheRoles")} onPress={() => setRevealed(true)} />
@@ -49,40 +58,63 @@ export default function ResultScreen({ players, roles, round, onNewRound, onBack
   }
 
   return (
-    <Screen>
+    // The room takes the first imposter's colour — the reveal is about
+    // them, so the light is too.
+    <Screen glow={imposters[0]?.color ?? colors.accent}>
       <ScrollView contentContainerStyle={styles.revealList} showsVerticalScrollIndicator={false}>
-        <View style={styles.wordCard}>
-          <Text style={styles.wordLabel}>{t("theWordWas")}</Text>
-          <Text style={styles.word}>{round.word}</Text>
-        </View>
+        <Appear>
+          <View style={styles.wordCard}>
+            <Gradient from={alpha(colors.word, 0.16)} to={alpha(colors.word, 0.02)} angle={0.85} />
+            <Text style={styles.wordLabel}>{t("theWordWas")}</Text>
+            <Text style={styles.word}>{round.word}</Text>
+          </View>
+        </Appear>
 
-        {/* the grand reveal */}
-        <Text style={styles.revealLabel}>
-          {imposters.length > 1 ? t("impostersWere") : t("imposterWas")}
-        </Text>
-        {imposters.map((p) => (
-          <Text key={p.id} style={[styles.grandName, { color: p.color }]} numberOfLines={1}>
-            {p.name}
+        {/* the grand reveal — the label first, then a beat, then the name,
+            so everyone reads it at the same moment */}
+        <Appear index={1}>
+          <Text style={styles.revealLabel}>
+            {imposters.length > 1 ? t("impostersWere") : t("imposterWas")}
           </Text>
+        </Appear>
+        {imposters.map((p, i) => (
+          <Pop key={p.id} delay={420 + i * 260} from={0.5}>
+            <Text style={[styles.grandName, { color: p.color }]} numberOfLines={1}>
+              {p.name}
+            </Text>
+          </Pop>
         ))}
 
         {/* everyone else with a special role */}
         {others.length > 0 ? (
           <>
             <Text style={styles.sectionLabel}>{t("otherRoles")}</Text>
-            {others.map((p) => {
+            {others.map((p, i) => {
               const role = roleFor(p.id);
               return (
-                <View key={p.id} style={styles.playerRow}>
-                  <Text style={[styles.playerName, { color: p.color }]} numberOfLines={1}>
-                    {p.name}
-                  </Text>
-                  <View style={[styles.roleBadge, { borderColor: role.color }]}>
-                    <Text style={[styles.roleBadgeText, { color: role.color }]}>
-                      {roleName(role)}
+                <Appear
+                  key={p.id}
+                  index={i}
+                  delay={520 + imposters.length * 260}
+                  style={styles.playerRowWrap}
+                >
+                  <View style={[styles.playerRow, { borderColor: alpha(p.color, 0.5) }]}>
+                    <View style={[styles.playerDot, { backgroundColor: p.color }]} />
+                    <Text style={[styles.playerName, { color: p.color }]} numberOfLines={1}>
+                      {p.name}
                     </Text>
+                    <View
+                      style={[
+                        styles.roleBadge,
+                        { borderColor: role.color, backgroundColor: alpha(role.color, 0.14) },
+                      ]}
+                    >
+                      <Text style={[styles.roleBadgeText, { color: role.color }]}>
+                        {roleName(role)}
+                      </Text>
+                    </View>
                   </View>
-                </View>
+                </Appear>
               );
             })}
           </>
@@ -124,16 +156,21 @@ const styles = StyleSheet.create({
   },
   wordCard: {
     alignSelf: "stretch",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
+    backgroundColor: alpha(colors.card, 0.8),
+    borderColor: alpha(colors.word, 0.35),
+    borderWidth: 1.5,
+    borderRadius: radius.lg,
     paddingVertical: spacing.md,
     alignItems: "center",
     gap: spacing.xs,
+    overflow: "hidden",
+    ...elevation.glow(colors.word),
   },
   wordLabel: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
     color: colors.textDim,
   },
   word: {
@@ -164,23 +201,22 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginTop: spacing.md,
   },
-  playerRow: {
+  playerRowWrap: {
     alignSelf: "stretch",
+  },
+  playerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: colors.card,
+    backgroundColor: alpha(colors.card, 0.8),
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
     padding: spacing.sm,
   },
   playerDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: colors.border,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
   },
   playerName: {
     flex: 1,

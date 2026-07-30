@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 import { useKeyboardInset } from "./useKeyboardInset";
-import { colors, elevation, radius, spacing, type } from "../theme";
+import { alpha, colors, elevation, gradients, radius, spacing, type } from "../theme";
+import Gradient from "./Gradient";
 
 type Props = {
   visible: boolean;
@@ -63,6 +64,12 @@ export default function AppModal({ visible, title, onClose, children }: Props) {
             { transform: [{ translateY }] },
           ]}
         >
+          {/* A lit seam along the top of the sheet, so a pop-up arrives
+              as a lid rather than a grey rectangle. */}
+          <View style={styles.seam} pointerEvents="none">
+            <Gradient from={gradients.primary[0]} to={colors.party} angle={0} />
+          </View>
+
           <View style={styles.grabArea} {...pan.panHandlers}>
             <View style={styles.handle} />
             <Text style={styles.title}>{title}</Text>
@@ -87,16 +94,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.72)",
+    backgroundColor: alpha(colors.bg, 0.82),
   },
   sheet: {
     backgroundColor: colors.bgSoft,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    borderTopWidth: 1,
-    borderColor: colors.border,
     maxHeight: "82%",
+    overflow: "hidden",
     ...elevation.sheet,
+  },
+  seam: {
+    height: 3,
+    width: "100%",
   },
   // With the keyboard up there is far less room; let the sheet use it.
   sheetWithKeyboard: {
@@ -108,10 +118,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.borderStrong,
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: alpha(colors.text, 0.24),
     marginBottom: spacing.sm,
   },
   title: {

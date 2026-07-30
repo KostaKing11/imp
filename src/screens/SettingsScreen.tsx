@@ -1,11 +1,13 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Screen from "../components/Screen";
 import SectionTitle from "../components/SectionTitle";
 import Segmented from "../components/Segmented";
+import { usePressScale } from "../components/usePressScale";
 import { Settings } from "../game/types";
 import { Language, t } from "../i18n";
-import { colors, radius, spacing, type } from "../theme";
+import { currentVersion } from "../update/appUpdate";
+import { alpha, colors, radius, spacing, type } from "../theme";
 
 type Props = {
   settings: Settings;
@@ -24,12 +26,25 @@ const LANGUAGES: { code: Language; label: string }[] = [
 // things that belong to one gamemode — Skala's round count, the
 // tournament's target — now live where that mode is being set up.
 export default function SettingsScreen({ language, onLanguageChange, onBack }: Props) {
+  const back = usePressScale(0.88);
+  // Only the installed app knows what build it is; on the web the
+  // service worker keeps it current and there is no number to show.
+  const version = currentVersion();
+
   return (
-    <Screen>
+    <Screen glow={colors.party}>
       <View style={styles.header}>
-        <Pressable onPress={onBack} hitSlop={12} style={styles.backButton}>
-          <Text style={styles.backArrow}>‹</Text>
-        </Pressable>
+        <Animated.View style={back.style}>
+          <Pressable
+            onPress={onBack}
+            onPressIn={back.onPressIn}
+            onPressOut={back.onPressOut}
+            hitSlop={12}
+            style={styles.backButton}
+          >
+            <Text style={styles.backArrow}>‹</Text>
+          </Pressable>
+        </Animated.View>
         <Text style={styles.title}>{t("settings")}</Text>
         {/* Balances the back button so the title sits centred — no
             border or fill, since it is not a button. */}
@@ -44,6 +59,13 @@ export default function SettingsScreen({ language, onLanguageChange, onBack }: P
           options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
         />
       </ScrollView>
+
+      {/* The screen has one setting on it; without this it reads as a
+          page that failed to load rather than a short one. */}
+      <View style={styles.footer}>
+        <Text style={styles.wordmark}>IMP</Text>
+        {version !== "0.0.0" ? <Text style={styles.version}>{version}</Text> : null}
+      </View>
     </Screen>
   );
 }
@@ -55,12 +77,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.card,
+    borderColor: colors.border,
+    backgroundColor: alpha(colors.card, 0.8),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -84,5 +106,22 @@ const styles = StyleSheet.create({
   list: {
     gap: spacing.sm,
     paddingBottom: spacing.lg,
+  },
+  footer: {
+    alignItems: "center",
+    paddingBottom: spacing.sm,
+    gap: 2,
+  },
+  wordmark: {
+    fontSize: 30,
+    fontWeight: "900",
+    letterSpacing: 8,
+    color: alpha(colors.text, 0.12),
+  },
+  version: {
+    ...type.caption,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: alpha(colors.text, 0.16),
   },
 });

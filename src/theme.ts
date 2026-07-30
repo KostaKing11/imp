@@ -5,24 +5,24 @@ import { Platform, TextStyle, ViewStyle } from "react-native";
 export const colors = {
   // Surfaces, darkest to lightest. Anything that sits on top of something
   // else steps up one level — that's the whole depth model. Everything
-  // carries a little warmth rather than being neutral grey: a party game
-  // played in a dim room should feel lit, not switched off.
-  bg: "#0B0910",
-  bgSoft: "#12101A",
-  card: "#1A1725",
-  cardPressed: "#241F32",
-  cardAlt: "#241F32",
-  chip: "#141220",
+  // is pulled towards plum rather than neutral grey: a party game played
+  // in a dim room should feel lit, not switched off.
+  bg: "#0A0714",
+  bgSoft: "#130E22",
+  card: "#1C1633",
+  cardPressed: "#282046",
+  cardAlt: "#282046",
+  chip: "#161029",
 
   // Hairlines. `border` is the default; the other two are for pulling an
   // edge back into the background or pushing it forward.
-  border: "#332C46",
-  borderSoft: "#241F33",
-  borderStrong: "#4A4166",
+  border: "#382E5C",
+  borderSoft: "#271F45",
+  borderStrong: "#584878",
 
-  text: "#F7F5FF",
-  textDim: "#A79FC0",
-  textFaint: "#7A7295",
+  text: "#F8F5FF",
+  textDim: "#AFA4D0",
+  textFaint: "#8076A3",
 
   accent: "#FF6B2C", // IMP orange
   accentText: "#FFFFFF",
@@ -30,24 +30,45 @@ export const colors = {
   accentGlow: "rgba(255,107,44,0.34)",
   // The other end of every primary gradient — the orange lifts into gold
   // instead of sitting flat.
-  accentHi: "#FFA23D",
+  accentHi: "#FFB13A",
   // A second voice for anything that should not be orange: player turns,
   // celebrations, the odd highlight.
   party: "#B45CFF",
   partySoft: "rgba(180,92,255,0.16)",
+  partyHi: "#E07BFF",
+  // A third, cool voice — the far end of the ambient backdrop and the
+  // counterweight to all that orange.
+  cool: "#4CC9F0",
 
-  good: "#39E08A",
-  goodSoft: "rgba(57,224,138,0.16)",
-  danger: "#FF6B6B",
-  dangerSoft: "rgba(255,107,107,0.16)",
+  good: "#3BE38C",
+  goodSoft: "rgba(59,227,140,0.16)",
+  danger: "#FF5C7A",
+  dangerSoft: "rgba(255,92,122,0.16)",
   word: "#FFD166",
-  disabled: "#3A3352",
+  disabled: "#3B3260",
 
   // Gamemode branding (logo + selected mode card).
   impRed: "#E32636",
   oddYellow: "#F5C518",
   blefTeal: "#2DD4BF",
 };
+
+// Every gamemode's colour, in one place — the mode cards, the lobby
+// header and the ambient glow behind a round all read from here so a
+// mode looks the same wherever it turns up.
+export const MODE_TINT: Record<string, string> = {
+  imp: colors.impRed,
+  odd: colors.oddYellow,
+  mafia: "#E8EAF0",
+  blef: colors.blefTeal,
+  faker: "#B79BFF",
+  skala: "#7BD948",
+  sync: "#4A9EFF",
+};
+
+export function modeTint(mode: string): string {
+  return MODE_TINT[mode] ?? colors.accent;
+}
 
 // #RRGGBB + opacity -> rgba(). Used for tinted fills and glows so a colour
 // only has to be defined once.
@@ -185,4 +206,47 @@ export const elevation = {
   // Coloured lift for the primary button — the orange bleeds a little.
   accent: shadow(colors.accent, 0.4, 16, 6, 8),
   glow: (color: string) => shadow(color, 0.45, 18, 6, 8),
+  // Twice the bleed, for the one thing on screen that is the moment:
+  // a winner's card, the selected mode, the card you just flipped.
+  glowStrong: (color: string) => shadow(color, 0.6, 28, 8, 14),
 };
+
+// One vocabulary of springs, so everything in the app moves like it
+// belongs to the same toy. `pop` is the party one — it overshoots
+// visibly; `snap` is for controls that should feel precise; `soft` is
+// for anything large enough that a bounce would read as a wobble.
+export const motion = {
+  pop: { speed: 14, bounciness: 14 },
+  snap: { speed: 20, bounciness: 8 },
+  soft: { speed: 12, bounciness: 2 },
+  // Press-down / release. Down is fast and dead, release bounces back.
+  pressIn: { speed: 40, bounciness: 0 },
+  pressOut: { speed: 18, bounciness: 12 },
+} as const;
+
+// The two-colour ramps used for anything filled. Kept here so a button,
+// a chip and a badge painted "primary" are painted the same primary.
+export const gradients = {
+  primary: [colors.accentHi, colors.accent] as const,
+  party: [colors.partyHi, colors.party] as const,
+  good: ["#7BFFB0", colors.good] as const,
+  danger: ["#FF8FA3", colors.danger] as const,
+  // A colour lifted towards white, for painting anything in a player's
+  // or a role's own colour without it reading as a flat rectangle.
+  of: (color: string): [string, string] => [mix(color, "#FFFFFF", 0.28), color],
+};
+
+// Blend two hex colours. Used for the lighter end of a gradient and for
+// tinting a surface towards a player's colour.
+export function mix(a: string, b: string, amount: number): string {
+  const parse = (c: string) => {
+    const h = c.replace("#", "");
+    return h.length === 6
+      ? [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+      : [0, 0, 0];
+  };
+  const [r1, g1, b1] = parse(a);
+  const [r2, g2, b2] = parse(b);
+  const to = (x: number) => Math.round(x).toString(16).padStart(2, "0");
+  return `#${to(r1 + (r2 - r1) * amount)}${to(g1 + (g2 - g1) * amount)}${to(b1 + (b2 - b1) * amount)}`;
+}

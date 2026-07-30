@@ -6,17 +6,7 @@ import { usePressScale } from "../../components/usePressScale";
 import { GameMode } from "../../game/types";
 import { modeLabel, t, tf } from "../../i18n";
 import { RoomState, TOUR_VOTE_MS } from "../../net/protocol";
-import { alpha, colors, elevation, radius, spacing, type } from "../../theme";
-
-const MODE_TINT: Record<GameMode, string> = {
-  imp: colors.impRed,
-  odd: colors.oddYellow,
-  mafia: "#E8EAF0",
-  blef: colors.blefTeal,
-  faker: "#B79BFF",
-  skala: "#7BD948",
-  sync: "#4A9EFF",
-};
+import { alpha, colors, elevation, modeTint, radius, spacing, type } from "../../theme";
 
 type Props = {
   state: RoomState;
@@ -66,7 +56,7 @@ function ModeChoice({
   onPress: () => void;
 }) {
   const press = usePressScale(0.95);
-  const tint = MODE_TINT[mode] ?? colors.accent;
+  const tint = modeTint(mode);
   return (
     <Animated.View style={[styles.choiceWrap, press.style]}>
       <Pressable

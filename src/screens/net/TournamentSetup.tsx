@@ -13,18 +13,8 @@ import {
 } from "../../game/types";
 import { modeLabel, roleName, t, tf } from "../../i18n";
 import { TOUR_MODES } from "../../net/protocol";
-import { alpha, colors, radius, spacing, type } from "../../theme";
+import { alpha, colors, modeTint, radius, spacing, type } from "../../theme";
 import RoleCountSheet from "../editors/RoleCountSheet";
-
-const MODE_TINT: Record<GameMode, string> = {
-  imp: colors.impRed,
-  odd: colors.oddYellow,
-  mafia: "#E8EAF0",
-  blef: colors.blefTeal,
-  faker: "#B79BFF",
-  skala: "#7BD948",
-  sync: "#4A9EFF",
-};
 
 type Props = {
   // Which modes are in the draw. Mafia is never here — it has no winner
@@ -168,7 +158,7 @@ export default function TournamentSetup(props: Props) {
 
       {TOUR_MODES.map((mode) => {
         const on = props.enabled[mode] !== false;
-        const tint = MODE_TINT[mode] ?? colors.accent;
+        const tint = modeTint(mode);
         const cats = catsFor(mode);
         const catsOn = cats.items.filter((c) => c.on).length;
         const isOpen = openMode === mode;

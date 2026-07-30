@@ -1,6 +1,6 @@
 import React from "react";
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
-import { colors } from "../theme";
+import { alpha, colors } from "../theme";
 import { hsvToHex } from "../utils";
 
 // Thumb up / thumb down. The voting screen leans on these: a thumb up
@@ -98,6 +98,70 @@ export function QrIcon({ size = 24, color = colors.text }: { size?: number; colo
       <Rect x="11" y="6" width="2" height="2" fill={color} />
       <Rect x="11" y="11" width="2" height="2" fill={color} />
       <Rect x="6" y="11" width="2" height="2" fill={color} />
+    </Svg>
+  );
+}
+
+// Scale's mark: the spectrum with a needle parked off-centre. Two modes
+// shipped without artwork and drew their own name across the card, which
+// meant the mode row was five pictures and two paragraphs.
+export function ScaleMark({ size = 64, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 64 64">
+      <Path
+        d="M6 40 a26 26 0 0 1 52 0"
+        stroke={alpha(color, 0.28)}
+        strokeWidth="9"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Path
+        d="M6 40 a26 26 0 0 1 26 -26"
+        stroke={color}
+        strokeWidth="9"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Line x1="32" y1="40" x2="45" y2="21" stroke={color} strokeWidth="5" strokeLinecap="round" />
+      <Circle cx="32" cy="40" r="6.5" fill={color} />
+    </Svg>
+  );
+}
+
+// Same Page's mark: two sheets landing on the same answer.
+export function SamePageMark({ size = 64, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 64 64">
+      <Rect
+        x="8"
+        y="12"
+        width="30"
+        height="38"
+        rx="5"
+        fill={alpha(color, 0.3)}
+        stroke={color}
+        strokeWidth="3"
+        transform="rotate(-9 23 31)"
+      />
+      <Rect
+        x="26"
+        y="14"
+        width="30"
+        height="38"
+        rx="5"
+        fill={alpha(color, 0.3)}
+        stroke={color}
+        strokeWidth="3"
+        transform="rotate(9 41 33)"
+      />
+      <Path
+        d="M32 34 l6 7 l12 -15"
+        stroke={color}
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </Svg>
   );
 }

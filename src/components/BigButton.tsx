@@ -1,6 +1,6 @@
-import React from "react";
-import { Animated, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
-import { alpha, colors, elevation, radius, spacing, type } from "../theme";
+import React, { useEffect, useRef } from "react";
+import { Animated, Easing, Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
+import { alpha, colors, elevation, gradients, radius, spacing, type } from "../theme";
 import Gradient from "./Gradient";
 import { usePressScale } from "./usePressScale";
 
@@ -19,6 +19,41 @@ type Props = {
   style?: ViewStyle;
 };
 
+// A light travelling across a filled button every few seconds. It is the
+// difference between a button that is there and one that is asking to be
+// pressed — which, on a screen whose whole job is "start the game", is
+// the point.
+function Shine() {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(1600),
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+
+  const translateX = anim.interpolate({ inputRange: [0, 1], outputRange: [-220, 460] });
+  const opacity = anim.interpolate({ inputRange: [0, 0.15, 0.85, 1], outputRange: [0, 1, 1, 0] });
+
+  return (
+    <Animated.View
+      style={[styles.shine, { opacity, transform: [{ translateX }, { rotate: "18deg" }] }]}
+      pointerEvents="none"
+    />
+  );
+}
+
 export default function BigButton({
   label,
   onPress,
@@ -30,9 +65,14 @@ export default function BigButton({
   icon,
   style,
 }: Props) {
-  const press = usePressScale(0.97);
+  const press = usePressScale(0.96);
   const solid = variant === "primary" || variant === "danger";
   const fill = tone ?? (variant === "danger" ? colors.danger : colors.accent);
+  const ramp: readonly [string, string] = tone
+    ? gradients.of(tone)
+    : variant === "danger"
+      ? gradients.danger
+      : gradients.primary;
 
   return (
     <Animated.View style={[styles.wrap, press.style, style]}>
@@ -53,17 +93,29 @@ export default function BigButton({
         ]}
       >
         {/* A gradient rather than a flat fill — it reads as something to
-            press instead of a form control. Only the untinted primary
-            gets it; a button painted in a player's colour keeps theirs. */}
-        {solid && !disabled && !tone && variant === "primary" ? (
-          <Gradient from={colors.accentHi} to={colors.accent} style={styles.fill} />
+            press instead of a form control. Every filled button gets one,
+            including the ones painted in a player's own colour. */}
+        {solid && !disabled ? (
+          <>
+            <Gradient from={ramp[0]} to={ramp[1]} style={styles.fill} />
+            {/* A pale cap along the top edge: the button catches the light
+                from above, the way a physical key would. */}
+            <View style={styles.cap} pointerEvents="none" />
+            {!compact ? <Shine /> : null}
+          </>
         ) : null}
+
+        {variant === "secondary" && !disabled ? (
+          <View style={styles.secondaryCap} pointerEvents="none" />
+        ) : null}
+
         {icon}
         <Text
           style={[
             styles.label,
             compact && styles.labelCompact,
             solid && styles.labelSolid,
+            solid && !disabled && { color: textOn(fill) },
             disabled && styles.labelDisabled,
           ]}
           numberOfLines={1}
@@ -75,6 +127,17 @@ export default function BigButton({
       {subLabel ? <Text style={styles.subLabel}>{subLabel}</Text> : null}
     </Animated.View>
   );
+}
+
+// White on most fills, near-black on the pale ones — a button painted in
+// a player's yellow needs dark text or the label disappears.
+function textOn(hex: string): string {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return colors.accentText;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 165 ? "#140F24" : colors.accentText;
 }
 
 const styles = StyleSheet.create({
@@ -96,13 +159,38 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
+  // The lit top edge of a filled button.
+  cap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: "rgba(255,255,255,0.42)",
+  },
+  secondaryCap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: alpha(colors.text, 0.09),
+  },
+  shine: {
+    position: "absolute",
+    top: -40,
+    bottom: -40,
+    width: 46,
+    left: 0,
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
   secondary: {
     backgroundColor: colors.card,
     borderWidth: 1.5,
     borderColor: colors.border,
   },
   ghost: {
-    backgroundColor: alpha(colors.text, 0.04),
+    backgroundColor: alpha(colors.text, 0.05),
   },
   compact: {
     minHeight: 48,
@@ -110,12 +198,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   pressed: {
-    opacity: 0.88,
+    opacity: 0.9,
   },
   disabled: {
     backgroundColor: colors.disabled,
     borderColor: "transparent",
-    opacity: 0.55,
+    opacity: 0.5,
   },
   label: {
     ...type.button,

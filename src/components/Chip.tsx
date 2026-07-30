@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { alpha, colors, radius, spacing, type } from "../theme";
+import { alpha, colors, motion, radius, spacing, type } from "../theme";
 import { usePressScale } from "./usePressScale";
 
 type Props = {
@@ -22,6 +22,8 @@ type Props = {
 // A pill: a dot in the thing's own colour, its name, and an optional
 // count. On means tinted and lit; off means drained of colour, so a
 // glance at the row tells you what's in play without reading a word.
+// Turning one on pops it — twenty players go in one at a time, and each
+// one should feel like it landed.
 export default function Chip({
   label,
   bg,
@@ -32,12 +34,24 @@ export default function Chip({
   badge,
   add = false,
 }: Props) {
-  const press = usePressScale(0.94);
+  const press = usePressScale(0.93);
   const tint = bg ?? colors.textDim;
   const textColor = add ? colors.textDim : active ? (bg ?? colors.text) : colors.textFaint;
 
+  // Fires on the way on only — switching a chip off should just go quiet,
+  // not celebrate.
+  const pop = useRef(new Animated.Value(1)).current;
+  const wasActive = useRef(active);
+  useEffect(() => {
+    if (active && !wasActive.current) {
+      pop.setValue(0.9);
+      Animated.spring(pop, { toValue: 1, ...motion.pop, useNativeDriver: true }).start();
+    }
+    wasActive.current = active;
+  }, [active, pop]);
+
   return (
-    <Animated.View style={press.style}>
+    <Animated.View style={{ transform: [{ scale: pop }, { scale: press.scale }] }}>
       <Pressable
         onPress={onPress}
         onLongPress={onLongPress}
@@ -48,15 +62,20 @@ export default function Chip({
           add
             ? styles.add
             : active
-              ? { borderColor: alpha(tint, 0.85), backgroundColor: alpha(tint, 0.12) }
+              ? {
+                  borderColor: alpha(tint, 0.9),
+                  backgroundColor: alpha(tint, 0.14),
+                }
               : styles.off,
           pressed && styles.pressed,
         ]}
       >
         {bg && !add ? (
-          <View
-            style={[styles.dot, { backgroundColor: active ? bg : colors.disabled }]}
-          />
+          <View style={[styles.dot, { backgroundColor: active ? bg : colors.disabled }]}>
+            {/* A lit rim on the dot so a player's colour reads as a bead
+                rather than a printed circle. */}
+            {active ? <View style={styles.dotGloss} pointerEvents="none" /> : null}
+          </View>
         ) : null}
 
         <Text style={[styles.label, { color: textColor }, add && styles.addLabel]}>
@@ -65,7 +84,7 @@ export default function Chip({
         </Text>
 
         {badge !== undefined ? (
-          <View style={[styles.badge, active && { backgroundColor: alpha(tint, 0.18) }]}>
+          <View style={[styles.badge, active && { backgroundColor: alpha(tint, 0.2) }]}>
             <Text style={[styles.badgeText, { color: textColor }]}>{badge}</Text>
           </View>
         ) : null}
@@ -99,9 +118,18 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  dotGloss: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "45%",
+    backgroundColor: "rgba(255,255,255,0.42)",
   },
   label: {
     ...type.button,

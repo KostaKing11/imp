@@ -1,6 +1,8 @@
 import React from "react";
 import { Animated, Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
-import { alpha, colors, elevation, radius, spacing, type } from "../theme";
+import { alpha, colors, elevation, gradients, radius, spacing, type } from "../theme";
+import { textColorFor } from "../utils";
+import Gradient from "./Gradient";
 import { usePressScale } from "./usePressScale";
 
 type Props = {
@@ -74,13 +76,21 @@ export default function PlayerCard({
             borderColor: selected ? color : alpha(color, 0.55),
             backgroundColor: alpha(color, selected ? 0.16 : 0.08),
           },
-          selected && [styles.selected, elevation.glow(color)],
+          selected && [styles.selected, elevation.glowStrong(color)],
           dimmed && styles.dimmed,
           pressed && !disabled && styles.pressed,
         ]}
       >
-        <View style={[styles.avatar, { borderColor: color, backgroundColor: alpha(color, 0.2) }]}>
-          <Text style={[styles.initial, { color }]} numberOfLines={1}>
+        {/* A hairline of light along the top edge — the card reads as a
+            physical thing lying on the table rather than a coloured box. */}
+        <View style={styles.cap} pointerEvents="none" />
+
+        {/* The avatar is filled, not outlined: at a glance across a table
+            a solid disc of someone's colour is far easier to find than a
+            ring of it. */}
+        <View style={[styles.avatar, { backgroundColor: color }]}>
+          <Gradient from={gradients.of(color)[0]} to={gradients.of(color)[1]} angle={0.75} />
+          <Text style={[styles.initial, { color: textColorFor(color) }]} numberOfLines={1}>
             {initialsOf(name)}
           </Text>
         </View>
@@ -133,6 +143,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: spacing.sm + 2,
     gap: spacing.sm,
+    overflow: "hidden",
+  },
+  cap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: alpha(colors.text, 0.14),
   },
   selected: {
     borderWidth: 2.5,
@@ -147,9 +166,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.pill,
-    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   initial: {
     fontSize: 17,

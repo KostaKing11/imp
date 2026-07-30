@@ -12,14 +12,18 @@ import {
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { HOW_TO_PLAY } from "../../data/howto";
 import AppModal from "../components/AppModal";
+import Appear from "../components/Appear";
 import BigButton from "../components/BigButton";
 import Chip from "../components/Chip";
 import ColorPicker from "../components/ColorPicker";
 import { SlidersIcon } from "../components/icons";
+import Pop from "../components/Pop";
+import Pulse from "../components/Pulse";
 import Screen from "../components/Screen";
 import SectionTitle from "../components/SectionTitle";
 import Segmented from "../components/Segmented";
 import TextField from "../components/TextField";
+import { usePressScale } from "../components/usePressScale";
 import { BLEF_PLAYER_COUNT } from "../game/blefEngine";
 import { roleSlotCount } from "../game/engine";
 import { activeQuestionPool, FAKER_MIN_PLAYERS } from "../game/fakerEngine";
@@ -36,7 +40,16 @@ import {
 } from "../game/types";
 import { getLanguage, t, tf } from "../i18n";
 import { warmUpConnection } from "../net/firebase";
-import { alpha, colors, freeColor, MAX_PLAYERS, radius, spacing, type } from "../theme";
+import {
+  alpha,
+  colors,
+  freeColor,
+  MAX_PLAYERS,
+  modeTint,
+  radius,
+  spacing,
+  type,
+} from "../theme";
 import { uid } from "../utils";
 import PlayerEditor from "./editors/PlayerEditor";
 import GameSetup from "./setup/GameSetup";
@@ -45,6 +58,36 @@ const MIN_PLAYERS = 3;
 
 // Height of the gradient that hides the scroll under the Start button.
 const FADE_HEIGHT = 44;
+
+// The round ? / settings buttons in the header. Their own component so
+// each gets its own press spring — the app's tap feel should not stop at
+// the things that look like buttons.
+function IconButton({
+  onPress,
+  children,
+  label,
+}: {
+  onPress: () => void;
+  children: React.ReactNode;
+  label: string;
+}) {
+  const press = usePressScale(0.88);
+  return (
+    <Animated.View style={press.style}>
+      <Pressable
+        style={styles.iconButton}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export type PlayStyle = "single" | "net";
 export type NetMode = "online" | "lan";
@@ -204,7 +247,9 @@ export default function HomeScreen({
 
   const playersSection = (
     <>
-      <SectionTitle hint={`${activePlayers.length}/${players.length}`}>{t("players")}</SectionTitle>
+      <SectionTitle tone={modeTint(gameMode)} hint={`${activePlayers.length}/${players.length}`}>
+        {t("players")}
+      </SectionTitle>
       <View style={styles.chipWrap}>
         {players.map((p) => (
           <Chip
@@ -225,23 +270,31 @@ export default function HomeScreen({
   );
 
   return (
-    <Screen>
+    // The light behind the home screen is the colour of whatever mode is
+    // picked, so choosing a game repaints the room before it starts.
+    <Screen glow={net ? colors.accent : modeTint(gameMode)}>
       {/* fixed header: ? — logo — settings */}
       <View style={styles.topBar}>
-        <Pressable style={styles.iconButton} onPress={() => setHowToOpen(true)} hitSlop={8}>
+        <IconButton onPress={() => setHowToOpen(true)} label={t("howToPlay")}>
           <Text style={styles.questionMark}>?</Text>
-        </Pressable>
+        </IconButton>
         {/* pointerEvents none so the wide (mostly-transparent) logo box
             never swallows taps meant for the ? / settings buttons. */}
         <Animated.View
           style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}
           pointerEvents="none"
         >
-          <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
+          <Pop from={0.7}>
+            <Image
+              source={require("../../assets/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </Pop>
         </Animated.View>
-        <Pressable style={styles.iconButton} onPress={onOpenSettings} hitSlop={8}>
+        <IconButton onPress={onOpenSettings} label={t("settings")}>
           <SlidersIcon size={22} color={colors.textDim} />
-        </Pressable>
+        </IconButton>
       </View>
       <Animated.View style={[styles.headerLine, { opacity: headerLine }]} pointerEvents="none" />
 
@@ -294,11 +347,15 @@ export default function HomeScreen({
                 <ColorPicker value={netColor} onChange={setNetColor} />
                 <Text style={styles.netHint}>{t("colorMayChange")}</Text>
                 {pendingJoinCode ? (
-                  <View style={styles.netJoining}>
-                    <Text style={styles.netJoiningText}>
-                      {tf("joiningRoom", { code: pendingJoinCode })}
-                    </Text>
-                  </View>
+                  // It breathes because it is a "hang on" — a still pill
+                  // reads as a message that has already finished.
+                  <Pulse style={styles.netJoining}>
+                    <View style={styles.netJoiningPill}>
+                      <Text style={styles.netJoiningText}>
+                        {tf("joiningRoom", { code: pendingJoinCode })}
+                      </Text>
+                    </View>
+                  </Pulse>
                 ) : null}
               </>
             )}
@@ -364,9 +421,13 @@ export default function HomeScreen({
         ) : (
           <>
             {startError ? (
-              <View style={styles.startError}>
-                <Text style={styles.startErrorText}>{startError}</Text>
-              </View>
+              // Keyed on the message so a different reason re-plays the
+              // entrance instead of silently swapping the words.
+              <Appear key={startError} distance={8} style={styles.startErrorWrap}>
+                <View style={styles.startError}>
+                  <Text style={styles.startErrorText}>{startError}</Text>
+                </View>
+              </Appear>
             ) : null}
             <BigButton label={t("start")} onPress={onStart} disabled={startError !== null} />
           </>
@@ -401,18 +462,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.card,
+    borderColor: colors.border,
+    backgroundColor: alpha(colors.card, 0.8),
     alignItems: "center",
     justifyContent: "center",
   },
   questionMark: {
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 21,
+    fontWeight: "900",
     color: colors.textDim,
   },
   logoWrap: {
@@ -449,6 +510,8 @@ const styles = StyleSheet.create({
   },
   netJoining: {
     alignSelf: "center",
+  },
+  netJoiningPill: {
     borderRadius: radius.pill,
     paddingVertical: 8,
     paddingHorizontal: spacing.sm + 2,
@@ -491,8 +554,10 @@ const styles = StyleSheet.create({
     top: -FADE_HEIGHT,
     height: FADE_HEIGHT,
   },
-  startError: {
+  startErrorWrap: {
     alignSelf: "center",
+  },
+  startError: {
     borderRadius: radius.pill,
     paddingVertical: 7,
     paddingHorizontal: spacing.sm + 2,

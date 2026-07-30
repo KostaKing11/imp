@@ -1,6 +1,7 @@
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { alpha, colors, radius, spacing, type } from "../theme";
+import React, { useEffect, useRef } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { alpha, colors, motion, radius, spacing, type } from "../theme";
+import { usePressScale } from "./usePressScale";
 
 type Props = {
   label: string;
@@ -14,35 +15,76 @@ type Props = {
   tone?: string;
 };
 
-// Big +/- control for picking numbers (players, imposters).
-export default function Stepper({ label, value, min, max, onChange, step = 1, tone }: Props) {
-  const dec = () => onChange(Math.max(min, value - step));
-  const inc = () => onChange(Math.min(max, value + step));
-  const accent = tone ?? colors.accent;
-
-  const button = (sign: string, onPress: () => void, off: boolean) => (
-    <Pressable
-      onPress={onPress}
-      disabled={off}
-      hitSlop={6}
-      style={({ pressed }) => [
-        styles.button,
-        { borderColor: alpha(accent, 0.5), backgroundColor: alpha(accent, 0.12) },
-        pressed && styles.pressed,
-        off && styles.buttonDisabled,
-      ]}
-    >
-      <Text style={[styles.buttonText, { color: off ? colors.textFaint : accent }]}>{sign}</Text>
-    </Pressable>
+// One of the two round buttons. Its own component so each keeps its own
+// press spring instead of sharing one.
+function RoundButton({
+  sign,
+  onPress,
+  off,
+  accent,
+}: {
+  sign: string;
+  onPress: () => void;
+  off: boolean;
+  accent: string;
+}) {
+  const press = usePressScale(0.88);
+  return (
+    <Animated.View style={press.style}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        disabled={off}
+        hitSlop={6}
+        style={[
+          styles.button,
+          { borderColor: alpha(accent, 0.55), backgroundColor: alpha(accent, 0.14) },
+          off && styles.buttonDisabled,
+        ]}
+      >
+        <Text style={[styles.buttonText, { color: off ? colors.textFaint : accent }]}>{sign}</Text>
+      </Pressable>
+    </Animated.View>
   );
+}
+
+// Big +/- control for picking numbers (players, imposters). The number
+// itself gives a little kick each time it changes, so a tap registers
+// even when your eyes are on the buttons.
+export default function Stepper({ label, value, min, max, onChange, step = 1, tone }: Props) {
+  const accent = tone ?? colors.accent;
+  const kick = useRef(new Animated.Value(1)).current;
+  const first = useRef(true);
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    kick.setValue(0.82);
+    Animated.spring(kick, { toValue: 1, ...motion.pop, useNativeDriver: true }).start();
+  }, [value, kick]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.row}>
-        {button("−", dec, value <= min)}
-        <Text style={styles.value}>{value}</Text>
-        {button("+", inc, value >= max)}
+        <RoundButton
+          sign="−"
+          onPress={() => onChange(Math.max(min, value - step))}
+          off={value <= min}
+          accent={accent}
+        />
+        <Animated.Text style={[styles.value, { transform: [{ scale: kick }] }]}>
+          {value}
+        </Animated.Text>
+        <RoundButton
+          sign="+"
+          onPress={() => onChange(Math.min(max, value + step))}
+          off={value >= max}
+          accent={accent}
+        />
       </View>
     </View>
   );
@@ -50,7 +92,7 @@ export default function Stepper({ label, value, min, max, onChange, step = 1, to
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
+    backgroundColor: alpha(colors.card, 0.85),
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderSoft,
@@ -78,10 +120,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.35,
-  },
-  pressed: {
-    opacity: 0.65,
-    transform: [{ scale: 0.94 }],
   },
   buttonText: {
     fontSize: 30,

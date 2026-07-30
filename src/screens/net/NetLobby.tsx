@@ -1,9 +1,12 @@
 import React, { useRef, useState } from "react";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Appear from "../../components/Appear";
 import AppModal from "../../components/AppModal";
 import BigButton from "../../components/BigButton";
 import ColorPicker from "../../components/ColorPicker";
+import Gradient from "../../components/Gradient";
 import PlayerCard from "../../components/PlayerCard";
+import Pulse from "../../components/Pulse";
 import { QrIcon, SlidersIcon } from "../../components/icons";
 import SectionTitle from "../../components/SectionTitle";
 import Segmented from "../../components/Segmented";
@@ -23,7 +26,7 @@ import {
   RoomState,
   TOUR_MODES,
 } from "../../net/protocol";
-import { colors, radius, spacing, type } from "../../theme";
+import { alpha, colors, elevation, radius, spacing, type } from "../../theme";
 import { confirmDialog } from "../../utils";
 import GameSetup from "../setup/GameSetup";
 import TournamentSetup from "./TournamentSetup";
@@ -116,8 +119,13 @@ export default function NetLobby(props: Props) {
   return (
     <>
       {/* An opaque strip across the top: everything scrolls away behind
-          it, and the code plus the QR slide in once they have. */}
+          it, and the code plus the QR slide in once they have. It fades
+          out along its bottom edge rather than ending in a straight line
+          across the light behind the screen. */}
       <View style={styles.headerBar} pointerEvents="none" />
+      <View style={styles.headerFade} pointerEvents="none">
+        <Gradient from={colors.bg} to={alpha(colors.bg, 0)} angle={1} />
+      </View>
 
       {/* Settings live here, top right, always — not tucked inside the
           room-code panel that scrolls away. */}
@@ -149,6 +157,7 @@ export default function NetLobby(props: Props) {
         {/* The room code is what everyone else has to type, so it gets a
             panel of its own — code on the left, the QR on the right. */}
         <View style={styles.codeCard}>
+          <Gradient from={alpha(colors.accent, 0.26)} to={alpha(colors.party, 0.14)} angle={0.35} />
           <View style={styles.codeText}>
             <Text style={styles.codeLabel}>{t("roomCode")}</Text>
             <Text style={styles.code}>{state.code}</Text>
@@ -169,20 +178,23 @@ export default function NetLobby(props: Props) {
           {tf("playersCount", { n: players.length })}
         </SectionTitle>
         <View style={styles.playerList}>
+          {/* Keyed on the player, so somebody joining rises into the list
+              on their own while everyone already in it stays put. */}
           {players.map((p) => (
-            <PlayerCard
-              key={p.id}
-              name={p.name}
-              color={p.color}
-              note={p.id === myId ? t("youTag") : null}
-              badge={p.id === state.hostId ? t("hostTag") : null}
-              onPress={() => tapPlayer(p)}
-              right={
-                isHost && p.id !== state.hostId ? (
-                  <Text style={[styles.kickMark, { color: colors.textDim }]}>✕</Text>
-                ) : null
-              }
-            />
+            <Appear key={p.id} distance={18}>
+              <PlayerCard
+                name={p.name}
+                color={p.color}
+                note={p.id === myId ? t("youTag") : null}
+                badge={p.id === state.hostId ? t("hostTag") : null}
+                onPress={() => tapPlayer(p)}
+                right={
+                  isHost && p.id !== state.hostId ? (
+                    <Text style={[styles.kickMark, { color: colors.textDim }]}>✕</Text>
+                  ) : null
+                }
+              />
+            </Appear>
           ))}
         </View>
         <Text style={styles.hint}>
@@ -251,7 +263,11 @@ export default function NetLobby(props: Props) {
             )}
           />
         ) : (
-          <Text style={styles.notice}>{t("waitingForHost")}</Text>
+          // Nothing on this screen can move for a player who is not the
+          // host, so the one line they do have breathes.
+          <Pulse to={1.03} period={1400}>
+            <Text style={styles.waiting}>{t("waitingForHost")}</Text>
+          </Pulse>
         )}
       </Animated.ScrollView>
 
@@ -319,6 +335,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     zIndex: 3,
   },
+  headerFade: {
+    position: "absolute",
+    top: 58 - spacing.xs,
+    left: -spacing.md,
+    right: -spacing.md,
+    height: 18,
+    zIndex: 3,
+  },
   settingsButton: {
     position: "absolute",
     top: spacing.sm,
@@ -369,9 +393,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     padding: spacing.sm + 2,
     borderRadius: radius.lg,
-    backgroundColor: colors.accentSoft,
-    borderWidth: 1,
+    backgroundColor: alpha(colors.card, 0.7),
+    borderWidth: 1.5,
     borderColor: colors.accentGlow,
+    overflow: "hidden",
+    ...elevation.glow(colors.accent),
   },
   codeText: { flex: 1 },
   codeLabel: {
@@ -382,7 +408,7 @@ const styles = StyleSheet.create({
   code: {
     fontSize: 46,
     fontWeight: "900",
-    color: colors.accent,
+    color: colors.text,
     letterSpacing: 8,
     fontVariant: ["tabular-nums"],
   },
@@ -391,13 +417,20 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: radius.md,
-    backgroundColor: colors.card,
+    backgroundColor: alpha(colors.bg, 0.55),
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
   notice: { ...type.caption, fontSize: 14, color: colors.textDim, textAlign: "center" },
+  waiting: {
+    ...type.caption,
+    fontSize: 15,
+    color: colors.textDim,
+    textAlign: "center",
+    paddingVertical: spacing.md,
+  },
   hint: { ...type.caption, fontSize: 12, color: colors.textFaint, textAlign: "center" },
   error: { ...type.caption, fontSize: 14, color: colors.danger, textAlign: "center" },
   playerList: { gap: spacing.xs, alignSelf: "stretch" },

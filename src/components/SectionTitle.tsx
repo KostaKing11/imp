@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors, spacing, type } from "../theme";
+import { alpha, colors, radius, spacing, type } from "../theme";
 
 type Props = {
   children: string;
@@ -8,17 +8,26 @@ type Props = {
   hint?: string | null;
   // Tighter top margin for the first section on a screen.
   first?: boolean;
+  // Paints the tick — sections that belong to a mode take its colour.
+  tone?: string;
 };
 
-// Section header: a small uppercase label, then a hairline running to the
-// edge. Quieter than the old centred 24px heading, so the content under
-// it — which is what people actually tap — carries the screen.
-export default function SectionTitle({ children, hint, first = false }: Props) {
+// Section header: a short coloured tick, a small uppercase label, then a
+// hairline running to the edge. Quiet enough that the content under it —
+// which is what people actually tap — still carries the screen, but the
+// tick keeps a long setup page from reading as one grey list.
+export default function SectionTitle({ children, hint, first = false, tone }: Props) {
+  const tint = tone ?? colors.accent;
   return (
     <View style={[styles.row, first && styles.first]}>
+      <View style={[styles.tick, { backgroundColor: tint }]} />
       <Text style={styles.title}>{children}</Text>
       <View style={styles.rule} />
-      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      {hint ? (
+        <View style={[styles.hintPill, { borderColor: alpha(tint, 0.3) }]}>
+          <Text style={styles.hint}>{hint}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -27,12 +36,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.xs + 2,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   first: {
     marginTop: spacing.md,
+  },
+  tick: {
+    width: 4,
+    height: 15,
+    borderRadius: 2,
   },
   title: {
     ...type.eyebrow,
@@ -43,9 +57,16 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.borderSoft,
   },
+  hintPill: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: alpha(colors.text, 0.04),
+  },
   hint: {
     ...type.caption,
-    fontSize: 12,
-    color: colors.textFaint,
+    fontSize: 11,
+    color: colors.textDim,
   },
 });

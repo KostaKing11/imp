@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet } from "react-native";
-import { colors, elevation } from "../theme";
+import { colors, elevation, motion } from "../theme";
 
 type Props = {
   value: boolean;
@@ -16,8 +16,7 @@ export default function Toggle({ value, onChange }: Props) {
   useEffect(() => {
     Animated.spring(anim, {
       toValue: value ? 1 : 0,
-      speed: 20,
-      bounciness: 8,
+      ...motion.pop,
       useNativeDriver: false,
     }).start();
   }, [value, anim]);
@@ -55,6 +54,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     justifyContent: "center",
     paddingHorizontal: 2,
+    // The spring overshoots on purpose; the track keeps the thumb inside.
+    overflow: "hidden",
   },
   thumb: {
     width: 24,

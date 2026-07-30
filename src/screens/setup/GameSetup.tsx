@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 import Chip from "../../components/Chip";
+import Gradient from "../../components/Gradient";
+import { SamePageMark, ScaleMark } from "../../components/icons";
 import SectionTitle from "../../components/SectionTitle";
 import Stepper from "../../components/Stepper";
 import { usePressScale } from "../../components/usePressScale";
@@ -22,7 +24,16 @@ import {
   SpectrumCategoryState,
 } from "../../game/types";
 import { getLanguage, modeLabel, roleName, t } from "../../i18n";
-import { alpha, colors, elevation, radius, spacing } from "../../theme";
+import {
+  alpha,
+  colors,
+  elevation,
+  modeTint,
+  motion,
+  radius,
+  spacing,
+  type,
+} from "../../theme";
 import { uid } from "../../utils";
 import CategoryEditor from "../editors/CategoryEditor";
 import FakerCategoryEditor from "../editors/FakerCategoryEditor";
@@ -32,35 +43,29 @@ import RoleEditor from "../editors/RoleEditor";
 
 // Each mode's artwork has its own colour; the selected card is outlined
 // and lit in it, so which mode is picked reads from across the table.
-const MODE_CARD_W = 110;
-const MODE_GAP = 8;
+const MODE_CARD_W = 118;
+const MODE_GAP = 10;
 
-const MODE_TINT: Record<GameMode, string> = {
-  imp: colors.impRed,
-  odd: colors.oddYellow,
-  mafia: "#E8EAF0",
-  blef: colors.blefTeal,
-  faker: "#B79BFF",
-  skala: "#7BD948",
-  sync: "#4A9EFF",
-};
-
-// One mode's artwork. The picked card grows out of the row and lights
-// up; the rest sit back, dimmed and slightly smaller, so the row reads
-// as one choice rather than five equal tiles.
+// One mode's artwork, with its name printed along the bottom — the row
+// used to be seven pictures and a caption somewhere else, which meant
+// learning which drawing was which before you could pick anything.
+// The picked card grows out of the row and lights up; the rest sit back,
+// dimmed and slightly smaller, so the row reads as one choice rather
+// than seven equal tiles.
 function ModeCard({
   selected,
   tint,
   source,
+  mark,
   label,
   badge,
   onPress,
 }: {
   selected: boolean;
   tint: string;
-  // Missing for modes that have no artwork yet — those draw their name
-  // instead, lit in the mode's own colour so the row still reads.
+  // A photo-style card. Modes without one hand over a drawn mark instead.
   source?: number;
+  mark?: React.ReactNode;
   label?: string;
   badge?: string;
   onPress: () => void;
@@ -71,13 +76,12 @@ function ModeCard({
   useEffect(() => {
     Animated.spring(lift, {
       toValue: selected ? 1 : 0,
-      speed: 16,
-      bounciness: 9,
+      ...motion.pop,
       useNativeDriver: true,
     }).start();
   }, [selected, lift]);
 
-  const grow = lift.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1] });
+  const grow = lift.interpolate({ inputRange: [0, 1], outputRange: [0.91, 1] });
 
   // Both scales go in one transform array — a second `transform` in a
   // later style would replace this one outright, not compose with it.
@@ -90,27 +94,38 @@ function ModeCard({
         style={[
           styles.modeCard,
           { borderColor: selected ? tint : colors.borderSoft },
-          selected && [styles.modeSelected, elevation.glow(tint)],
+          selected && [styles.modeSelected, elevation.glowStrong(tint)],
         ]}
       >
         {source ? (
           <Image source={source} style={styles.modeImage} resizeMode="cover" />
         ) : (
-          <View style={[styles.modeArtless, { backgroundColor: alpha(tint, 0.14) }]}>
-            <Text style={[styles.modeArtlessText, { color: tint }]} numberOfLines={3}>
-              {label ?? ""}
-            </Text>
+          <View style={styles.modeArtless}>
+            <Gradient from={alpha(tint, 0.34)} to={alpha(tint, 0.06)} angle={0.8} />
+            {mark}
           </View>
         )}
+
+        {/* The dim overlay stays mounted with constant structure — toggling
+            children on Android glitches the rounded clip and makes the
+            image vanish. Only the colour changes. It goes under the name,
+            so an unselected mode is still one you can read. */}
+        <View style={[styles.modeDim, selected && styles.modeDimOff]} pointerEvents="none" />
+
+        {/* The name sits on a scrim so it stays readable over artwork of
+            any brightness. */}
+        <View style={styles.modeScrim} pointerEvents="none">
+          <Gradient from="rgba(0,0,0,0)" to="rgba(0,0,0,0.92)" angle={1} />
+        </View>
+        <Text style={[styles.modeName, selected && { color: tint }]} numberOfLines={1}>
+          {label ?? ""}
+        </Text>
+
         {badge ? (
           <View style={styles.playerBadge} pointerEvents="none">
             <Text style={styles.playerBadgeText}>{badge}</Text>
           </View>
         ) : null}
-        {/* The dim overlay stays mounted with constant structure — toggling
-            children on Android glitches the rounded clip and makes the
-            image vanish. Only the colour changes. */}
-        <View style={[styles.modeDim, selected && styles.modeDimOff]} pointerEvents="none" />
       </Pressable>
     </Animated.View>
   );
@@ -306,22 +321,34 @@ export default function GameSetup({
   const categoryHint = `${activeCategories.filter((c) => c.enabled).length}/${activeCategories.length}`;
   const roleHint = `${currentRoles.reduce((n, r) => n + r.count, 0)}`;
 
-  const modeCard = (mode: GameMode, source?: number, badge?: string) =>
+  const modeCard = (
+    mode: GameMode,
+    art?: { source?: number; mark?: React.ReactNode },
+    badge?: string
+  ) =>
     hiddenModes.includes(mode) ? null : (
       <ModeCard
         key={mode}
         selected={gameMode === mode}
-        tint={MODE_TINT[mode] ?? colors.accent}
-        source={source}
+        tint={modeTint(mode)}
+        source={art?.source}
+        mark={art?.mark}
         label={modeLabel(mode)}
         badge={badge}
         onPress={() => setGameMode(mode)}
       />
     );
 
+  // Everything below the mode row belongs to the mode that is picked, so
+  // the section ticks take its colour and the page stops reading as one
+  // undifferentiated grey list.
+  const tint = modeTint(gameMode);
+
   return (
     <>
-      <SectionTitle hint={modeLabel(gameMode)}>{t("gameMode")}</SectionTitle>
+      <SectionTitle tone={tint} hint={modeLabel(gameMode)}>
+        {t("gameMode")}
+      </SectionTitle>
       {/* Horizontally scrollable so cards keep their size as modes are
           added — no visible scrollbar, you just swipe the row. It bleeds
           past the screen padding so a card can sit half off the edge and
@@ -336,23 +363,23 @@ export default function GameSetup({
         // scrolling before that silently clamps to zero.
         onContentSizeChange={() => centreSelected(false)}
       >
-        {modeCard("imp", require("../../../assets/modes/classic.png"))}
-        {modeCard("odd", require("../../../assets/modes/odd.png"))}
-        {modeCard("mafia", require("../../../assets/modes/mafia.png"))}
-        {modeCard(
-          "blef",
-          getLanguage() === "sr"
-            ? require("../../../assets/modes/blef.png")
-            : require("../../../assets/modes/bluff.png")
-        )}
-        {modeCard(
-          "faker",
-          getLanguage() === "sr"
-            ? require("../../../assets/modes/folirant.png")
-            : require("../../../assets/modes/faker.png")
-        )}
-        {modeCard("skala")}
-        {modeCard("sync")}
+        {modeCard("imp", { source: require("../../../assets/modes/classic.png") })}
+        {modeCard("odd", { source: require("../../../assets/modes/odd.png") })}
+        {modeCard("mafia", { source: require("../../../assets/modes/mafia.png") })}
+        {modeCard("blef", {
+          source:
+            getLanguage() === "sr"
+              ? require("../../../assets/modes/blef.png")
+              : require("../../../assets/modes/bluff.png"),
+        })}
+        {modeCard("faker", {
+          source:
+            getLanguage() === "sr"
+              ? require("../../../assets/modes/folirant.png")
+              : require("../../../assets/modes/faker.png"),
+        })}
+        {modeCard("skala", { mark: <ScaleMark size={62} color={modeTint("skala")} /> })}
+        {modeCard("sync", { mark: <SamePageMark size={58} color={modeTint("sync")} /> })}
       </ScrollView>
 
       {middleSlot}
@@ -360,7 +387,9 @@ export default function GameSetup({
       {/* categories — words (IMP/Bluff), pairs (Odd One Out), questions (Faker) */}
       {gameMode !== "mafia" ? (
         <>
-          <SectionTitle hint={categoryHint}>{t("categories")}</SectionTitle>
+          <SectionTitle tone={tint} hint={categoryHint}>
+            {t("categories")}
+          </SectionTitle>
           <View style={styles.chipWrap}>
             {gameMode === "skala" ? (
               spectrumCategories.map((c) => (
@@ -444,7 +473,7 @@ export default function GameSetup({
           calls once, so the round count moves in whole tables. */}
       {gameMode === "skala" ? (
         <>
-          <SectionTitle hint={`${skalaTurns * Math.max(1, playerCount)}`}>
+          <SectionTitle tone={tint} hint={`${skalaTurns * Math.max(1, playerCount)}`}>
             {t("skalaRoundsLabel")}
           </SectionTitle>
           <Stepper
@@ -454,7 +483,7 @@ export default function GameSetup({
             max={Math.max(1, playerCount) * 5}
             step={Math.max(1, playerCount)}
             onChange={(v) => setSkalaTurns(Math.max(1, Math.round(v / Math.max(1, playerCount))))}
-            tone="#7BD948"
+            tone={tint}
           />
         </>
       ) : null}
@@ -462,7 +491,9 @@ export default function GameSetup({
       {/* roles — IMP Classic & Mafia only (Odd One Out and Blef have none) */}
       {gameMode === "imp" || gameMode === "mafia" ? (
         <>
-          <SectionTitle hint={roleHint}>{t("roles")}</SectionTitle>
+          <SectionTitle tone={tint} hint={roleHint}>
+            {t("roles")}
+          </SectionTitle>
           <View style={styles.chipWrap}>
             {currentRoles.map((r) => (
               <Chip
@@ -583,7 +614,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   modeSelected: {
-    borderWidth: 2.5,
+    borderWidth: 3,
   },
   modeArtless: {
     position: "absolute",
@@ -594,12 +625,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xs,
+    // The name is printed along the bottom like every other card, so the
+    // mark sits a little high to leave room for it.
+    paddingBottom: 22,
   },
-  modeArtlessText: {
-    fontSize: 19,
-    fontWeight: "900",
+  modeScrim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 46,
+  },
+  modeName: {
+    ...type.eyebrow,
+    fontSize: 10.5,
+    letterSpacing: 0.9,
+    color: colors.text,
+    position: "absolute",
+    left: 6,
+    right: 6,
+    bottom: 7,
     textAlign: "center",
-    letterSpacing: -0.4,
   },
   modeDim: {
     position: "absolute",
@@ -607,7 +653,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(6,4,14,0.6)",
   },
   modeDimOff: {
     backgroundColor: "transparent",

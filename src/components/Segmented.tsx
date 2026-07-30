@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius, spacing, type } from "../theme";
+import { alpha, colors, elevation, gradients, motion, radius, spacing, type } from "../theme";
+import Gradient from "./Gradient";
 
 type Option<T extends string> = {
   value: T;
@@ -44,8 +45,7 @@ export default function Segmented<T extends string>({ options, value, onChange }
     }
     Animated.spring(anim, {
       toValue: index,
-      speed: 18,
-      bounciness: 7,
+      ...motion.snap,
       useNativeDriver: true,
     }).start();
   }, [index, anim, measured]);
@@ -73,7 +73,12 @@ export default function Segmented<T extends string>({ options, value, onChange }
               ? { left: 0, transform: [{ translateX }] }
               : { left: `${index * slot}%` },
           ]}
-        />
+        >
+          {/* The thumb is the app's orange, not another shade of grey —
+              which choice is live should be obvious from arm's length. */}
+          <Gradient from={gradients.primary[0]} to={gradients.primary[1]} />
+          <View style={styles.thumbCap} />
+        </Animated.View>
       </View>
 
       {options.map((o) => {
@@ -102,7 +107,7 @@ const PAD = 4;
 const styles = StyleSheet.create({
   track: {
     flexDirection: "row",
-    backgroundColor: colors.chip,
+    backgroundColor: alpha(colors.bg, 0.55),
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderSoft,
@@ -120,9 +125,17 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     borderRadius: radius.pill,
-    backgroundColor: colors.cardAlt,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    backgroundColor: colors.accent,
+    overflow: "hidden",
+    ...elevation.glow(colors.accent),
+  },
+  thumbCap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: "rgba(255,255,255,0.4)",
   },
   option: {
     flex: 1,
@@ -140,7 +153,8 @@ const styles = StyleSheet.create({
     color: colors.textDim,
   },
   labelOn: {
-    color: colors.text,
+    color: colors.accentText,
+    fontWeight: "900",
   },
   labelOff: {
     color: colors.disabled,
