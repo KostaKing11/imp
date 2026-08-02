@@ -4,12 +4,18 @@ import { Keyboard, useWindowDimensions } from "react-native";
 // How much room the keyboard is taking that the layout does NOT already
 // know about.
 //
-// A normal screen shrinks by itself when the keyboard opens (the activity
-// is adjustResize), so nothing extra is needed. A Modal on Android is its
-// own window and does not shrink — that is why the box you were typing in
-// could end up behind the keyboard. Comparing the window height before
-// and after tells us which of the two we are in, so the padding is only
-// added when it is actually missing.
+// The activity asks for adjustResize, but the app is edge-to-edge
+// (`edgeToEdgeEnabled=true`), and under edge-to-edge Android stops
+// resizing the window for the keyboard altogether — the app keeps its
+// full height and the keyboard is simply drawn on top of it. So nothing
+// moves out of the way by itself, and any box near the bottom of a screen
+// ends up behind the keyboard. A Modal, being its own window, never
+// resized either.
+//
+// Comparing the window height before and after tells us which world we
+// are in, so this returns the *missing* room: the whole keyboard where
+// nothing resized, and zero where the window already gave the space up.
+// That way it stays correct if edge-to-edge is ever turned off.
 export function useKeyboardInset(): number {
   const { height } = useWindowDimensions();
   const [keyboard, setKeyboard] = useState(0);

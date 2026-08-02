@@ -102,6 +102,10 @@ export default function Dial({
 }: Props) {
   const [width, setWidth] = useState(0);
   const offset = useRef({ x: 0, y: 0 });
+  // Where the needle is right now, readable from inside a gesture without
+  // making the gesture handlers depend on the render.
+  const latest = useRef(value);
+  latest.current = value;
 
   const scale = width > 0 ? width / W : 1;
 
@@ -110,11 +114,14 @@ export default function Dial({
     const x = (pageX - offset.current.x) / scale;
     const y = (pageY - offset.current.y) / scale;
     // atan2 covers the whole circle, but this dial is only the top half.
-    // A finger that strays below the pivot used to wrap the needle right
-    // round; now it just holds at whichever end it is nearest.
+    // Below the pivot the needle holds at the end it is already nearest —
+    // deciding by which side of the pivot the finger is on instead let it
+    // jump from one end to the other the moment the finger crossed the
+    // centre line down there, which is what made the needle spin the full
+    // way round when you dragged in a circle.
     const deg = (Math.atan2(CY - y, x - CX) * 180) / Math.PI;
     if (deg < 0) {
-      onChange(x < CX ? 0 : 100);
+      onChange(latest.current < 50 ? 0 : 100);
       return;
     }
     const next = Math.round((180 - deg) / 1.8);

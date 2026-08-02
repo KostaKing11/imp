@@ -11,10 +11,19 @@ import { Keyboard, ScrollView } from "react-native";
 // room it has left.
 export function useScrollToInputOnKeyboard(ref: RefObject<ScrollView | null>) {
   useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
     const sub = Keyboard.addListener("keyboardDidShow", () => {
-      // One frame later still, so the new layout has been committed.
+      // Screen gives up the keyboard's room on this same event, so the
+      // ScrollView is about to get shorter. Scroll once on the next frame
+      // and again once that relayout has certainly landed — whichever
+      // comes second is the one that ends up right, and scrolling to the
+      // end twice looks identical to doing it once.
       requestAnimationFrame(() => ref.current?.scrollToEnd({ animated: true }));
+      timers.push(setTimeout(() => ref.current?.scrollToEnd({ animated: true }), 180));
     });
-    return () => sub.remove();
+    return () => {
+      sub.remove();
+      timers.forEach(clearTimeout);
+    };
   }, [ref]);
 }

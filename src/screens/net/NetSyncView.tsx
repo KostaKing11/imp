@@ -72,11 +72,13 @@ export default function NetSyncView({
         <Text style={styles.label}>
           {sync.roundNo === 1 ? t("syncSeedLabel") : t("syncBetweenLabel")}
         </Text>
+        {/* word · word — the dot reads as "between these two". */}
         <View style={styles.targetWrap}>
           {sync.targets.map((w, i) => (
-            <View key={`${w}-${i}`} style={styles.targetPill}>
+            <React.Fragment key={`${w}-${i}`}>
+              {i > 0 ? <Text style={styles.targetDot}>·</Text> : null}
               <Text style={styles.targetText}>{w}</Text>
-            </View>
+            </React.Fragment>
           ))}
         </View>
 
@@ -202,18 +204,12 @@ const styles = StyleSheet.create({
   targetWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xs,
+    alignItems: "center",
+    gap: spacing.sm,
     justifyContent: "center",
   },
-  targetPill: {
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.sm + 2,
-  },
-  targetText: { fontSize: 20, fontWeight: "900", color: colors.text },
+  targetText: { fontSize: 30, fontWeight: "900", color: colors.text, letterSpacing: -0.4 },
+  targetDot: { fontSize: 26, fontWeight: "900", color: colors.textFaint },
   list: { gap: spacing.xs },
   wordCard: {
     borderRadius: radius.lg,

@@ -108,11 +108,14 @@ export default function SyncScreen({ players, game, setGame, onLeave, onQuit, on
             <Text style={styles.faceLabel}>
               {game.history.length === 0 ? t("syncSeedLabel") : t("syncBetweenLabel")}
             </Text>
+            {/* word · word — the dot says "between these two" far better
+                than stacking them one above the other did. */}
             <View style={styles.targetWrap}>
               {targets.map((w, i) => (
-                <Text key={`${w}-${i}`} style={[styles.targetText, { color: active.color }]}>
-                  {w}
-                </Text>
+                <React.Fragment key={`${w}-${i}`}>
+                  {i > 0 ? <Text style={styles.targetDot}>·</Text> : null}
+                  <Text style={[styles.targetText, { color: active.color }]}>{w}</Text>
+                </React.Fragment>
               ))}
             </View>
           </ScrollView>
@@ -363,8 +366,15 @@ const styles = StyleSheet.create({
   error: { ...type.caption, fontSize: 13, color: colors.danger, textAlign: "center" },
   privacy: { ...type.caption, fontSize: 14, color: colors.textDim, textAlign: "center" },
   faceLabel: { ...type.eyebrow, fontSize: 12, color: colors.textFaint },
-  targetWrap: { alignItems: "center", gap: spacing.xs },
-  targetText: { fontSize: 38, fontWeight: "900", textAlign: "center", letterSpacing: -0.5 },
+  targetWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+  },
+  targetText: { fontSize: 36, fontWeight: "900", textAlign: "center", letterSpacing: -0.5 },
+  targetDot: { fontSize: 30, fontWeight: "900", color: colors.textFaint },
   input: {
     alignSelf: "stretch",
     backgroundColor: alpha(colors.bg, 0.55),
