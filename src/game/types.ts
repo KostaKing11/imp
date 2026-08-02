@@ -228,3 +228,37 @@ export function normalizeWord(text: string): string {
     .replace(/\s+/g, " ");
 }
 
+// Serbian written without its diacritics is the same word: somebody
+// typing "cuvar" in a hurry means "čuvar". "dj" is the usual stand-in
+// for "đ".
+const FOLD: Record<string, string> = { č: "c", ć: "c", š: "s", ž: "z", đ: "d" };
+
+// Endings that change a word's form but not the thing it names, longest
+// first so "hladnima" loses "ima" rather than "a". Deliberately short:
+// every extra ending here is another pair of unrelated words that could
+// collide.
+const ENDINGS = [
+  "ima", "ama", "ovi", "evi", "ost",
+  "an", "na", "no", "ni", "ne", "og", "eg", "om", "em", "im", "ih", "ju",
+  "a", "e", "i", "o", "u", "s",
+];
+
+// The comparable core of a word. Two players have said the same thing
+// when their cores match — so "hladan", "hladno" and "hladni" are one
+// word, and so are "čuvar" and "cuvar".
+//
+// It stops at a three-letter core, because below that almost anything
+// collides. It is deliberately a little generous: the players also have
+// a "same thing" button for what this cannot see, and they are on the
+// same team, so there is nobody to cheat.
+export function wordKey(text: string): string {
+  let s = normalizeWord(text).replace(/dj/g, "d");
+  s = [...s].map((c) => FOLD[c] ?? c).join("");
+  s = s.replace(/[^a-z0-9]/g, "");
+  if (s.length <= 3) return s;
+  for (const end of ENDINGS) {
+    if (s.endsWith(end) && s.length - end.length >= 3) return s.slice(0, -end.length);
+  }
+  return s;
+}
+

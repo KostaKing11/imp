@@ -19,8 +19,6 @@
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
-    "react-native-tcp-socket": "^6.4.1",
-    "react-native-udp": "^4.1.7",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
@@ -45,7 +43,8 @@
     "test:flow": "npx esbuild scripts/test-room-flow.mjs --bundle --platform=node --format=esm --alias:react-native=./scripts/rn-stub.mjs --outfile=.tmp-test.mjs && node .tmp-test.mjs",
     "test:rejoin": "npx esbuild scripts/test-room-rejoin.mjs --bundle --platform=node --format=esm --alias:react-native=./scripts/rn-stub.mjs --outfile=.tmp-test.mjs && node .tmp-test.mjs",
     "test:stall": "npx esbuild scripts/test-room-stall.mjs --bundle --platform=node --format=esm --alias:react-native=./scripts/rn-stub.mjs --outfile=.tmp-test.mjs && node .tmp-test.mjs",
-    "test:net": "npm run test:flow && npm run test:rejoin && npm run test:stall",
+    "test:words": "npx esbuild scripts/test-sync-words.mjs --bundle --platform=node --format=esm --alias:react-native=./scripts/rn-stub.mjs --outfile=.tmp-test.mjs && node .tmp-test.mjs",
+    "test:net": "npm run test:flow && npm run test:rejoin && npm run test:stall && npm run test:words",
     "test:room": "npx esbuild scripts/test-firebase-room.mjs --bundle --platform=node --format=esm --packages=external --outfile=.tmp-test.mjs && node .tmp-test.mjs",
     "test:rules": "npx esbuild scripts/test-firebase-rules.mjs --bundle --platform=node --format=esm --packages=external --outfile=.tmp-test.mjs && node .tmp-test.mjs"
   },

@@ -219,29 +219,6 @@ export type HostMsg =
   | { type: "KICKED" }
   | { type: "HB" };
 
-// UDP discovery
-export type DiscoveryRequest = { t: "WHO"; code: string };
-export type DiscoveryReply = {
-  t: "ROOM";
-  code: string;
-  roomId: string;
-  port: number;
-  hostName: string;
-};
-
-// QR payload: imp://<ip>:<port>/<code>/<roomId>
-export function encodeQr(ip: string, port: number, code: string, roomId: string): string {
-  return `imp://${ip}:${port}/${code}/${roomId}`;
-}
-
-export function decodeQr(
-  payload: string
-): { ip: string; port: number; code: string; roomId: string } | null {
-  const m = payload.match(/^imp:\/\/([\d.]+):(\d+)\/(\d{4})\/([\w-]+)$/);
-  if (!m) return null;
-  return { ip: m[1], port: parseInt(m[2], 10), code: m[3], roomId: m[4] };
-}
-
 export function randomRoomCode(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }

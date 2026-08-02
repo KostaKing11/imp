@@ -169,6 +169,9 @@ export default function SkalaScreen({
             disabled
             hideNeedle
           />
+          {/* Scale is the mode people get wrong on their first go, so the
+              screen says what the bands are for and what a clue is. */}
+          <Text style={styles.hint}>{t("skalaHowGiver")}</Text>
           <Text style={styles.hint}>{t("skalaClueHint")}</Text>
           <TextField
             label={t("skalaClueLabel")}
@@ -226,6 +229,7 @@ export default function SkalaScreen({
       <Screen>
         {leaveButton(onLeave)}
         <Text style={styles.heading}>{t("skalaGuessTitle")}</Text>
+        <Text style={styles.hint}>{t("skalaHowGuesser")}</Text>
         <View style={[styles.cluePill, { borderColor: alpha(tint, 0.6) }]}>
           <Text style={styles.clueLabel}>{tf("skalaSaid", { name: giver?.name ?? "" })}</Text>
           <Text style={[styles.clueText, { color: tint }]}>{round.clue}</Text>

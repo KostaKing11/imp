@@ -118,8 +118,6 @@ type Props = {
   setNetName: (name: string) => void;
   netColor: string;
   setNetColor: (color: string) => void;
-  netMode: NetMode;
-  setNetMode: (mode: NetMode) => void;
   // room code the app was opened with (a scanned room link)
   pendingJoinCode: string | null;
   onStart: () => void;
@@ -153,8 +151,6 @@ export default function HomeScreen({
   setNetName,
   netColor,
   setNetColor,
-  netMode,
-  setNetMode,
   pendingJoinCode,
   onStart,
   onHost,
@@ -168,8 +164,8 @@ export default function HomeScreen({
 
   // Get the sign-in out of the way while the player types their name.
   useEffect(() => {
-    if (playStyle === "net" && netMode === "online") warmUpConnection();
-  }, [playStyle, netMode]);
+    if (playStyle === "net") warmUpConnection();
+  }, [playStyle]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const logoScale = scrollY.interpolate({
@@ -189,7 +185,6 @@ export default function HomeScreen({
   // The browser has no raw sockets, so the web version can only use the
   // online (relay) rooms — local Wi-Fi rooms need the installed app.
   const isWeb = Platform.OS === "web";
-  const netBlocked = isWeb && netMode === "lan";
 
   // ---- validation (one-phone play only) ----
   const activePlayers = players.filter((p) => p.enabled);
@@ -317,48 +312,36 @@ export default function HomeScreen({
             { value: "net", label: t("localMultiplayer") },
           ]}
         />
+        {/* "Local" and "Online" are short enough to fit but say nothing
+            on their own, so the line underneath says which is which. */}
+        <Text style={styles.styleWhat}>
+          {net ? t("localMultiplayerWhat") : t("onePhoneWhat")}
+        </Text>
 
         {net ? (
           // Local multiplayer: no roster, no categories here — the host
           // sets all that up inside the room.
           <View style={styles.netBox}>
-            {/* over the internet (works with iPhones) or straight over
-                the local Wi-Fi (no internet, installed app only) */}
-            <Segmented
-              value={netMode}
-              onChange={setNetMode}
-              options={[
-                { value: "online", label: t("netModeOnline") },
-                { value: "lan", label: t("netModeLan") },
-              ]}
+            <TextField
+              label={t("yourName")}
+              value={netName}
+              onChangeText={setNetName}
+              placeholder="…"
+              autoCapitalize="words"
             />
-
-            {netBlocked ? (
-              <Text style={styles.netBlocked}>{t("lanOnlyOnApp")}</Text>
-            ) : (
-              <>
-                <TextField
-                  label={t("yourName")}
-                  value={netName}
-                  onChangeText={setNetName}
-                  placeholder="…"
-                  autoCapitalize="words"
-                />
-                <ColorPicker value={netColor} onChange={setNetColor} />
-                <Text style={styles.netHint}>{t("colorMayChange")}</Text>
-                {pendingJoinCode ? (
-                  // It breathes because it is a "hang on" — a still pill
-                  // reads as a message that has already finished.
-                  <Pulse style={styles.netJoining}>
-                    <View style={styles.netJoiningPill}>
-                      <Text style={styles.netJoiningText}>
-                        {tf("joiningRoom", { code: pendingJoinCode })}
-                      </Text>
-                    </View>
-                  </Pulse>
-                ) : null}
-              </>
-            )}
+            <ColorPicker value={netColor} onChange={setNetColor} />
+            <Text style={styles.netHint}>{t("colorMayChange")}</Text>
+            {pendingJoinCode ? (
+              // It breathes because it is a "hang on" — a still pill
+              // reads as a message that has already finished.
+              <Pulse style={styles.netJoining}>
+                <View style={styles.netJoiningPill}>
+                  <Text style={styles.netJoiningText}>
+                    {tf("joiningRoom", { code: pendingJoinCode })}
+                  </Text>
+                </View>
+              </Pulse>
+            ) : null}
           </View>
         ) : (
           <GameSetup
@@ -408,14 +391,14 @@ export default function HomeScreen({
               style={styles.netButton}
               label={t("hostGame")}
               onPress={onHost}
-              disabled={netBlocked || netName.trim().length === 0}
+              disabled={netName.trim().length === 0}
             />
             <BigButton
               style={styles.netButton}
               label={t("joinGame")}
               variant="secondary"
               onPress={onJoin}
-              disabled={netBlocked || netName.trim().length === 0}
+              disabled={netName.trim().length === 0}
             />
           </View>
         ) : (
@@ -497,6 +480,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.xs + 2,
+  },
+  styleWhat: {
+    ...type.caption,
+    fontSize: 13,
+    color: colors.textFaint,
+    textAlign: "center",
+    paddingTop: spacing.xs,
   },
   netBox: {
     gap: spacing.md,

@@ -1,5 +1,4 @@
 import { useCameraPermissions } from "expo-camera";
-import * as Network from "expo-network";
 import React, { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -36,22 +35,8 @@ import { getLanguage, setLanguage, t, tf } from "../../i18n";
 import { codeFromLink, roomLink } from "../../net/config";
 import { firebaseConfigured } from "../../net/firebase";
 import { FirebaseClientTransport, FirebaseHostTransport } from "../../net/FirebaseTransport";
-import {
-  decodeQr,
-  encodeQr,
-  NetCard,
-  NetSettings,
-  randomRoomCode,
-  RoomState,
-  TOUR_MODES,
-} from "../../net/protocol";
+import { NetCard, NetSettings, RoomState, TOUR_MODES } from "../../net/protocol";
 import { HostConfig, RoomClient, RoomHost } from "../../net/room";
-import {
-  discoverRooms,
-  nativeNetAvailable,
-  TcpClientTransport,
-  TcpHostTransport,
-} from "../../net/TcpTransport";
 import { KEYS, LastRoom, saveJSON } from "../../storage";
 import { colors, elevation, radius, spacing } from "../../theme";
 import { confirmDialog, formatTime, textColorFor, uid } from "../../utils";
@@ -68,14 +53,9 @@ import WaitingOn from "../../components/WaitingOn";
 
 const ANSWER_MAX = 50;
 
-export type NetMode = "online" | "lan";
-
 type Props = {
   // "host" opens a room straight away; "join" asks for a code first.
   intent: "host" | "join";
-  // "online" goes through the relay (works with iPhones on the web too),
-  // "lan" is phone-to-phone over the local Wi-Fi with no internet.
-  netMode: NetMode;
   // Room code the app was opened with (a scanned link) — joins straight away.
   initialCode?: string | null;
   myName: string;
@@ -112,11 +92,9 @@ type Props = {
 };
 
 type Conn = "idle" | "host" | "client";
-type RoomChoice = { ip: string; port: number; roomId: string; hostName: string };
 
 export default function NetScreen(props: Props) {
-  const { intent, netMode, initialCode, myName, myColor, onExit } = props;
-  const online = netMode === "online";
+  const { intent, initialCode, myName, myColor, onExit } = props;
 
   const [conn, setConn] = useState<Conn>("idle");
   const [room, setRoom] = useState<RoomState | null>(null);
@@ -126,8 +104,6 @@ export default function NetScreen(props: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState(initialCode ?? "");
-  const [roomChoices, setRoomChoices] = useState<RoomChoice[] | null>(null);
-  const [hostIp, setHostIp] = useState<string | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -144,7 +120,6 @@ export default function NetScreen(props: Props) {
   const [votedFor, setVotedFor] = useState<string | null>(null);
 
   const hostRef = useRef<RoomHost | null>(null);
-  const hostTransportRef = useRef<TcpHostTransport | null>(null);
   const clientRef = useRef<RoomClient | null>(null);
   const autoJoined = useRef(false);
   const lastRoom = useRef<RoomState | null>(null);
@@ -259,34 +234,18 @@ export default function NetScreen(props: Props) {
   // ---- hosting ----
 
   const hostRoom = async () => {
-    if (online && !firebaseConfigured()) {
+    if (!firebaseConfigured()) {
       setError(t("notConfigured"));
-      return;
-    }
-    if (!online && !nativeNetAvailable()) {
-      setError(t("needFullApp"));
       return;
     }
     setBusy(true);
     setError(null);
     try {
       const roomId = uid();
-      let code: string;
-      let transport: TcpHostTransport | FirebaseHostTransport;
-      if (online) {
-        // The room code is claimed in the database, so two rooms can
-        // never end up sharing one.
-        const fb = new FirebaseHostTransport();
-        code = await fb.start();
-        transport = fb;
-        hostTransportRef.current = null;
-      } else {
-        code = randomRoomCode();
-        const tcp = new TcpHostTransport();
-        await tcp.start(code, roomId, myName);
-        hostTransportRef.current = tcp;
-        transport = tcp;
-      }
+      // The room code is claimed in the database, so two rooms can never
+      // end up sharing one.
+      const transport = new FirebaseHostTransport();
+      const code = await transport.start();
       hostRef.current = new RoomHost(
         transport,
         { onState: onStateUpdate, onCard: setCard },
@@ -300,11 +259,6 @@ export default function NetScreen(props: Props) {
       // The first STATE fires inside the constructor, before hostRef is
       // assigned — so pick up our own id right here.
       setMyId(hostRef.current.myId);
-      if (!online) {
-        Network.getIpAddressAsync()
-          .then(setHostIp)
-          .catch(() => setHostIp(null));
-      }
       setConn("host");
       prevPhase.current = "lobby";
     } catch (e) {
@@ -320,7 +274,7 @@ export default function NetScreen(props: Props) {
 
   // Shared tail of both join paths — wires a connected transport into a
   // RoomClient and flips the screen into the room.
-  const attachClient = (transport: TcpClientTransport | FirebaseClientTransport) => {
+  const attachClient = (transport: FirebaseClientTransport) => {
     clientRef.current = new RoomClient(
       transport,
       {
@@ -334,22 +288,6 @@ export default function NetScreen(props: Props) {
     );
     setConn("client");
     prevPhase.current = "lobby";
-  };
-
-  const connectTo = async (target: RoomChoice) => {
-    setBusy(true);
-    setError(null);
-    setRoomChoices(null);
-    try {
-      const transport = new TcpClientTransport();
-      await transport.connect(target.ip, target.port);
-      attachClient(transport);
-    } catch (e) {
-      const why = e instanceof Error && e.message ? ` (${e.message})` : "";
-      setError(t("joinFailed") + why);
-    } finally {
-      setBusy(false);
-    }
   };
 
   const joinOnline = async (code: string) => {
@@ -383,26 +321,10 @@ export default function NetScreen(props: Props) {
 
   const joinByCode = async (code: string) => {
     if (!/^\d{4}$/.test(code)) return;
-    if (online) {
-      await joinOnline(code);
-      return;
-    }
-    if (!nativeNetAvailable()) {
-      setError(t("needFullApp"));
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const rooms = await discoverRooms(code);
-    setBusy(false);
-    if (rooms.length === 0) setError(t("joinFailed"));
-    else if (rooms.length === 1) await connectTo(rooms[0]);
-    // Two rooms with the same 4-digit code — let the player pick by host.
-    else setRoomChoices(rooms);
+    await joinOnline(code);
   };
 
-  // Room QR codes come in two flavours: a plain link for online rooms
-  // (an iPhone camera can open it) and imp:// for local Wi-Fi rooms.
+  // A room QR is a plain link, so any phone camera can read it.
   const joinByQr = async (payload: string) => {
     const linkCode = codeFromLink(payload);
     if (linkCode) {
@@ -411,18 +333,8 @@ export default function NetScreen(props: Props) {
       await joinOnline(linkCode);
       return;
     }
-    const decoded = decodeQr(payload);
-    if (!decoded) {
-      scanned.current = false;
-      return;
-    }
-    setScanOpen(false);
-    await connectTo({
-      ip: decoded.ip,
-      port: decoded.port,
-      roomId: decoded.roomId,
-      hostName: "",
-    });
+    // Not one of ours — let the scanner keep looking.
+    scanned.current = false;
   };
 
   const openScanner = async () => {
@@ -445,7 +357,7 @@ export default function NetScreen(props: Props) {
   const handleHostLost = async () => {
     const last = lastRoom.current;
     clientRef.current = null;
-    if (!online || !last) {
+    if (!last) {
       endSession(t("hostLeft"));
       return;
     }
@@ -614,21 +526,6 @@ export default function NetScreen(props: Props) {
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {busy ? <Text style={styles.notice}>{t("connecting")}</Text> : null}
 
-          {roomChoices ? (
-            <View style={styles.choiceBox}>
-              <Text style={styles.notice}>{t("multipleRooms")}</Text>
-              {roomChoices.map((r) => (
-                <BigButton
-                  key={r.roomId}
-                  label={r.hostName || r.ip}
-                  variant="secondary"
-                  compact
-                  onPress={() => connectTo(r)}
-                />
-              ))}
-            </View>
-          ) : null}
-
           {intent === "host" ? (
             <BigButton label={t("hostGame")} disabled={busy} onPress={hostRoom} />
           ) : (
@@ -695,15 +592,8 @@ export default function NetScreen(props: Props) {
 
   // ---- lobby ----
   if (room.phase === "lobby") {
-    // Online rooms hand out a plain link (any phone camera can open it);
-    // local Wi-Fi rooms encode the host's address instead.
-    const qrPayload = !isHost
-      ? null
-      : online
-        ? roomLink(room.code)
-        : hostIp
-          ? encodeQr(hostIp, hostTransportRef.current?.port ?? 47778, room.code, room.roomId)
-          : null;
+    // A plain link, so any phone camera can open it.
+    const qrPayload = isHost ? roomLink(room.code) : null;
     return (
       <Screen>
         {leaveX}

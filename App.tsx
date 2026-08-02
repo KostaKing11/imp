@@ -51,7 +51,7 @@ import FakerAnswersScreen from "./src/screens/faker/FakerAnswersScreen";
 import FakerResultScreen from "./src/screens/faker/FakerResultScreen";
 import { initialJoinCode, onJoinLink } from "./src/net/config";
 import { NetSettings } from "./src/net/protocol";
-import HomeScreen, { NetMode, PlayStyle } from "./src/screens/HomeScreen";
+import HomeScreen, { PlayStyle } from "./src/screens/HomeScreen";
 import MafiaResultScreen from "./src/screens/MafiaResultScreen";
 import NetScreen from "./src/screens/net/NetScreen";
 import MafiaRevealScreen from "./src/screens/MafiaRevealScreen";
@@ -152,7 +152,6 @@ export default function App() {
   const [netIntent, setNetIntent] = useState<"host" | "join">("host");
   const [netName, setNetName] = useState("");
   const [netColor, setNetColor] = useState(PLAYER_COLORS[1]);
-  const [netMode, setNetMode] = useState<NetMode>("online");
   // While in a room, the host's language wins over this phone's own.
   const [roomLanguage, setRoomLanguage] = useState<Language | null>(null);
   const [roomSettings, setRoomSettings] = useState<NetSettings>({
@@ -199,8 +198,6 @@ export default function App() {
       if (storedNetName) setNetName(storedNetName);
       const storedNetColor = await loadJSON<string | null>(KEYS.netColor, null);
       if (storedNetColor) setNetColor(snapColors([{ color: storedNetColor }])[0].color);
-      const storedNetMode = await loadJSON<NetMode | null>(KEYS.netMode, null);
-      if (storedNetMode === "online" || storedNetMode === "lan") setNetMode(storedNetMode);
       // Opened from a shared room link: jump straight to the join flow.
       // Works both ways in — the web address bar, and a link Android
       // handed the installed app.
@@ -208,7 +205,6 @@ export default function App() {
       if (linkCode) {
         setPendingJoinCode(linkCode);
         setPlayStyle("net");
-        setNetMode("online");
       } else {
         // No link, but this phone was in a room recently — a closed app,
         // a flat battery, a phone that went to sleep for too long. The
@@ -218,8 +214,7 @@ export default function App() {
         if (last && Date.now() - last.at < REJOIN_WINDOW_MS) {
           setPendingJoinCode(last.code);
           setPlayStyle("net");
-          setNetMode("online");
-          setNetIntent("join");
+            setNetIntent("join");
           setScreen("net");
         }
       }
@@ -275,7 +270,6 @@ export default function App() {
       onJoinLink((code) => {
         setPendingJoinCode(code);
         setPlayStyle("net");
-        setNetMode("online");
         setNetIntent("join");
         setScreen("net");
       }),
@@ -310,9 +304,6 @@ export default function App() {
   useEffect(() => {
     if (loaded) saveJSON(KEYS.netColor, netColor);
   }, [netColor, loaded]);
-  useEffect(() => {
-    if (loaded) saveJSON(KEYS.netMode, netMode);
-  }, [netMode, loaded]);
   useEffect(() => {
     if (loaded) saveJSON(KEYS.settings, settings);
   }, [settings, loaded]);
@@ -461,8 +452,6 @@ export default function App() {
             setNetName={setNetName}
             netColor={netColor}
             setNetColor={setNetColor}
-            netMode={netMode}
-            setNetMode={setNetMode}
             pendingJoinCode={pendingJoinCode}
             onStart={startGame}
             onHost={() => {
@@ -495,7 +484,6 @@ export default function App() {
         return (
           <NetScreen
             intent={netIntent}
-            netMode={netMode}
             initialCode={netIntent === "join" ? pendingJoinCode : null}
             roomSettings={roomSettings}
             setRoomSettings={setRoomSettings}

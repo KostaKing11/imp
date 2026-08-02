@@ -1,5 +1,5 @@
 import { activeWordPool } from "./engine";
-import { CategoryState, normalizeWord, Player, SyncGame, SyncRound } from "./types";
+import { CategoryState, Player, SyncGame, SyncRound, wordKey } from "./types";
 
 // Uskladi se needs two people to have any chance of matching, and works
 // all the way up — with a big group it becomes a race to be the first
@@ -27,7 +27,7 @@ export function createSyncGame(
   return {
     seed,
     history: [],
-    used: [normalizeWord(seed)],
+    used: [wordKey(seed)],
     winners: null,
     matchedWord: null,
   };
@@ -36,7 +36,7 @@ export function createSyncGame(
 // A word can't be used twice by anyone — without that rule the whole
 // game collapses, because repeating your own last word matches instantly.
 export function syncWordTaken(game: SyncGame, word: string): boolean {
-  return game.used.includes(normalizeWord(word));
+  return game.used.includes(wordKey(word));
 }
 
 // Groups the round's words by their normalised form and returns every
@@ -47,7 +47,7 @@ export function syncMatches(words: Record<string, string>): {
 } | null {
   const byWord = new Map<string, string[]>();
   for (const [playerId, raw] of Object.entries(words)) {
-    const key = normalizeWord(raw);
+    const key = wordKey(raw);
     if (!key) continue;
     byWord.set(key, [...(byWord.get(key) ?? []), playerId]);
   }
@@ -69,7 +69,7 @@ export function resolveSyncRound(game: SyncGame, words: Record<string, string>):
   const match = syncMatches(words);
   const used = [...game.used];
   for (const raw of Object.values(words)) {
-    const key = normalizeWord(raw);
+    const key = wordKey(raw);
     if (key && !used.includes(key)) used.push(key);
   }
 

@@ -93,6 +93,9 @@ export default function NetSkalaView({
           disabled
           hideNeedle
         />
+        {/* Same explanation the one-phone game gives — the two should not
+            teach the mode differently. */}
+        <Text style={styles.hint}>{t("skalaHowGiver")}</Text>
         <Text style={styles.hint}>{t("skalaClueHint")}</Text>
         <TextField
           label={t("skalaClueLabel")}
@@ -137,6 +140,7 @@ export default function NetSkalaView({
     return (
       <ScrollView contentContainerStyle={styles.scroll}>
         {header}
+        <Text style={styles.hint}>{t("skalaHowGuesser")}</Text>
         <Dial value={guess} onChange={setGuess} left={skala.left} right={skala.right} />
         <BigButton label={t("skalaLockGuess")} onPress={() => onGuess(guess)} />
         {counter}
