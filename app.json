@@ -2,7 +2,7 @@
   "expo": {
     "name": "IMP",
     "slug": "imp",
-    "version": "1.0.13",
+    "version": "1.0.14",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": true
     },
+    "scheme": "imp",
     "android": {
       "package": "com.kosta.imp",
       "adaptiveIcon": {
@@ -17,6 +18,20 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
+      "//intentFilters": "A room QR is a plain https link so any phone camera can read it. This claims those links for the app: scan one with the installed app and Android offers to open it here instead of the browser (and remembers the choice). Without the app, the same link is just the web version. autoVerify is off on purpose — silent auto-open would need /.well-known/assetlinks.json at kostaking11.github.io/, and Pages only serves this repo under /imp.",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kostaking11.github.io",
+              "pathPrefix": "/imp"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "android.permission.ACCESS_WIFI_STATE",
         "android.permission.ACCESS_NETWORK_STATE",

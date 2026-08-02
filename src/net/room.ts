@@ -200,8 +200,11 @@ export class RoomHost {
 
   // Two players in one room never share a colour — whoever asks second
   // gets the next free one.
+  // Everyone still holding a seat counts, connected or not — a player
+  // who is away for a minute must not come back to find somebody else
+  // wearing their colour.
   private uniqueColor(wanted: string): string {
-    const taken = this.state.players.filter((p) => p.connected).map((p) => p.color);
+    const taken = this.state.players.map((p) => p.color);
     const free = !taken.some((c) => c.toUpperCase() === wanted.toUpperCase());
     return free ? wanted : freeColor(taken);
   }
@@ -210,7 +213,7 @@ export class RoomHost {
     const base = name.trim().slice(0, 18) || "?";
     let candidate = base;
     let n = 2;
-    while (this.state.players.some((p) => p.connected && p.name === candidate)) {
+    while (this.state.players.some((p) => p.name === candidate)) {
       candidate = `${base} ${n++}`;
     }
     return candidate;
@@ -223,7 +226,25 @@ export class RoomHost {
     if (!msg || typeof msg !== "object") return;
 
     if (msg.type === "JOIN") {
-      if (this.peerToPlayer.has(peer)) return;
+      // A phone that slept, lost signal or was killed and reopened comes
+      // back with the same peer id (it is their anonymous account), so if
+      // we are still holding a seat for it, give that seat back rather
+      // than seating them again as somebody new. That is what keeps a
+      // tournament score — the scores are keyed by player id.
+      const held = this.peerToPlayer.get(peer);
+      if (held) {
+        const seat = this.player(held);
+        if (seat && !seat.connected) {
+          seat.connected = true;
+          this.playerToPeer.set(held, peer);
+          // Mid-round they wait in the wings, exactly like a new joiner.
+          seat.inRound = this.state.phase === "lobby";
+          this.transport.send(peer, { type: "WELCOME", playerId: held } satisfies HostMsg);
+          this.emit();
+        }
+        // Already connected: a duplicate JOIN, nothing to do.
+        return;
+      }
       if (this.connectedPlayers.length >= netMaxPlayers(this.state.mode)) {
         this.transport.send(peer, { type: "KICKED" } satisfies HostMsg);
         this.transport.kick?.(peer);
@@ -266,26 +287,59 @@ export class RoomHost {
         this.submitVote(playerId, msg.choice);
         break;
       case "LEAVE":
-        this.dropPeer(peer);
+        this.dropPeer(peer, true);
         break;
       case "HB":
         break;
     }
   }
 
-  private dropPeer(peer: string): void {
+  // `deliberate` means they pressed leave. Anything else — a sleeping
+  // phone, a dead battery, a tunnel — is treated as "back in a minute".
+  private dropPeer(peer: string, deliberate = false): void {
     const playerId = this.peerToPlayer.get(peer);
-    this.peerToPlayer.delete(peer);
     this.lastSeen.delete(peer);
-    if (!playerId) return;
+    if (!playerId) {
+      this.peerToPlayer.delete(peer);
+      return;
+    }
     this.playerToPeer.delete(playerId);
-    // Players who leave disappear from the room entirely — the host can
-    // always start again with whoever is still around.
-    this.state.players = this.state.players.filter((p) => p.id !== playerId);
+
+    // Keep their seat while there is something to come back to: a game in
+    // progress, or a tournament they have points in. In a plain lobby
+    // there is nothing to lose, so they just go.
+    const holdSeat =
+      !deliberate && (this.state.phase !== "lobby" || this.state.tournament !== null);
+
+    if (holdSeat) {
+      const seat = this.player(playerId);
+      if (seat) {
+        seat.connected = false;
+        seat.inRound = false;
+      }
+      // peerToPlayer is deliberately left alone: it is the only thing
+      // that can recognise them when they come back.
+    } else {
+      this.peerToPlayer.delete(peer);
+      this.state.players = this.state.players.filter((p) => p.id !== playerId);
+    }
+
     this.state.readyIds = this.state.readyIds.filter((id) => id !== playerId);
     this.state.answeredIds = this.state.answeredIds.filter((id) => id !== playerId);
     this.state.votedIds = this.state.votedIds.filter((id) => id !== playerId);
     this.emit();
+  }
+
+  // Seats held for players who never came back are cleared whenever the
+  // room settles into a lobby with nothing running, so they do not pile
+  // up across games.
+  private releaseHeldSeats(): void {
+    const gone = this.state.players.filter((p) => !p.connected).map((p) => p.id);
+    if (gone.length === 0) return;
+    this.state.players = this.state.players.filter((p) => p.connected);
+    for (const [peer, playerId] of [...this.peerToPlayer]) {
+      if (gone.includes(playerId)) this.peerToPlayer.delete(peer);
+    }
   }
 
   // ---- player actions (the host is a player too, and calls these directly) ----
@@ -580,6 +634,9 @@ export class RoomHost {
 
   backToLobby(): void {
     this.setPhase("lobby");
+    // Nothing left to come back to unless a tournament is still running,
+    // so anyone who never returned gives their seat up here.
+    if (!this.state.tournament) this.releaseHeldSeats();
     this.state.readyIds = [];
     this.state.answeredIds = [];
     this.state.votedIds = [];

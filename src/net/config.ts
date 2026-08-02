@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Linking, Platform } from "react-native";
 
 // The web version of the game. Room QR codes point here with ?join=CODE,
 // so scanning one with an iPhone camera opens the game and joins.
@@ -26,4 +26,28 @@ export function roomLink(code: string): string {
 export function codeFromLink(payload: string): string | null {
   const m = payload.match(/[?&]join=(\d{4})\b/);
   return m ? m[1] : null;
+}
+
+// The room code the app was *opened with*, whichever way it was opened:
+// the address bar on the web, and on Android the room link that Android
+// handed the app. The installed app claims those links, so scanning a
+// room QR with any phone camera can land here rather than in a browser.
+export async function initialJoinCode(): Promise<string | null> {
+  if (Platform.OS === "web") return joinCodeFromUrl();
+  try {
+    const url = await Linking.getInitialURL();
+    return url ? codeFromLink(url) : null;
+  } catch {
+    return null;
+  }
+}
+
+// A room link arriving while the app is already running — scanning a QR
+// with the camera app while IMP is open in the background.
+export function onJoinLink(handle: (code: string) => void): () => void {
+  const sub = Linking.addEventListener("url", ({ url }) => {
+    const code = codeFromLink(url);
+    if (code) handle(code);
+  });
+  return () => sub.remove();
 }

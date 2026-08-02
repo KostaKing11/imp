@@ -52,6 +52,7 @@ import {
   TcpClientTransport,
   TcpHostTransport,
 } from "../../net/TcpTransport";
+import { KEYS, LastRoom, saveJSON } from "../../storage";
 import { colors, elevation, radius, spacing } from "../../theme";
 import { confirmDialog, formatTime, textColorFor, uid } from "../../utils";
 import NetCardView from "./NetCardView";
@@ -361,6 +362,10 @@ export default function NetScreen(props: Props) {
       const transport = new FirebaseClientTransport();
       await transport.connect(code);
       attachClient(transport);
+      // Remember where we are. If this phone is closed, killed or runs
+      // out of battery, the next launch walks straight back in — and the
+      // host has been holding the seat and the points all along.
+      saveJSON(KEYS.netRoom, { code, at: Date.now() } satisfies LastRoom);
     } catch (e) {
       const reason = e instanceof Error ? e.message : "";
       setError(
@@ -498,8 +503,16 @@ export default function NetScreen(props: Props) {
   };
 
   // The room is over for us — drop everything and go back to the menu.
+  // Forget the room we were in, so the next launch does not try to walk
+  // back into one that is over or that we were thrown out of.
+  const forgetRoom = () => {
+    saveJSON(KEYS.netRoom, null);
+  };
+
   const endSession = (message: string) => {
     if (exitedRef.current) return;
+    // Kicked, or the host closed the room: nothing to return to.
+    forgetRoom();
     cleanup();
     setConn("idle");
     setRoom(null);
@@ -518,6 +531,8 @@ export default function NetScreen(props: Props) {
     confirmDialog(t("leaveGameQ"), t("leaveRoomText"), () => {
       exitedRef.current = true;
       clientRef.current?.leave();
+      // Leaving on purpose means there is nothing to come back to.
+      forgetRoom();
       cleanup();
       onExit();
     });

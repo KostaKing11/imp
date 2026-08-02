@@ -49,7 +49,7 @@ import DiscussionScreen from "./src/screens/DiscussionScreen";
 import FakerAnswerScreen from "./src/screens/faker/FakerAnswerScreen";
 import FakerAnswersScreen from "./src/screens/faker/FakerAnswersScreen";
 import FakerResultScreen from "./src/screens/faker/FakerResultScreen";
-import { joinCodeFromUrl } from "./src/net/config";
+import { initialJoinCode, onJoinLink } from "./src/net/config";
 import { NetSettings } from "./src/net/protocol";
 import HomeScreen, { NetMode, PlayStyle } from "./src/screens/HomeScreen";
 import MafiaResultScreen from "./src/screens/MafiaResultScreen";
@@ -60,7 +60,7 @@ import OddRevealScreen from "./src/screens/OddRevealScreen";
 import ResultScreen from "./src/screens/ResultScreen";
 import RevealScreen from "./src/screens/RevealScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
-import { KEYS, loadJSON, saveJSON } from "./src/storage";
+import { KEYS, LastRoom, loadJSON, REJOIN_WINDOW_MS, saveJSON } from "./src/storage";
 import { PLAYER_COLORS, snapColors } from "./src/theme";
 import { confirmDialog, uid } from "./src/utils";
 
@@ -202,11 +202,26 @@ export default function App() {
       const storedNetMode = await loadJSON<NetMode | null>(KEYS.netMode, null);
       if (storedNetMode === "online" || storedNetMode === "lan") setNetMode(storedNetMode);
       // Opened from a shared room link: jump straight to the join flow.
-      const linkCode = joinCodeFromUrl();
+      // Works both ways in — the web address bar, and a link Android
+      // handed the installed app.
+      const linkCode = await initialJoinCode();
       if (linkCode) {
         setPendingJoinCode(linkCode);
         setPlayStyle("net");
         setNetMode("online");
+      } else {
+        // No link, but this phone was in a room recently — a closed app,
+        // a flat battery, a phone that went to sleep for too long. The
+        // host holds the seat and the points, so walk back in rather than
+        // landing on the menu as if the game never happened.
+        const last = await loadJSON<LastRoom | null>(KEYS.netRoom, null);
+        if (last && Date.now() - last.at < REJOIN_WINDOW_MS) {
+          setPendingJoinCode(last.code);
+          setPlayStyle("net");
+          setNetMode("online");
+          setNetIntent("join");
+          setScreen("net");
+        }
       }
       // Set the language FIRST so category sets + default names match it.
       const lang: Language = storedLang === "sr" ? "sr" : "en";
@@ -252,6 +267,20 @@ export default function App() {
       setLoaded(true);
     })();
   }, []);
+
+  // A room link scanned while the app is already running (the camera app
+  // in front, IMP in the background) takes us straight into that room.
+  useEffect(
+    () =>
+      onJoinLink((code) => {
+        setPendingJoinCode(code);
+        setPlayStyle("net");
+        setNetMode("online");
+        setNetIntent("join");
+        setScreen("net");
+      }),
+    []
+  );
 
   // ---- save on change (after initial load) ----
   useEffect(() => {

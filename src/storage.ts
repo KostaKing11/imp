@@ -14,7 +14,16 @@ export const KEYS = {
   netName: "imp.netname",
   netColor: "imp.netcolor",
   netMode: "imp.netmode",
+  // The room this phone was last in, so closing the app (or the battery
+  // dying) does not mean losing your seat and your tournament points.
+  netRoom: "imp.netroom",
 };
+
+// A room worth trying to walk back into. Anything older than this and the
+// game it belonged to is long over.
+export const REJOIN_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+export type LastRoom = { code: string; at: number };
 
 export async function loadJSON<T>(key: string, fallback: T): Promise<T> {
   try {

@@ -70,8 +70,10 @@ export class MockHub {
     return this.host;
   }
 
-  createClient(): Transport {
-    const id = `mock-${this.nextClient++}`;
+  // An explicit id lets a test bring the *same* phone back after a
+  // disconnect, which is what a real one does — its peer id is its
+  // anonymous account and survives the app being killed.
+  createClient(id = `mock-${this.nextClient++}`): Transport {
     const end = new MockEnd(this, id);
     this.clients.set(id, end);
     Promise.resolve().then(() => this.host?._peerJoined(id));
