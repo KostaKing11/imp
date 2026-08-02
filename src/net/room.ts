@@ -328,6 +328,49 @@ export class RoomHost {
     this.state.answeredIds = this.state.answeredIds.filter((id) => id !== playerId);
     this.state.votedIds = this.state.votedIds.filter((id) => id !== playerId);
     this.emit();
+    // Losing a player can be the thing that completes a phase — the room
+    // may have been waiting on precisely them.
+    this.recheckPhase();
+  }
+
+  // Every phase that waits for "everyone" is only ever re-checked when a
+  // message arrives. So when the last player anybody is waiting on walks
+  // out of signal, no message ever arrives, and the round sits there for
+  // good — the one person who could unstick it is the one who left. Any
+  // time the set of players in the round shrinks, ask again.
+  private recheckPhase(): void {
+    const waitingOn = this.inRoundPlayers;
+    if (waitingOn.length === 0) return;
+
+    switch (this.state.phase) {
+      case "cards":
+        if (this.state.readyIds.length >= waitingOn.length) this.continueFromCards();
+        break;
+      case "vote":
+        if (this.state.votedIds.length >= waitingOn.length) this.showEjection();
+        break;
+      case "skalaGuess": {
+        const round = this.skalaRound;
+        if (!round) break;
+        const guessers = waitingOn.filter((x) => x.id !== round.clueGiverId);
+        if (guessers.length > 0 && guessers.every((x) => round.guesses[x.id] !== undefined)) {
+          this.revealSkala();
+        }
+        break;
+      }
+      case "syncWrite":
+        if (this.syncGame && waitingOn.every((x) => this.answers[x.id])) this.revealSync();
+        break;
+      case "tourVote": {
+        const tour = this.state.tournament;
+        if (tour && Object.keys(tour.votes).length >= waitingOn.length) {
+          if (this.tourTimer) clearTimeout(this.tourTimer);
+          this.tourTimer = null;
+          this.closeModeVote();
+        }
+        break;
+      }
+    }
   }
 
   // Seats held for players who never came back are cleared whenever the
@@ -594,7 +637,12 @@ export class RoomHost {
       setTimeout(() => this.transport.kick?.(peer), 250);
     }
     this.state.players = this.state.players.filter((p) => p.id !== playerId);
+    this.state.readyIds = this.state.readyIds.filter((id) => id !== playerId);
+    this.state.answeredIds = this.state.answeredIds.filter((id) => id !== playerId);
+    this.state.votedIds = this.state.votedIds.filter((id) => id !== playerId);
     this.emit();
+    // Throwing someone out can complete a phase too.
+    this.recheckPhase();
   }
 
   // null when the room is ready to start, otherwise why it isn't.

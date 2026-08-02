@@ -64,6 +64,7 @@ import NetSkalaView from "./NetSkalaView";
 import NetTournamentView from "./NetTournamentView";
 import NetSyncView from "./NetSyncView";
 import NetVoteView from "./NetVoteView";
+import WaitingOn from "../../components/WaitingOn";
 
 const ANSWER_MAX = 50;
 
@@ -856,7 +857,15 @@ export default function NetScreen(props: Props) {
 
           <View style={styles.bottom}>
             {answered ? (
-              <Text style={styles.notice}>{t("waitingOthers")}</Text>
+              <>
+                <Text style={styles.notice}>{t("waitingOthers")}</Text>
+                {/* Named, so you know who to chase rather than staring at
+                    a screen that will not move. */}
+                <WaitingOn
+                  people={room.players.filter((p) => p.inRound && p.connected)}
+                  doneIds={room.answeredIds}
+                />
+              </>
             ) : questionPeeked ? (
               <>
                 <TextInput

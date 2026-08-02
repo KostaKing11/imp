@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import BigButton from "../../components/BigButton";
 import TextField from "../../components/TextField";
 import { useScrollToInputOnKeyboard } from "../../components/useScrollToInput";
+import WaitingOn from "../../components/WaitingOn";
 import { roundsWord, t, tf } from "../../i18n";
 import { RoomState } from "../../net/protocol";
 import { alpha, colors, radius, spacing, type } from "../../theme";
@@ -46,10 +47,14 @@ export default function NetSyncView({
   // ---- writing ----
   if (state.phase === "syncWrite") {
     const mine = myId ? state.answeredIds.includes(myId) : false;
+    // The count says the room is not moving; the names say who to look at.
     const counter = (
-      <Text style={styles.counter}>
-        {tf("skalaGuessedCount", { done: state.answeredIds.length, total: inRound.length })}
-      </Text>
+      <>
+        <Text style={styles.counter}>
+          {tf("skalaGuessedCount", { done: state.answeredIds.length, total: inRound.length })}
+        </Text>
+        <WaitingOn people={inRound} doneIds={state.answeredIds} />
+      </>
     );
 
     if (mine) {

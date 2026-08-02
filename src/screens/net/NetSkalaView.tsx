@@ -5,6 +5,7 @@ import Dial from "../../components/Dial";
 import PlayerCard from "../../components/PlayerCard";
 import TextField from "../../components/TextField";
 import { useScrollToInputOnKeyboard } from "../../components/useScrollToInput";
+import WaitingOn from "../../components/WaitingOn";
 import { t, tf } from "../../i18n";
 import { NetCard, RoomState } from "../../net/protocol";
 import { alpha, colors, radius, spacing, type } from "../../theme";
@@ -115,9 +116,13 @@ export default function NetSkalaView({
     const guessers = state.players.filter((p) => p.inRound && p.id !== skala.clueGiverId);
     const done = Object.keys(skala.guesses).length;
     const counter = (
-      <Text style={styles.counter}>
-        {tf("skalaGuessedCount", { done, total: guessers.length })}
-      </Text>
+      <>
+        <Text style={styles.counter}>
+          {tf("skalaGuessedCount", { done, total: guessers.length })}
+        </Text>
+        {/* Who still has not turned their dial, by name. */}
+        <WaitingOn people={guessers} doneIds={Object.keys(skala.guesses)} />
+      </>
     );
 
     if (iAmGiver || (myId && skala.guesses[myId] !== undefined)) {
