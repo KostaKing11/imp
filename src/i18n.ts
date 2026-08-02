@@ -155,6 +155,7 @@ const en = {
   confirmBtn: "Confirm",
   // app updates (installed Android build only)
   updateTitle: "A new version is out",
+  readMore: "Read the rest →",
   updateBody: "Install it now? It takes a few seconds and keeps your players and categories.",
   updateDownloading: "Downloading…",
   updateFailed: "That didn't work. Check your connection and try again.",
@@ -510,6 +511,7 @@ const sr: typeof en = {
   confirmBtn: "Potvrdi",
   // app updates (installed Android build only)
   updateTitle: "Izašla je nova verzija",
+  readMore: "Pročitaj ostalo →",
   updateBody: "Da je instaliramo? Traje par sekundi, igrači i kategorije ti ostaju.",
   updateDownloading: "Preuzimam…",
   updateFailed: "Nije uspelo. Proveri internet pa probaj ponovo.",

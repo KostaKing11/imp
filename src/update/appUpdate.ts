@@ -16,6 +16,8 @@ export type Release = {
   version: string;
   apkUrl: string;
   notes: string | null;
+  // The release's own page, for the "read more" link under the notes.
+  pageUrl: string | null;
 };
 
 // "v1.2.3" / "1.2.3 " -> [1, 2, 3]. Anything non-numeric becomes 0, so a
@@ -70,6 +72,7 @@ export async function checkForUpdate(): Promise<Release | null> {
       tag_name?: string;
       name?: string;
       body?: string;
+      html_url?: string;
       draft?: boolean;
       prerelease?: boolean;
       assets?: { name?: string; browser_download_url?: string }[];
@@ -86,6 +89,7 @@ export async function checkForUpdate(): Promise<Release | null> {
       version: version.replace(/^v/i, ""),
       apkUrl: apk.browser_download_url,
       notes: data.body?.trim() || null,
+      pageUrl: data.html_url ?? null,
     };
   } catch {
     return null;

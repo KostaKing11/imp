@@ -59,15 +59,27 @@ export default function FakerAnswerScreen({ players, round, onDone, onLeave }: P
           style={styles.cardScreen}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <FlipCard
-            name={active.name}
-            color={active.color}
-            faceColor={colors.accent}
-            onPeeked={() => setPeeked(true)}
+          {/* The card keeps its shape and scrolls out of the way when the
+              keyboard arrives, instead of being squashed into a sliver
+              between the question and the answer box. Hold-to-reveal
+              stays — in Faker the question really is a secret, so it must
+              not sit on screen while you type. */}
+          <ScrollView
+            style={styles.cardArea}
+            contentContainerStyle={styles.cardAreaInner}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.qLabel}>{t("fakerYourQuestion")}</Text>
-            <Text style={styles.question}>{questionFor(active)}</Text>
-          </FlipCard>
+            <FlipCard
+              name={active.name}
+              color={active.color}
+              faceColor={colors.accent}
+              onPeeked={() => setPeeked(true)}
+            >
+              <Text style={styles.qLabel}>{t("fakerYourQuestion")}</Text>
+              <Text style={styles.question}>{questionFor(active)}</Text>
+            </FlipCard>
+          </ScrollView>
 
           <View style={styles.cardBottom}>
             {peeked ? (
@@ -171,12 +183,19 @@ const styles = StyleSheet.create({
   bottom: { paddingBottom: spacing.md },
   cardScreen: {
     flex: 1,
+  },
+  cardArea: {
+    flex: 1,
+  },
+  cardAreaInner: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: spacing.md,
   },
   cardBottom: {
-    marginTop: spacing.md,
-    minHeight: 70,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
     alignSelf: "stretch",
     justifyContent: "center",
     gap: spacing.sm,

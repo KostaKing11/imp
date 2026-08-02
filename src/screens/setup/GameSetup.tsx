@@ -279,11 +279,7 @@ export default function GameSetup({
     setEditingFakerCategory(null);
   };
 
-  // ---- spectrum categories (Skala) ----
-  const toggleSpectrumCategory = (id: string) =>
-    setSpectrumCategories(
-      spectrumCategories.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c))
-    );
+  // Scale has no categories to toggle — one list, always on.
 
   // ---- roles (IMP Classic & Mafia) ----
   const addRole = () => {
@@ -386,23 +382,16 @@ export default function GameSetup({
       {middleSlot}
 
       {/* categories — words (IMP/Bluff), pairs (Odd One Out), questions (Faker) */}
-      {gameMode !== "mafia" ? (
+      {/* Mafia has no word lists at all, and Scale deliberately has one
+          list that is always on — picking which flavours of scale were
+          switched on was a menu in front of a game nobody had played. */}
+      {gameMode !== "mafia" && gameMode !== "skala" ? (
         <>
           <SectionTitle tone={tint} hint={categoryHint}>
             {t("categories")}
           </SectionTitle>
           <View style={styles.chipWrap}>
-            {gameMode === "skala" ? (
-              spectrumCategories.map((c) => (
-                <Chip
-                  key={c.id}
-                  label={c.name}
-                  badge={c.spectrums.length}
-                  active={c.enabled}
-                  onPress={() => toggleSpectrumCategory(c.id)}
-                />
-              ))
-            ) : gameMode === "faker" ? (
+            {gameMode === "faker" ? (
               <>
                 {fakerCategories.map((c) => (
                   <Chip

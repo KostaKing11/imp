@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Modal, StyleSheet, Text, View } from "react-native";
+import { Animated, Linking, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { t, tf } from "../i18n";
 import { alpha, colors, elevation, radius, spacing, type } from "../theme";
 import { checkForUpdate, downloadAndInstall, Release, updatesSupported } from "../update/appUpdate";
@@ -80,10 +80,24 @@ export default function UpdatePrompt() {
             {busy ? t("updateDownloading") : t("updateBody")}
           </Text>
 
+          {/* Release notes get long. Show the first few lines and put the
+              rest one tap away on the release page, rather than either
+              burying the buttons or cutting the text off mid-sentence
+              with no way to read the rest. */}
           {release?.notes && !busy ? (
-            <Text style={styles.notes} numberOfLines={4}>
-              {release.notes}
-            </Text>
+            <>
+              <Text style={styles.notes} numberOfLines={5}>
+                {release.notes}
+              </Text>
+              {release.pageUrl ? (
+                <Pressable
+                  onPress={() => Linking.openURL(release.pageUrl!).catch(() => {})}
+                  hitSlop={8}
+                >
+                  <Text style={styles.readMore}>{t("readMore")}</Text>
+                </Pressable>
+              ) : null}
+            </>
           ) : null}
 
           {busy ? (
@@ -149,6 +163,13 @@ const styles = StyleSheet.create({
   tagText: { ...type.eyebrow, fontSize: 12, color: colors.accent },
   title: { ...type.title, fontSize: 24, color: colors.text },
   message: { ...type.body, lineHeight: 23, color: colors.textDim },
+  readMore: {
+    ...type.button,
+    fontSize: 14,
+    color: colors.accent,
+    textAlign: "center",
+    paddingVertical: spacing.xs,
+  },
   notes: {
     ...type.caption,
     fontSize: 13,

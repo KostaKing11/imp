@@ -5,172 +5,58 @@
 //  nešto što po njemu tu stoji. Ostali okreću strelicu tamo gde
 //  misle da je mislio.
 //
-//  Dobra skala je ona na koju može da se stavi bilo šta, a da se
-//  ljudi i dalje svađaju gde. Krajevi moraju biti ista osa —
-//  "jeftino ↔ ukusno" nisu suprotnosti, to su dva pitanja.
+//  Namerno postoji JEDNA lista i nema kategorija za biranje. Skala je
+//  društvena igra koju treba moći pokrenuti pritiskom na START;
+//  biranje koje vrste skala su uključene bilo je meni ispred igre
+//  koju niko još nije odigrao.
+//
+//  ŠTA JE DOBRA SKALA
+//  Na nju mora da može da se stavi BILO ŠTA — predmet, čovek, film,
+//  sendvič — a da se ljudi i dalje svađaju gde tačno stoji.
+//
+//    dobro   Jeftino ↔ Skupo        (sve ima cenu)
+//    dobro   Dosadno ↔ Uzbudljivo
+//    loše    Faza ↔ Cela ličnost    (ide uz malo šta)
+//    loše    Jeftino ↔ Ukusno       (to su dva pitanja)
+//
+//  Oba kraja moraju biti ista osa, samo suprotna, i dovoljno kratka
+//  da se pročitaju na brojčaniku.
 // ============================================================
 
 import { SpectrumCategory } from "./spectrums";
 
 export const SPECTRUM_CATEGORIES_SR: SpectrumCategory[] = [
   {
-    name: "Svakodnevica",
+    name: "Skala",
     spectrums: [
-      { left: "Beskorisno", right: "Neophodno" },
       { left: "Jeftino", right: "Skupo" },
       { left: "Dosadno", right: "Uzbudljivo" },
       { left: "Lako", right: "Teško" },
       { left: "Tiho", right: "Glasno" },
-      { left: "Normalno", right: "Čudno" },
-      { left: "Zaboravi se", right: "Pamti se zauvek" },
-      { left: "Obaveza", right: "Nagrada" },
       { left: "Sporo", right: "Brzo" },
-      { left: "Staromodno", right: "Moderno" },
-      { left: "Za sebe", right: "Pred svima" },
-      { left: "Bacanje vremena", right: "Vredelo je" },
-      { left: "Retko se viđa", right: "Na svakom ćošku" },
-      { left: "Prosto", right: "Komplikovano" },
-      { left: "Privremeno", right: "Zauvek" },
-    ],
-  },
-  {
-    name: "Mišljenja",
-    spectrums: [
-      { left: "Precenjeno", right: "Potcenjeno" },
-      { left: "Kriješ da voliš", right: "Ponosiš se" },
-      { left: "Blam", right: "Kul" },
-      { left: "Loš ukus", right: "Dobar ukus" },
-      { left: "Nikog ne zanima", right: "Svako ima stav" },
-      { left: "Slobodno priznaj", right: "Ponesi u grob" },
-      { left: "Crvena zastavica", right: "Zelena zastavica" },
-      { left: "Kao i svi", right: "Originalno" },
-      { left: "Prostački", right: "Otmeno" },
-      { left: "Pošteno", right: "Nepošteno" },
-      { left: "Bezazleno", right: "Uvredljivo" },
-      { left: "Detinjasto", right: "Ozbiljno" },
-      { left: "Prevaziđeno", right: "Ne stari" },
-      { left: "Vidi se trud", right: "Ide mu samo od sebe" },
-      { left: "Faza", right: "Cela ličnost" },
-    ],
-  },
-  {
-    name: "Hrana i piće",
-    spectrums: [
-      { left: "Nezdravo", right: "Zdravo" },
-      { left: "Užina", right: "Ceo obrok" },
-      { left: "Bljutavo", right: "Ljuto" },
-      { left: "Doručak", right: "Večera" },
-      { left: "Jedeš sam", right: "Deliš sa svima" },
-      { left: "Sa kioska", right: "Iz otmenog restorana" },
-      { left: "Deca obožavaju", right: "Samo za odrasle" },
-      { left: "Bolje hladno", right: "Bolje vruće" },
-      { left: "Tužan ručak na poslu", right: "Za slavlje" },
-      { left: "Traži viljušku", right: "Jede se rukama" },
-      { left: "Svaki dan", right: "Jednom godišnje" },
-      { left: "Razočaranje", right: "Vredi priče" },
-      { left: "Lagano", right: "Teško u stomaku" },
-      { left: "Čudna kombinacija", right: "Podrazumeva se" },
-      { left: "Jeftino veče kod kuće", right: "Skup izlazak" },
-    ],
-  },
-  {
-    name: "Ljudi",
-    spectrums: [
-      { left: "Povučen", right: "Duša od čoveka" },
-      { left: "Naporna navika", right: "Simpatična navika" },
-      { left: "Loš prvi utisak", right: "Odličan prvi utisak" },
-      { left: "Zaboravio bi te", right: "Pamtio bi te zauvek" },
-      { left: "Ne ide na žurke", right: "Nosi celu žurku" },
-      { left: "Užasan savet", right: "Odličan savet" },
-      { left: "Izdao bi te", right: "Stao bi pred metak" },
-      { left: "Neuredan", right: "Bolesno uredan" },
-      { left: "Uvek kasni", right: "Dolazi prerano" },
-      { left: "Čuva tajnu", right: "Ispriča svima" },
-      { left: "Smiruje svađu", right: "Zapodene svađu" },
-      { left: "Poštuje pravila", right: "Krši svako pravilo" },
-      { left: "Loše laže", right: "Zabrinjavajuće ubedljiv" },
-      { left: "Nezahtevan", right: "Zahtevan" },
-      { left: "Odgovori odmah", right: "Javi se za nedelju dana" },
-    ],
-  },
-  {
-    name: "Rizik",
-    spectrums: [
-      { left: "Nije strašno", right: "Užasavajuće" },
+      { left: "Malo", right: "Ogromno" },
+      { left: "Ružno", right: "Lepo" },
+      { left: "Beskorisno", right: "Neophodno" },
+      { left: "Obično", right: "Čudno" },
       { left: "Bezbedno", right: "Opasno" },
-      { left: "Malo nervira", right: "Upropasti ti dan" },
-      { left: "Legalno", right: "Vrlo nelegalno" },
-      { left: "Preživeo bih", right: "Nema šanse" },
-      { left: "Sitan problem", right: "Zovi nekoga" },
-      { left: "Odvratno", right: "Ma nije strašno" },
-      { left: "Sramota", right: "Niko ne bi primetio" },
-      { left: "Vredi rizika", right: "Nikad ne vredi" },
-      { left: "Ne boli", right: "Agonija" },
-      { left: "Može da se popravi", right: "Gotovo je zauvek" },
-      { left: "Razuman strah", right: "Nerazuman strah" },
-      { left: "Svi to rade", right: "Niko ne priznaje" },
-      { left: "Neprijatno", right: "Stvarno uznemirujuće" },
-      { left: "Loša ideja", right: "Odlična ideja" },
-    ],
-  },
-  {
-    name: "Filmovi i muzika",
-    spectrums: [
-      { left: "Užasan film", right: "Remek-delo" },
-      { left: "Gledaš sam", right: "Gledaš sa svima" },
-      { left: "Preskoči", right: "Gledaj dvaput" },
-      { left: "Muzika u pozadini", right: "Sedneš i slušaš" },
-      { left: "Pesma za spremanje", right: "Pesma za plakanje" },
-      { left: "Niko je ne zna", right: "Svi je znaju" },
-      { left: "Loš izbor za karaoke", right: "Savršena za karaoke" },
-      { left: "Otrcano", right: "Stvarno dirljivo" },
-      { left: "Za decu", right: "Za odrasle" },
-      { left: "Loše ostario", right: "Ne stari" },
-      { left: "Vuče na nastavak", right: "Lepo se završi" },
-      { left: "Utišaj", right: "Pojačaj" },
-      { left: "Slušaš u tajnosti", right: "Staviš na plejlistu" },
-      { left: "Polako te uhvati", right: "Odmah te kupi" },
-      { left: "Zaboraviš je", right: "Danima ti se vrti" },
-    ],
-  },
-  {
-    name: "Kuća i posao",
-    spectrums: [
-      { left: "Uradi odmah", right: "Odlaži zauvek" },
-      { left: "Niko ne primeti", right: "Prvo što se vidi" },
-      { left: "Baci", right: "Čuvaj zauvek" },
-      { left: "Uradi sam", right: "Zovi majstora" },
-      { left: "Pet minuta posla", right: "Ode ti vikend" },
-      { left: "Sitna popravka", right: "Košta bogatstvo" },
-      { left: "Može i bez toga", right: "Ne dolazi u obzir" },
-      { left: "Opušteno", right: "Zvanično" },
-      { left: "Može mejlom", right: "Mora poziv" },
-      { left: "Fioka sa svaštom", right: "Na vidnom mestu" },
-      { left: "Pozajmio bi", right: "Ne izlazi iz kuće" },
-      { left: "Nered", right: "Ukras" },
-      { left: "Ignoriši taj zvuk", right: "Idi odmah da vidiš" },
-      { left: "Normalna molba", right: "Čisti obraz" },
-      { left: "Može od kuće", right: "Mora uživo" },
-    ],
-  },
-  {
-    name: "Priroda i mesta",
-    spectrums: [
-      { left: "Video pa dosta", right: "Tu bih živeo" },
-      { left: "Klopka za turiste", right: "Skriveni dragulj" },
-      { left: "Unutra", right: "Napolju" },
-      { left: "Mirno", right: "Ludnica" },
-      { left: "Grad", right: "Selo" },
+      { left: "Nezdravo", right: "Zdravo" },
+      { left: "Staromodno", right: "Moderno" },
+      { left: "Prosto", right: "Komplikovano" },
       { left: "Hladno", right: "Vruće" },
-      { left: "Laka šetnja", right: "Ozbiljno planinarenje" },
-      { left: "Ružno", right: "Prelepo" },
-      { left: "Prazno", right: "Krcato" },
-      { left: "Jeftin odmor", right: "Košta bogatstvo" },
-      { left: "Za jedan dan", right: "Treba ti cela nedelja" },
-      { left: "Napravio čovek", right: "Netaknuto" },
-      { left: "Predaleko", right: "Iza ćoška" },
-      { left: "Lepše na slici", right: "Lepše uživo" },
-      { left: "Nema šta da se radi", right: "Nikad dosta vremena" },
+      { left: "Retko se viđa", right: "Na svakom ćošku" },
+      { left: "Za decu", right: "Za odrasle" },
+      { left: "Precenjeno", right: "Potcenjeno" },
+      { left: "Nervira", right: "Opušta" },
+      { left: "Prljavo", right: "Čisto" },
+      { left: "Slabo", right: "Jako" },
+      { left: "Zaboravi se", right: "Pamti se zauvek" },
+      { left: "Prostački", right: "Otmeno" },
+      { left: "Sam", right: "Pred svima" },
+      { left: "Svaki dan", right: "Jednom u životu" },
+      { left: "Lagano", right: "Teško" },
+      { left: "Neuredno", right: "Uredno" },
+      { left: "Ozbiljno", right: "Blesavo" },
+      { left: "Unutra", right: "Napolju" },
     ],
   },
 ];
