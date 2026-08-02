@@ -82,10 +82,11 @@ export default function FakerAnswersScreen({
 }
 
 const styles = StyleSheet.create({
+  // Screen already insets its content — see NetScreen's leaveButton.
   leaveButton: {
     position: "absolute",
     top: spacing.sm,
-    left: spacing.md,
+    left: 0,
     zIndex: 1,
     width: 38,
     height: 38,

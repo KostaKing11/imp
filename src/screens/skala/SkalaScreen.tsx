@@ -415,10 +415,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "900",
   },
+  // Screen already insets its content — see NetScreen's leaveButton.
   leaveButton: {
     position: "absolute",
     top: spacing.sm,
-    left: spacing.md,
+    left: 0,
     zIndex: 1,
     width: 40,
     height: 40,

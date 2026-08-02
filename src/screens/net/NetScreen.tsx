@@ -1102,10 +1102,13 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   // Solid, not see-through: it floats over scrolling content and a
   // transparent disc read as a smudge over whatever passed under it.
+  // Screen has already inset its content; another spacing.md on top of
+  // that pushed this button twice as far from the edge as the settings
+  // button opposite it, which read as the whole screen sitting off-centre.
   leaveButton: {
     position: "absolute",
     top: spacing.sm,
-    left: spacing.md,
+    left: 0,
     zIndex: 5,
     width: 40,
     height: 40,

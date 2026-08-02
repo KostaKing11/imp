@@ -413,10 +413,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm + 2,
   },
   winnerText: { fontSize: 16, fontWeight: "800" },
+  // Screen already insets its content — see NetScreen's leaveButton.
   leaveButton: {
     position: "absolute",
     top: spacing.sm,
-    left: spacing.md,
+    left: 0,
     zIndex: 1,
     width: 40,
     height: 40,
