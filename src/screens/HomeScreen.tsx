@@ -57,7 +57,7 @@ import GameSetup from "./setup/GameSetup";
 const MIN_PLAYERS = 3;
 
 // Height of the gradient that hides the scroll under the Start button.
-const FADE_HEIGHT = 44;
+const FADE_HEIGHT = 72;
 
 // The round ? / settings buttons in the header. Their own component so
 // each gets its own press spring — the app's tap feel should not stop at
@@ -464,8 +464,8 @@ const styles = StyleSheet.create({
   },
   logo: {
     // matches the artwork's 396x252 aspect
-    width: 140,
-    height: 89,
+    width: 116,
+    height: 74,
   },
   headerLine: {
     height: 1,
@@ -473,8 +473,10 @@ const styles = StyleSheet.create({
     marginHorizontal: -spacing.md,
     backgroundColor: colors.borderSoft,
   },
+  // Enough room under the last row that it scrolls clear of the start
+  // button rather than being chopped through the middle by it.
   scroll: {
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   chipWrap: {
     flexDirection: "row",
