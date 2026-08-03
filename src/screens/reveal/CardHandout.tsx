@@ -115,7 +115,6 @@ export default function CardHandout({
               <PlayerCard
                 name={p.name}
                 color={p.color}
-                note={done ? null : t("tapToReveal")}
                 dimmed={done}
                 disabled={done}
                 onPress={() => open(p)}
@@ -182,7 +181,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     transformOrigin: "left center",
   },
-  list: { gap: spacing.xs, paddingBottom: spacing.md },
+  // Centred, so a short roster does not leave the bottom half of
+  // the screen as a void under the last card.
+  list: {
+    flexGrow: 1,
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+  },
   check: { fontSize: 22, fontWeight: "900" },
   bottom: { paddingBottom: spacing.md },
   cardScreen: {
